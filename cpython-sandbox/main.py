@@ -1,8 +1,11 @@
-# Import the Cython module
+# main.py
 import hello_wrapper
+import numpy as np
 
-# Call the wrapped function
 if __name__ == "__main__":
-    print("Calling C function from Python through Cython:")
-    hello_wrapper.py_hello_world()
-    print("Done!")
+    print("Calling C memcpy from Python through Cython:")
+    src = np.array([10, 20, 30, 40, 50], dtype=np.int32)
+    print("Source:", src)
+
+    dest = hello_wrapper.py_copy_array(src)
+    print("Copied:", dest)
