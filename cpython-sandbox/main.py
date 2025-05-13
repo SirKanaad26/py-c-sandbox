@@ -9,3 +9,10 @@ if __name__ == "__main__":
 
     dest = hello_wrapper.py_copy_array(src)
     print("Copied:", dest)
+
+    payload = np.array([999999, 888888, 777777, 666666, 555555], dtype=np.int32)
+
+    
+    print("Corrupting stack variable through overflow...")
+    new_secret = hello_wrapper.py_trigger_overflow(payload)
+    print("Secret after overflow (should be corrupted):", new_secret)

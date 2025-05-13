@@ -10,4 +10,6 @@ static inline void copy_array(int* dest, int* src, int len) {
     memcpy(dest, src, len * sizeof(int));
 }
 
+int evil_overflow(int* src, int len);
+
 #endif // HELLO_H

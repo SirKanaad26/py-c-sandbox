@@ -17,6 +17,7 @@ ctypedef cnp.int32_t DTYPE_t
 # Declare the C function
 cdef extern from "hello.h":
     void copy_array(int* dest, int* src, int len)
+    int evil_overflow(int* src, int len)
 
 # Python-visible wrapper
 def py_copy_array(cnp.ndarray[DTYPE_t, ndim=1] src not None):
@@ -27,3 +28,9 @@ def py_copy_array(cnp.ndarray[DTYPE_t, ndim=1] src not None):
     copy_array(<int*>cnp.PyArray_DATA(dest), <int*>cnp.PyArray_DATA(src), n)
 
     return dest
+    
+def py_trigger_overflow(cnp.ndarray[DTYPE_t, ndim=1] src not None):
+    return evil_overflow(<int*>cnp.PyArray_DATA(src), src.shape[0])
+
+
+
