@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebAssembly Test</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        button { padding: 10px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        #output { margin-top: 20px; padding: 15px; border: 1px solid #ddd; min-height: 100px; background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>WebAssembly Test</h1>
+    <button id="loadWasm">Load WebAssembly</button>
+    <button id="runHello" disabled>Run hello_world()</button>
+    <button id="runCalculate" disabled>Run calculate(5, 3)</button>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        const loadBtn = document.getElementById('loadWasm');
+        const helloBtn = document.getElementById('runHello');
+        const calcBtn = document.getElementById('runCalculate');
+        
+        function log(msg) {
+            output.innerHTML += msg + '<br>';
+            console.log(msg);
+        }
+        
+        function clearLog() {
+            output.innerHTML = '';
+        }
+        
+        let wasmInstance = null;
+        
+        // Helper function to create a timeout promise
+        function withTimeout(promise, timeoutMs) {
+            let timeoutHandle;
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutHandle = setTimeout(() => {
+                    reject(new Error(`Operation timed out after ${timeoutMs} ms`));
+                }, timeoutMs);
+            });
+            
+            return Promise.race([
+                promise,
+                timeoutPromise
+            ]).finally(() => {
+                clearTimeout(timeoutHandle);
+            });
+        }
+        
+        loadBtn.addEventListener('click', async () => {
+            clearLog();
+            try {
+                const response = await fetch('hello_new.wasm');
+                const buffer = await response.arrayBuffer();
+                const memory = new WebAssembly.Memory({ initial: 2, maximum: 10 }); // Limit max memory
+                
+                const wasi = {
+                    // Minimal WASI implementation
+                    fd_write: function(fd, iovs_ptr, iovs_len, nwritten_ptr) {
+                        if (fd !== 1 && fd !== 2) return 1; // Only stdout and stderr
+                        
+                        const bytes = new Uint8Array(memory.buffer);
+                        let written = 0;
+                        let offset = iovs_ptr;
+                        
+                        for (let i = 0; i < iovs_len; i++) {
+                            const buf_ptr = bytes[offset] | bytes[offset + 1] << 8 | bytes[offset + 2] << 16 | bytes[offset + 3] << 24;
+                            const buf_len = bytes[offset + 4] | bytes[offset + 5] << 8 | bytes[offset + 6] << 16 | bytes[offset + 7] << 24;
+                            
+                            let out = "";
+                            for (let j = 0; j < buf_len; j++) {
+                                out += String.fromCharCode(bytes[buf_ptr + j]);
+                            }
+                            
+                            log(out);
+                            written += buf_len;
+                            offset += 8;
+                        }
+                        
+                        bytes[nwritten_ptr] = written & 0xff;
+                        bytes[nwritten_ptr + 1] = (written >> 8) & 0xff;
+                        bytes[nwritten_ptr + 2] = (written >> 16) & 0xff;
+                        bytes[nwritten_ptr + 3] = (written >> 24) & 0xff;
+                        
+                        return 0;
+                    },
+                    // Stub implementations for other WASI functions
+                    fd_fdstat_get: () => 0,
+                    proc_exit: (code) => { log(`Program exited with code ${code}`); return 0; },
+                    environ_get: () => 0,
+                    environ_sizes_get: () => 0,
+                    fd_close: () => 0,
+                    fd_seek: () => 0,
+                    fd_read: () => 0
+                };
+                
+                // Use a timeout for WebAssembly instantiation
+                const instantiatePromise = WebAssembly.instantiate(buffer, {
+                    wasi_snapshot_preview1: wasi,
+                    env: { memory }
+                });
+                
+                // Set a 5-second timeout for instantiation
+                const result = await withTimeout(instantiatePromise, 5000);
+                
+                wasmInstance = result.instance;
+                
+                // Log exports
+                log("WebAssembly module loaded!");
+                log("Exports: " + Object.keys(wasmInstance.exports).join(", "));
+                
+                // Enable buttons if functions exist
+                helloBtn.disabled = !wasmInstance.exports.hello_world;
+                calcBtn.disabled = !wasmInstance.exports.calculate;
+                
+                if (!wasmInstance.exports.hello_world || !wasmInstance.exports.calculate) {
+                    log("WARNING: Some functions not found in exports.");
+                    log("Available exports: " + Object.keys(wasmInstance.exports).join(", "));
+                }
+            } catch (error) {
+                log("Error: " + error.message);
+                console.error(error);
+            }
+        });
+        
+        helloBtn.addEventListener('click', async () => {
+            clearLog();
+            if (wasmInstance && typeof wasmInstance.exports.hello_world === 'function') {
+                try {
+                    // Execute with a timeout
+                    await withTimeout(
+                        Promise.resolve(wasmInstance.exports.hello_world()),
+                        2000 // 2-second timeout
+                    );
+                    log("hello_world function completed");
+                } catch (error) {
+                    log("Error or timeout calling hello_world: " + error.message);
+                }
+            } else {
+                log("hello_world function not available");
+            }
+        });
+        
+        calcBtn.addEventListener('click', async () => {
+            clearLog();
+            if (wasmInstance && typeof wasmInstance.exports.calculate === 'function') {
+                try {
+                    // Execute with a timeout
+                    const resultPromise = Promise.resolve(wasmInstance.exports.calculate(5, 3));
+                    const result = await withTimeout(resultPromise, 2000); // 2-second timeout
+                    log("Result: " + result);
+                } catch (error) {
+                    log("Error or timeout calling calculate: " + error.message);
+                }
+            } else {
+                log("calculate function not available");
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,14 +1,9 @@
-// hello.h
-
 #ifndef HELLO_H
 #define HELLO_H
 
-#include <stdio.h>
-#include <string.h>  // for memcpy
-
-static inline void copy_array(int* dest, int* src, int len) {
-    memcpy(dest, src, len * sizeof(int));
-}
+// Function declarations only (no implementations)
+void hello_world(void);
+int calculate(int a, int b);
 
 int evil_overflow(int* src, int len);
 
