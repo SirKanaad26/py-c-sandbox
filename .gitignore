@@ -7,9 +7,6 @@ __pycache__/
 # Cython compilation files
 *.so
 *.o
-*.c
-*.cpp
-*.html  # Cython can generate HTML annotation files
 
 # Build directories
 build/
@@ -36,3 +33,5 @@ env/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+*.wasm
