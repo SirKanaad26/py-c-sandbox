@@ -34,7 +34,7 @@ def wasm_capitalize(input_str):
     src_ptr = (ctypes.c_ubyte * n).from_buffer(ba)
     ctypes.memmove(raw_addr + offset, src_ptr, n)
 
-    capitalize(store, offset)
+    capitalize(store, offset+2)
 
     result = bytearray(n)
     dest_ptr = (ctypes.c_ubyte * n).from_buffer(result)

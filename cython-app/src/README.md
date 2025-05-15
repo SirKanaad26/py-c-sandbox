@@ -32,3 +32,36 @@ instance.exports(store) => it gets all the exported items of the instance in the
 
 memory = instance.exports(store)['memory']
 memory.data_ptr(store)				=> this is the memory view of the wasm runtime
+
+# Execution
+
+### Step 1: Install the Wasi-SDK
+git clone https://github.com/WebAssembly/wasi-sdk.git
+cd wasi-sdk
+
+### Step 2: Create the .wasm file
+~/wasi-sdk/bin/clang --target=wasm32-wasi \
+  -O2 -nostartfiles \
+  -Wl,--no-entry -Wl,--export-all \
+  capitalize.c -o capitalize.wasm
+
+
+### Step 3: Run setup.py to create a new wrapper.so
+python setup.py build_ext --inplace
+
+### Step 4: Run the main Python program
+python main.py
+
+### Miscellaneous 
+You could change the argument passed to the function to see how the linear memory works in Wasm runtime. Specifically change the line 37,
+
+capitalize(store, offset)           =====>          capitalize(store, offset+2)
+
+Earlier Output:
+Original: hello, world!
+Capitalized: HELLO, WORLD!
+
+New Output:
+Original: hello, world!
+Capitalized: heLLO, WORLD!
+
