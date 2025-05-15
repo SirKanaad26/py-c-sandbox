@@ -1,0 +1,8 @@
+python setup.py build_ext --inplace
+~/wasi-sdk/bin/clang --target=wasm32-wasi \
+  -O2 -nostartfiles \
+  -Wl,--no-entry -Wl,--export-all \
+  capitalize.c -o capitalize.wasm
+
+git clone https://github.com/WebAssembly/wasi-sdk.git
+cd wasi-sdk

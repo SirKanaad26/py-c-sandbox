@@ -4,7 +4,7 @@ import numpy  # <-- Needed for numpy.get_include()
 
 ext_module = Extension(
     "hello_wrapper",
-    sources=["hello_wrapper.pyx","hello.c"],
+    sources=["hello_wrapper.pyx","hello.h"],
     extra_compile_args=["/Od", "/GS-"],  # MSVC flags
     include_dirs=[".", numpy.get_include()]  # <-- Fix: Add NumPy headers
 )

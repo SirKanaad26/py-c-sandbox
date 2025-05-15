@@ -1,13 +1,10 @@
 #include <stdio.h>
 #include <ctype.h>
+#include "capitalize.h"
 
 void capitalize(char* str) {
-    if (str == NULL) return;
-
     while (*str) {
-        if (islower(*str)) {
-            *str = toupper(*str);
-        }
+        *str = toupper(*str);
         str++;
     }
 }
