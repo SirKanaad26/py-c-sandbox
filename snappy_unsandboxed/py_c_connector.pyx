@@ -1,4 +1,4 @@
-cdef extern from "snappy/snappy_wrapper.h":
+cdef extern from "snappy/snappy_wrapper.cc":
     size_t cython_MaxCompressedLength(size_t source_bytes)
 
 cdef class CythonClass:
