@@ -128,23 +128,6 @@ size_t CompressFromPtr(const char* input_ptr, size_t input_length, char* output_
     return Compress(input_ptr, input_length, output_ptr, max_output_length);
 }
 
-// Export the IsValidCompressed function from the real Snappy library
-EXPORT
-bool IsValidCompressed(const char* compressed, size_t compressed_length) {
-    // Create a Source from the raw data
-    snappy::Source* source = new snappy::ByteArraySource(compressed, compressed_length);
-    bool result = snappy::IsValidCompressed(source);
-    delete source;
-    return result;
-}
-
-// Wrapper function for IsValidCompressed that works with WASM memory pointers
-EXPORT
-int IsValidCompressedFromPtr(const char* compressed_ptr, size_t compressed_length) {
-    bool valid = IsValidCompressed(compressed_ptr, compressed_length);
-    return valid ? 1 : 0; // Return 1 for valid, 0 for invalid
-}
-
 // Export memory allocation functions for managing WASM memory from Python
 EXPORT
 void* AllocateMemory(size_t size) {
@@ -170,7 +153,7 @@ void ReadFromMemory(const void* src, char* dest, size_t size) {
 
 EXPORT
 int GetVersion() {
-    return 4; // Version 4 - now includes IsValidCompressed function
+    return 3; // Version 3 - now includes Compress function
 }
 EOF
 
@@ -196,7 +179,7 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_IsValidCompressed", "_IsValidCompressedFromPtr", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
      -DHAVE_SYS_UIO_H=0 \
      -DHAVE_UNISTD_H=1 \
@@ -237,10 +220,4 @@ echo ""
 echo "🎉 Successfully built WASM from actual Snappy source files!"
 echo "📦 Output: snappy_direct.wasm"
 echo "🧬 This uses the unmodified Google Snappy source code"
-echo "📋 Available functions:"
-echo "   - MaxCompressedLength(size_t) -> size_t"
-echo "   - GetUncompressedLength(ptr, size, result_ptr) -> bool"
-echo "   - Compress(input_ptr, input_size, output_ptr, max_output) -> size_t"
-echo "   - IsValidCompressed(data_ptr, size) -> bool"
-echo "   - Memory management functions"
 echo "💡 Test with: python test_snappy_source.py"
