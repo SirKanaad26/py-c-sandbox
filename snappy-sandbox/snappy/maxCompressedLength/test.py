@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+"""
+Test the WASM built directly from Google's actual Snappy source files
+Including both MaxCompressedLength and GetUncompressedLength
+"""
+
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func, FuncType, ValType
@@ -30,7 +36,7 @@ def create_wasm_imports(store):
 class SnappyWasmDirect:
     """Wrapper for Snappy WASM built from actual source files"""
     
-    def __init__(self, wasm_path="../wasm/snappy.wasm"):
+    def __init__(self, wasm_path="snappy_direct.wasm"):
         if not os.path.exists(wasm_path):
             raise FileNotFoundError(f"WASM file not found: {wasm_path}")
         
@@ -60,7 +66,7 @@ class SnappyWasmDirect:
                     # Create a dummy function for unknown imports
                     if hasattr(imp.type, 'params') and hasattr(imp.type, 'results'):
                         # It's a function type
-                        dummy = Func(self.store, imp.type, lambda *args: 0 if len(imp.type.results) > 0 else None)
+                        dummy = Func(store, imp.type, lambda *args: 0 if len(imp.type.results) > 0 else None)
                         import_list.append(dummy)
                     else:
                         raise Exception(f"Unknown import type for {imp.module}.{imp.name}: {imp.type}")
@@ -155,7 +161,7 @@ class SnappyWasmDirect:
             # Write input data to WASM memory
             memory_data = self.memory.data_ptr(self.store)
             memory_data[input_ptr:input_ptr + len(input_data)] = input_data
-            print("heellllllllllooooooooo")
+            
             # Call Compress function
             func = self.exports["CompressFromPtr"]
             compressed_size = func(self.store, input_ptr, len(input_data), output_ptr, max_compressed_size)
@@ -387,3 +393,7 @@ def test_snappy_direct_wasm():
             print(f"  Compress performance test failed: {e}")
     
     print(f"\n🎉 Test completed!")
+
+
+if __name__ == "__main__":
+    test_snappy_direct_wasm()
