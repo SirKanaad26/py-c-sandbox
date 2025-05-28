@@ -79,3 +79,33 @@ class SnappyWasm:
         ctypes.memmove(result_array, raw_addr + output_offset, compressed_len)
 
         return bytes(result)
+    
+    def get_uncompressed_length(self, compressed_data: bytes) -> int:
+        """Get uncompressed length from compressed data using raw memory copy via ctypes"""
+        if not self.memory:
+            raise RuntimeError("Memory not available - cannot use GetUncompressedLength")
+
+        func = self.exports.get("GetUncompressedLengthFromPtr")
+        if not func:
+            raise RuntimeError("GetUncompressedLengthFromPtr not found")
+
+        # Prepare offsets
+        input_len = len(compressed_data)
+        input_offset = 0
+        result_offset = input_len + 1024  # leave room after the input
+
+        # Copy compressed_data into WASM memory
+        src_array = (ctypes.c_ubyte * input_len).from_buffer_copy(compressed_data)
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+        ctypes.memmove(raw_addr + input_offset, src_array, input_len)
+
+        # Call the WASM function
+        success = func(self.store, input_offset, input_len, result_offset)
+        if not success:
+            raise ValueError("Failed to get uncompressed length - invalid compressed data")
+
+        # Read back the 8-byte result
+        result_buf = (ctypes.c_ubyte * 4)()
+        ctypes.memmove(result_buf, raw_addr + result_offset, 4)
+        return struct.unpack('<I', bytes(result_buf))[0]
