@@ -1,8 +1,8 @@
 
-from snappywasm.core import SnappyWasmDirect
+from snappywasm.core import SnappyWasm
 
 def main():
-    snappy = SnappyWasmDirect(wasm_path="snappy.wasm")
+    snappy = SnappyWasm()
     data = b"hello world " * 10
     compressed = snappy.compress(data)
     print("Compressed Length:", len(compressed))

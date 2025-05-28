@@ -3,9 +3,10 @@ import os
 import struct
 from wasmtime import Store, Module, Instance, Func
 from .utils import create_wasm_imports
+import ctypes
 
-class SnappyWasmDirect:
-    def __init__(self, wasm_path="snappy.wasm"):
+class SnappyWasm:
+    def __init__(self, wasm_path="snappywasm/wasm/snappy.wasm"):
         if not os.path.exists(wasm_path):
             raise FileNotFoundError(f"WASM file not found: {wasm_path}")
 
@@ -38,6 +39,7 @@ class SnappyWasmDirect:
         if not func:
             raise RuntimeError("MaxCompressedLength not found")
         return func(self.store, source_length)
+    
 
     def compress(self, input_data: bytes) -> bytes:
         if not self.memory:
@@ -48,14 +50,32 @@ class SnappyWasmDirect:
             raise RuntimeError("CompressFromPtr not found")
 
         max_out_len = self.max_compressed_length(len(input_data))
-        input_ptr = 1024
-        output_ptr = input_ptr + len(input_data) + 16
+        input_len = len(input_data)
 
-        memory_data = self.memory.data_ptr(self.store)
-        memory_data[input_ptr:input_ptr + len(input_data)] = input_data
+        # Define offset to write input and output
+        input_offset = 0
+        output_offset = input_len + 1024  # leave a gap to prevent overwrite
 
-        compressed_len = func(self.store, input_ptr, len(input_data), output_ptr, max_out_len)
-        if compressed_len == 0:
+        # Convert input to byte array
+        src_array = (ctypes.c_ubyte * input_len).from_buffer_copy(input_data)
+
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        # Copy input data into WASM memory
+        ctypes.memmove(raw_addr + input_offset, src_array, input_len)
+
+        # Call compress function
+        compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
+        if compressed_len <= 0:
             raise RuntimeError("Compression failed")
 
-        return bytes(memory_data[output_ptr:output_ptr + compressed_len])
+        # Allocate output buffer
+        result = bytearray(compressed_len)
+        result_array = (ctypes.c_ubyte * compressed_len).from_buffer(result)
+
+        # Copy back compressed result
+        ctypes.memmove(result_array, raw_addr + output_offset, compressed_len)
+
+        return bytes(result)
