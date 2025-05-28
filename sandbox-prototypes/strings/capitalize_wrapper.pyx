@@ -1,10 +1,15 @@
-# capitalize_wrapper.pyx
-from libc.string cimport strcpy
-cdef extern from "capitalize.h":
-    void capitalize(char* str)
+# cython: language_level=3
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../sandbox/src")))
+from sandbox import CythonSandbox
 
-def py_capitalize(str input_str):
-    cdef bytearray ba = bytearray(input_str, 'utf-8')  # Mutable byte buffer
-    cdef char* c_str = ba  # Safe: bytearray memory is stable and writable
-    capitalize(c_str)
-    return ba.decode('utf-8')
+
+
+wasm_path = os.path.join(os.path.dirname(__file__), "capitalize.wasm")
+sandbox = CythonSandbox(wasm_path)
+sandbox.create_sandbox()
+
+def cy_capitalize(str input_str):
+    tainted_result = sandbox.invoke_function("capitalize", input_str)
+    return tainted_result.copy_and_verify(lambda s: s if s.isupper() else None)
