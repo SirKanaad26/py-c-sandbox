@@ -9,7 +9,8 @@
         "language": "c",
         "name": "capitalize_wrapper",
         "sources": [
-            "wasm_capitalize_wrapper.pyx"
+            "wasm_capitalize_wrapper.pyx",
+            "capitalize.c"
         ]
     },
     "module_name": "capitalize_wrapper"
