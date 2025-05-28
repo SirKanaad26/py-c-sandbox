@@ -35,4 +35,3 @@ env/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 .DS_Store
-*.wasm
