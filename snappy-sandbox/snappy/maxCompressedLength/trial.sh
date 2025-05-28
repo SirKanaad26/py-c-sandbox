@@ -77,6 +77,8 @@ echo ""
 cat > wasm_wrapper.cc << 'EOF'
 // WASM wrapper for Google Snappy - uses actual source files
 #include "snappy.h"
+#include <string>
+#include <cstring>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -104,6 +106,28 @@ int GetUncompressedLengthFromPtr(const char* compressed_ptr, size_t compressed_l
     return success ? 1 : 0; // Return 1 for success, 0 for failure
 }
 
+// Export the Compress function from the real Snappy library
+EXPORT
+size_t Compress(const char* input, size_t input_length, char* compressed_output, size_t max_compressed_length) {
+    std::string compressed;
+    size_t compressed_size = snappy::Compress(input, input_length, &compressed);
+    
+    // Check if output buffer is large enough
+    if (compressed_size > max_compressed_length) {
+        return 0; // Error: output buffer too small
+    }
+    
+    // Copy compressed data to output buffer
+    std::memcpy(compressed_output, compressed.data(), compressed_size);
+    return compressed_size;
+}
+
+// Wrapper function that works with WASM memory pointers
+EXPORT
+size_t CompressFromPtr(const char* input_ptr, size_t input_length, char* output_ptr, size_t max_output_length) {
+    return Compress(input_ptr, input_length, output_ptr, max_output_length);
+}
+
 // Export memory allocation functions for managing WASM memory from Python
 EXPORT
 void* AllocateMemory(size_t size) {
@@ -115,9 +139,21 @@ void FreeMemory(void* ptr) {
     free(ptr);
 }
 
+// Utility function to copy data into WASM memory (for testing)
+EXPORT
+void WriteToMemory(void* dest, const char* src, size_t size) {
+    std::memcpy(dest, src, size);
+}
+
+// Utility function to read data from WASM memory (for testing)
+EXPORT
+void ReadFromMemory(const void* src, char* dest, size_t size) {
+    std::memcpy(dest, src, size);
+}
+
 EXPORT
 int GetVersion() {
-    return 2; // Version 2 - now includes GetUncompressedLength
+    return 3; // Version 3 - now includes Compress function
 }
 EOF
 
@@ -143,7 +179,7 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_AllocateMemory", "_FreeMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
      -DHAVE_SYS_UIO_H=0 \
      -DHAVE_UNISTD_H=1 \
