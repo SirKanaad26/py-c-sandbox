@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+"""
+Test the WASM built directly from Google's actual Snappy source files
+Including both MaxCompressedLength and GetUncompressedLength
+"""
+
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func, FuncType, ValType
@@ -30,7 +36,7 @@ def create_wasm_imports(store):
 class SnappyWasmDirect:
     """Wrapper for Snappy WASM built from actual source files"""
     
-    def __init__(self, wasm_path="../wasm/snappy.wasm"):
+    def __init__(self, wasm_path="snappy_direct.wasm"):
         if not os.path.exists(wasm_path):
             raise FileNotFoundError(f"WASM file not found: {wasm_path}")
         
@@ -60,7 +66,7 @@ class SnappyWasmDirect:
                     # Create a dummy function for unknown imports
                     if hasattr(imp.type, 'params') and hasattr(imp.type, 'results'):
                         # It's a function type
-                        dummy = Func(self.store, imp.type, lambda *args: 0 if len(imp.type.results) > 0 else None)
+                        dummy = Func(store, imp.type, lambda *args: 0 if len(imp.type.results) > 0 else None)
                         import_list.append(dummy)
                     else:
                         raise Exception(f"Unknown import type for {imp.module}.{imp.name}: {imp.type}")
@@ -155,7 +161,7 @@ class SnappyWasmDirect:
             # Write input data to WASM memory
             memory_data = self.memory.data_ptr(self.store)
             memory_data[input_ptr:input_ptr + len(input_data)] = input_data
-            print("heellllllllllooooooooo")
+            
             # Call Compress function
             func = self.exports["CompressFromPtr"]
             compressed_size = func(self.store, input_ptr, len(input_data), output_ptr, max_compressed_size)
@@ -225,6 +231,54 @@ def test_snappy_direct_wasm():
         print(f"❌ Failed to load WASM module: {e}")
         return
     
+    print("🗜️  Testing WASM Built from Actual Snappy Source Files")
+    print("=" * 60)
+    
+    print(f"📋 Version: {snappy.get_version()}")
+    print()
+    
+    # Test MaxCompressedLength
+    print("📏 Testing MaxCompressedLength:")
+    test_sizes = [0, 10, 100, 1000, 10000, 100000]
+    
+    print(f"{'Input Size':>12} | {'Max Compressed':>14} | {'Overhead':>10} | {'Overhead %':>11}")
+    print("-" * 60)
+    
+    for size in test_sizes:
+        try:
+            max_size = snappy.max_compressed_length(size)
+            overhead = max_size - size
+            overhead_pct = (overhead / size * 100) if size > 0 else 0
+            
+            print(f"{size:12,} | {max_size:14,} | {overhead:10,} | {overhead_pct:10.1f}%")
+        except Exception as e:
+            print(f"{size:12,} | {'ERROR':>14} | {'N/A':>10} | {'N/A':>11}")
+            print(f"    Error: {e}")
+    
+    # Test GetUncompressedLength if available
+    if snappy.memory and "GetUncompressedLengthFromPtr" in snappy.exports:
+        print(f"\n📖 Testing GetUncompressedLength:")
+        print(f"{'Original Size':>14} | {'Retrieved Size':>15} | {'Mock Data Size':>15} | {'Status':>8}")
+        print("-" * 65)
+        
+        test_uncompressed_sizes = [0, 10, 50, 100, 1000]
+        
+        for original_size in test_uncompressed_sizes:
+            try:
+                # Create mock Snappy data
+                mock_compressed = snappy.create_mock_snappy_data(original_size)
+                
+                # Try to get uncompressed length
+                retrieved_size = snappy.get_uncompressed_length(mock_compressed)
+                
+                status = "✅ PASS" if retrieved_size == original_size else "❌ FAIL"
+                print(f"{original_size:14,} | {retrieved_size:15,} | {len(mock_compressed):15,} | {status:>8}")
+                
+            except Exception as e:
+                print(f"{original_size:14,} | {'ERROR':>15} | {'N/A':>15} | {'❌ FAIL':>8}")
+                print(f"    Error: {e}")
+    else:
+        print(f"\n⚠️  GetUncompressedLength not available in this build")
     
     # Test Compress function if available
     if snappy.memory and "CompressFromPtr" in snappy.exports:
@@ -339,3 +393,7 @@ def test_snappy_direct_wasm():
             print(f"  Compress performance test failed: {e}")
     
     print(f"\n🎉 Test completed!")
+
+
+if __name__ == "__main__":
+    test_snappy_direct_wasm()
