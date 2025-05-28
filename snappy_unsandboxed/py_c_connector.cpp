@@ -4,7 +4,10 @@
 {
     "distutils": {
         "depends": [
-            "snappy\\snappy_wrapper.h"
+            "snappy\\snappy_wrapper.cc"
+        ],
+        "extra_compile_args": [
+            "/std:c++14"
         ],
         "include_dirs": [
             "snappy"
@@ -12,7 +15,20 @@
         "language": "c++",
         "name": "cython_snappy",
         "sources": [
-            "py_c_connector.pyx"
+            "py_c_connector.pyx",
+            "snappy\\snappy-c.cc",
+            "snappy\\snappy-sinksource.cc",
+            "snappy\\snappy-stubs-internal.cc",
+            "snappy\\snappy-test.cc",
+            "snappy\\snappy.cc",
+            "snappy\\snappy_benchmark.cc",
+            "snappy\\snappy_compress_fuzzer.cc",
+            "snappy\\snappy_test_data.cc",
+            "snappy\\snappy_test_tool.cc",
+            "snappy\\snappy_uncompress_fuzzer.cc",
+            "snappy\\snappy_unittest.cc",
+            "snappy\\snappy_wrapper.cc",
+            "snappy_wrapper.cc"
         ]
     },
     "module_name": "cython_snappy"
@@ -1250,7 +1266,7 @@ static CYTHON_INLINE float __PYX_NAN() {
 #define __PYX_HAVE__cython_snappy
 #define __PYX_HAVE_API__cython_snappy
 /* Early includes */
-#include "snappy/snappy_wrapper.h"
+#include "snappy/snappy_wrapper.cc"
 #ifdef _OPENMP
 #include <omp.h>
 #endif /* _OPENMP */
@@ -4257,7 +4273,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "py_c_connector.pyx":1
- * cdef extern from "snappy/snappy_wrapper.h":             # <<<<<<<<<<<<<<
+ * cdef extern from "snappy/snappy_wrapper.cc":             # <<<<<<<<<<<<<<
  *     size_t cython_MaxCompressedLength(size_t source_bytes)
  * 
  */
