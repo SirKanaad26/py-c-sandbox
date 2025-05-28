@@ -15,6 +15,6 @@ ext_modules = [
 ]
 
 setup(
-    name="cython_snappy",
+    name="snappy",
     ext_modules=cythonize(ext_modules),
 )
