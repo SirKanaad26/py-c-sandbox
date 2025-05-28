@@ -3,7 +3,7 @@
 
 ## Overview
 
-The project in `cpython-sandbox/` project demonstrates the integration chain:
+The project in `cython-sandbox/` project demonstrates the integration chain:
 ```
 Python (main.py) → Cython (hello_wrapper.pyx) → C (hello.h)
 ```

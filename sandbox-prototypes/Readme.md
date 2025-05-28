@@ -1,3 +1,4 @@
+
 # WebAssembly C to WASM Compilation Guide
 
 This guide covers compiling C code to WebAssembly and running it both in the browser and via command-line tools.
@@ -71,3 +72,18 @@ python -m http.server
 ```
 
 Visit `http://localhost:8000` in your browser.
+
+# EMCC Installation
+brew install emcc
+emcc crash.c -o crash.wasm --no-entry
+gcc -shared -o crash.dylib -fPIC crash.c
+
+# WASI-SDK
+python setup.py build_ext --inplace
+~/wasi-sdk/bin/clang --target=wasm32-wasi \
+  -O2 -nostartfiles \
+  -Wl,--no-entry -Wl,--export-all \
+  capitalize.c -o capitalize.wasm
+
+git clone https://github.com/WebAssembly/wasi-sdk.git
+cd wasi-sdk
