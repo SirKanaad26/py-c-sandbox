@@ -3,6 +3,7 @@ import struct
 from wasmtime import Store, Module, Instance, Func
 from .utils import create_wasm_imports
 import ctypes
+from typing import List, Union
 
 class SnappyWasm:
     def __init__(self, wasm_path="snappywasm/wasm/snappy.wasm"):
@@ -114,6 +115,90 @@ class SnappyWasm:
         result_array = (ctypes.c_ubyte * compressed_len).from_buffer(result)
 
         # Copy back compressed result
+        ctypes.memmove(result_array, raw_addr + output_offset, compressed_len)
+
+        return bytes(result)
+
+    def compress_from_iovec(self, data_buffers: List[Union[bytes, bytearray]]) -> bytes:
+        """
+        Compress data from multiple buffers using Snappy's CompressFromIOVec functionality.
+        
+        Args:
+            data_buffers: List of byte buffers to compress
+            
+        Returns:
+            Compressed data as bytes
+            
+        Raises:
+            RuntimeError: If compression fails or WASM function not available
+        """
+        if not self.memory:
+            raise RuntimeError("Memory not available")
+
+        func = self.exports.get("CompressFromIOVec")
+        if not func:
+            raise RuntimeError("CompressFromIOVec not found")
+
+        if not data_buffers:
+            return b''
+
+        # Calculate total input length and max compressed length
+        total_input_len = sum(len(buf) for buf in data_buffers)
+        max_out_len = self.max_compressed_length(total_input_len)
+        
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        # Memory layout:
+        # 1. iovec structures (each 8 bytes: 4 bytes ptr + 4 bytes len)
+        # 2. Data buffers
+        # 3. Output buffer
+        
+        iovec_count = len(data_buffers)
+        iovec_size = 8  # sizeof(struct iovec) in WASM (ptr + len)
+        iovec_array_size = iovec_count * iovec_size
+        
+        # Calculate offsets
+        iovec_offset = 0
+        data_start_offset = iovec_array_size + 64  # padding for alignment
+        output_offset = data_start_offset + total_input_len + 1024  # gap to prevent overwrite
+        
+        # Build iovec array and copy data
+        current_data_offset = data_start_offset
+        
+        for i, buffer in enumerate(data_buffers):
+            buffer_len = len(buffer)
+            iovec_entry_offset = iovec_offset + (i * iovec_size)
+            
+            # Write iovec structure (ptr, len) - both as 32-bit values in WASM
+            ptr_bytes = struct.pack('<I', current_data_offset)  # pointer (32-bit)
+            len_bytes = struct.pack('<I', buffer_len)           # length (32-bit)
+            
+            # Copy iovec entry to WASM memory
+            ptr_array = (ctypes.c_ubyte * 4).from_buffer_copy(ptr_bytes)
+            len_array = (ctypes.c_ubyte * 4).from_buffer_copy(len_bytes)
+            
+            ctypes.memmove(raw_addr + iovec_entry_offset, ptr_array, 4)
+            ctypes.memmove(raw_addr + iovec_entry_offset + 4, len_array, 4)
+            
+            # Copy buffer data to WASM memory
+            if buffer_len > 0:
+                buffer_array = (ctypes.c_ubyte * buffer_len).from_buffer_copy(buffer)
+                ctypes.memmove(raw_addr + current_data_offset, buffer_array, buffer_len)
+            
+            current_data_offset += buffer_len
+
+        # Call CompressFromIOVec function
+        # Function signature: size_t CompressFromIOVec(const struct iovec* iov, size_t iov_cnt, char* output, size_t output_len)
+        compressed_len = func(self.store, iovec_offset, iovec_count, output_offset, max_out_len)
+        
+        if compressed_len <= 0:
+            raise RuntimeError("IOVec compression failed")
+
+        # Read compressed result
+        result = bytearray(compressed_len)
+        result_array = (ctypes.c_ubyte * compressed_len).from_buffer(result)
         ctypes.memmove(result_array, raw_addr + output_offset, compressed_len)
 
         return bytes(result)
@@ -238,34 +323,82 @@ if __name__ == "__main__":
     print(f"Original: {original_data[:50]}...")
     print(f"Original length: {len(original_data)} bytes")
     
-    for level in compression_info["supported_levels"]:
-        print(f"\n--- Testing Compression Level {level} ---")
-        
-        compressed = snappy.compress(original_data, compression_level=level)
-        print(f"Compressed length (level {level}): {len(compressed)} bytes")
-        print(f"Compression ratio (level {level}): {(1 - len(compressed)/len(original_data))*100:.1f}%")
-        
-        is_valid = snappy.is_valid_compressed_buffer(compressed)
-        print(f"Compressed data is valid: {is_valid}")
-        
-        expected_length = snappy.get_uncompressed_length(compressed)
-        print(f"Expected uncompressed length: {expected_length} bytes")
-        
-        uncompressed = snappy.uncompress(compressed)
-        print(f"Uncompressed length: {len(uncompressed)} bytes")
-        
-        integrity_check = original_data == uncompressed
-        print(f"Data integrity check: {'PASS' if integrity_check else 'FAIL'}")
-        
-        if not integrity_check:
-            print(f"Original:     {original_data[:100]}")
-            print(f"Uncompressed: {uncompressed[:100]}")
+    # Test regular compression
+    print(f"\n--- Testing Regular Compression ---")
+    compressed = snappy.compress(original_data)
+    print(f"Compressed length: {len(compressed)} bytes")
+    print(f"Compression ratio: {(1 - len(compressed)/len(original_data))*100:.1f}%")
     
-    print(f"\n--- Testing Default Compression ---")
-    compressed_default = snappy.compress(original_data)
-    print(f"Default compressed length: {len(compressed_default)} bytes")
-    print(f"Default compression ratio: {(1 - len(compressed_default)/len(original_data))*100:.1f}%")
+    uncompressed = snappy.uncompress(compressed)
+    integrity_check = original_data == uncompressed
+    print(f"Data integrity check: {'PASS' if integrity_check else 'FAIL'}")
     
-    uncompressed_default = snappy.uncompress(compressed_default)
-    default_check = original_data == uncompressed_default
-    print(f"Default compression integrity: {'PASS' if default_check else 'FAIL'}")
+    # Test IOVec compression
+    print(f"\n--- Testing IOVec Compression ---")
+    
+    # Split the data into multiple buffers to test IOVec functionality
+    data_buffers = [
+        b"Hello, this is a test string for Snappy compression",
+        b" and decompression! ",
+        original_data[71:200],  # middle chunk
+        original_data[200:]     # remaining data
+    ]
+    
+    print(f"Number of buffers: {len(data_buffers)}")
+    print(f"Buffer sizes: {[len(buf) for buf in data_buffers]}")
+    print(f"Total size: {sum(len(buf) for buf in data_buffers)} bytes")
+    
+    try:
+        compressed_iovec = snappy.compress_from_iovec(data_buffers)
+        print(f"IOVec compressed length: {len(compressed_iovec)} bytes")
+        print(f"IOVec compression ratio: {(1 - len(compressed_iovec)/sum(len(buf) for buf in data_buffers))*100:.1f}%")
+        
+        is_valid = snappy.is_valid_compressed_buffer(compressed_iovec)
+        print(f"IOVec compressed data is valid: {is_valid}")
+        
+        uncompressed_iovec = snappy.uncompress(compressed_iovec)
+        reconstructed_data = b"".join(data_buffers)
+        iovec_integrity_check = reconstructed_data == uncompressed_iovec
+        print(f"IOVec data integrity check: {'PASS' if iovec_integrity_check else 'FAIL'}")
+        
+        # Compare with regular compression
+        regular_compressed = snappy.compress(reconstructed_data)
+        print(f"IOVec vs Regular size difference: {len(compressed_iovec) - len(regular_compressed)} bytes")
+        
+    except RuntimeError as e:
+        print(f"IOVec compression test failed: {e}")
+        print("Note: This may be expected if the WASM module doesn't include CompressFromIOVec")
+    
+    # Test edge cases
+    print(f"\n--- Testing Edge Cases ---")
+    
+    # Empty buffers
+    try:
+        empty_result = snappy.compress_from_iovec([])
+        print(f"Empty buffer list result: {len(empty_result)} bytes")
+    except RuntimeError as e:
+        print(f"Empty buffer list failed: {e}")
+    
+    # Single buffer (should behave like regular compression)
+    try:
+        single_buffer_result = snappy.compress_from_iovec([original_data])
+        single_uncompressed = snappy.uncompress(single_buffer_result)
+        single_check = original_data == single_uncompressed
+        print(f"Single buffer IOVec integrity: {'PASS' if single_check else 'FAIL'}")
+    except RuntimeError as e:
+        print(f"Single buffer IOVec failed: {e}")
+    
+    # Mixed buffer types
+    try:
+        mixed_buffers = [
+            b"bytes buffer",
+            bytearray(b"bytearray buffer"),
+            b"another bytes buffer"
+        ]
+        mixed_result = snappy.compress_from_iovec(mixed_buffers)
+        mixed_uncompressed = snappy.uncompress(mixed_result)
+        mixed_expected = b"".join(mixed_buffers)
+        mixed_check = mixed_expected == mixed_uncompressed
+        print(f"Mixed buffer types integrity: {'PASS' if mixed_check else 'FAIL'}")
+    except RuntimeError as e:
+        print(f"Mixed buffer types failed: {e}")
