@@ -80,6 +80,8 @@ cat > wasm_wrapper.cc << 'EOF'
 #include "snappy.h"
 #include <string>
 #include <cstring>
+#include <vector>
+#include <sys/uio.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -223,26 +225,23 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -s STANDALONE_WASM=1 \
      -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_Uncompress", "_UncompressFromPtr", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
-     -DHAVE_SYS_UIO_H=0 \
+     -DHAVE_SYS_UIO_H=1 \
      -DHAVE_UNISTD_H=1 \
-     -DSNAPPY_MAJOR=1 \
-     -DSNAPPY_MINOR=1 \
-     -DSNAPPY_PATCHLEVEL=9 \
      -O3 \
      --no-entry \
-     -o snappy_direct.wasm
+     -o snappy.wasm
 
-if [ -f "snappy_direct.wasm" ]; then
-    FILE_SIZE=$(stat -f%z snappy_direct.wasm 2>/dev/null || stat -c%s snappy_direct.wasm 2>/dev/null || echo "unknown")
+if [ -f "snappy.wasm" ]; then
+    FILE_SIZE=$(stat -f%z snappy.wasm 2>/dev/null || stat -c%s snappy.wasm 2>/dev/null || echo "unknown")
     echo "✅ WASM built from actual Snappy source files!"
     echo "📏 File size: $FILE_SIZE bytes"
     
     # Copy to parent directories for easy access
-    cp snappy_direct.wasm ../..
+    cp snappy.wasm ../..
     
     # Validate
     if command -v wasm-validate &> /dev/null; then
-        if wasm-validate snappy_direct.wasm; then
+        if wasm-validate snappy.wasm; then
             echo "✅ WASM validation passed!"
         fi
     fi
@@ -260,7 +259,7 @@ cd ../..
 
 echo ""
 echo "🎉 Successfully built WASM from actual Snappy source files!"
-echo "📦 Output: snappy_direct.wasm"
+echo "📦 Output: snappy.wasm"
 echo "🧬 This uses the unmodified Google Snappy source code"
 echo "📋 Available functions:"
 echo "   • MaxCompressedLength - Calculate max size needed for compression"
