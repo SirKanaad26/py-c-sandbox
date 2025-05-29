@@ -7,7 +7,7 @@ set -e
 echo "🔧 Building WASM from Real Snappy Source Files..."
 
 # Create build directory
-BUILD_DIR="snappy_direct_source"
+BUILD_DIR="snappy_source"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
@@ -80,6 +80,8 @@ cat > wasm_wrapper.cc << 'EOF'
 #include "snappy.h"
 #include <string>
 #include <cstring>
+#include <vector>
+#include <sys/uio.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -170,6 +172,176 @@ size_t UncompressFromPtr(const char* compressed_ptr, size_t compressed_length, c
     return Uncompress(compressed_ptr, compressed_length, output_ptr, max_output_length);
 }
 
+// Export the Compress function with CompressionOptions from the real Snappy library
+EXPORT
+size_t CompressWithOptions(const char* input, size_t input_length, char* compressed_output, size_t max_compressed_length, int compression_level) {
+    // Create CompressionOptions with the specified level
+    snappy::CompressionOptions options;
+    options.level = compression_level;
+    
+    std::string compressed;
+    size_t compressed_size = snappy::Compress(input, input_length, &compressed, options);
+    
+    // Check if output buffer is large enough
+    if (compressed_size > max_compressed_length) {
+        return 0; // Error: output buffer too small
+    }
+    
+    // Copy compressed data to output buffer
+    std::memcpy(compressed_output, compressed.data(), compressed_size);
+    return compressed_size;
+}
+
+// Wrapper function for CompressWithOptions that works with WASM memory pointers
+EXPORT
+size_t CompressWithOptionsFromPtr(const char* input_ptr, size_t input_length, char* output_ptr, size_t max_output_length, int compression_level) {
+    return CompressWithOptions(input_ptr, input_length, output_ptr, max_output_length, compression_level);
+}
+
+// Utility functions for CompressionOptions
+EXPORT
+int GetMinCompressionLevel() {
+    return snappy::CompressionOptions::MinCompressionLevel();
+}
+
+EXPORT
+int GetMaxCompressionLevel() {
+    return snappy::CompressionOptions::MaxCompressionLevel();
+}
+
+EXPORT
+int GetDefaultCompressionLevel() {
+    return snappy::CompressionOptions::DefaultCompressionLevel();
+}
+
+// Export CompressFromIOVec function from the real Snappy library
+// Note: This function takes multiple input buffers and compresses them as one stream
+EXPORT
+size_t CompressFromIOVec(const void* iov_ptr, size_t iov_cnt, char* compressed_output, size_t max_compressed_length) {
+    // Convert the WASM memory pointer to iovec structures
+    // Each iovec structure contains: void* iov_base, size_t iov_len
+    // In WASM (32-bit), each iovec is 8 bytes: 4 bytes ptr + 4 bytes len
+    
+    const uint32_t* iov_data = static_cast<const uint32_t*>(iov_ptr);
+    std::vector<struct iovec> iovecs(iov_cnt);
+    
+    // Convert WASM iovec format to native iovec format
+    for (size_t i = 0; i < iov_cnt; i++) {
+        uint32_t base_offset = iov_data[i * 2];     // iov_base as offset
+        uint32_t length = iov_data[i * 2 + 1];     // iov_len
+        
+        // Convert offset to actual pointer (assuming base of WASM memory)
+        iovecs[i].iov_base = reinterpret_cast<void*>(base_offset);
+        iovecs[i].iov_len = length;
+    }
+    
+    std::string compressed;
+    size_t compressed_size = snappy::CompressFromIOVec(iovecs.data(), iov_cnt, &compressed);
+    
+    // Check if output buffer is large enough
+    if (compressed_size > max_compressed_length) {
+        return 0; // Error: output buffer too small
+    }
+    
+    // Copy compressed data to output buffer
+    std::memcpy(compressed_output, compressed.data(), compressed_size);
+    return compressed_size;
+}
+
+// Simplified CompressFromIOVec that takes flattened buffer pointers and lengths
+// This is easier to use from WASM since it doesn't require complex iovec handling
+EXPORT
+size_t CompressFromBuffers(const char* buffer_ptr, const size_t* lengths_ptr, size_t buffer_count, 
+                          char* compressed_output, size_t max_compressed_length) {
+    // Create iovec structures from the flattened input
+    std::vector<struct iovec> iovecs(buffer_count);
+    size_t current_offset = 0;
+    
+    for (size_t i = 0; i < buffer_count; i++) {
+        iovecs[i].iov_base = const_cast<char*>(buffer_ptr + current_offset);
+        iovecs[i].iov_len = lengths_ptr[i];
+        current_offset += lengths_ptr[i];
+    }
+    
+    std::string compressed;
+    size_t compressed_size = snappy::CompressFromIOVec(iovecs.data(), buffer_count, &compressed);
+    
+    // Check if output buffer is large enough
+    if (compressed_size > max_compressed_length) {
+        return 0; // Error: output buffer too small
+    }
+    
+    // Copy compressed data to output buffer
+    std::memcpy(compressed_output, compressed.data(), compressed_size);
+    return compressed_size;
+}
+
+// CompressFromIOVec with CompressionOptions
+EXPORT
+size_t CompressFromIOVecWithOptions(const void* iov_ptr, size_t iov_cnt, char* compressed_output, 
+                                   size_t max_compressed_length, int compression_level) {
+    // Convert the WASM memory pointer to iovec structures
+    const uint32_t* iov_data = static_cast<const uint32_t*>(iov_ptr);
+    std::vector<struct iovec> iovecs(iov_cnt);
+    
+    // Convert WASM iovec format to native iovec format
+    for (size_t i = 0; i < iov_cnt; i++) {
+        uint32_t base_offset = iov_data[i * 2];     // iov_base as offset
+        uint32_t length = iov_data[i * 2 + 1];     // iov_len
+        
+        // Convert offset to actual pointer
+        iovecs[i].iov_base = reinterpret_cast<void*>(base_offset);
+        iovecs[i].iov_len = length;
+    }
+    
+    // Create CompressionOptions with the specified level
+    snappy::CompressionOptions options;
+    options.level = compression_level;
+    
+    std::string compressed;
+    size_t compressed_size = snappy::CompressFromIOVec(iovecs.data(), iov_cnt, &compressed, options);
+    
+    // Check if output buffer is large enough
+    if (compressed_size > max_compressed_length) {
+        return 0; // Error: output buffer too small
+    }
+    
+    // Copy compressed data to output buffer
+    std::memcpy(compressed_output, compressed.data(), compressed_size);
+    return compressed_size;
+}
+
+// Simplified version with CompressionOptions
+EXPORT
+size_t CompressFromBuffersWithOptions(const char* buffer_ptr, const size_t* lengths_ptr, size_t buffer_count,
+                                     char* compressed_output, size_t max_compressed_length, int compression_level) {
+    // Create iovec structures from the flattened input
+    std::vector<struct iovec> iovecs(buffer_count);
+    size_t current_offset = 0;
+    
+    for (size_t i = 0; i < buffer_count; i++) {
+        iovecs[i].iov_base = const_cast<char*>(buffer_ptr + current_offset);
+        iovecs[i].iov_len = lengths_ptr[i];
+        current_offset += lengths_ptr[i];
+    }
+    
+    // Create CompressionOptions with the specified level
+    snappy::CompressionOptions options;
+    options.level = compression_level;
+    
+    std::string compressed;
+    size_t compressed_size = snappy::CompressFromIOVec(iovecs.data(), buffer_count, &compressed, options);
+    
+    // Check if output buffer is large enough
+    if (compressed_size > max_compressed_length) {
+        return 0; // Error: output buffer too small
+    }
+    
+    // Copy compressed data to output buffer
+    std::memcpy(compressed_output, compressed.data(), compressed_size);
+    return compressed_size;
+}
+
 // Export memory allocation functions for managing WASM memory from Python
 EXPORT
 void* AllocateMemory(size_t size) {
@@ -195,7 +367,7 @@ void ReadFromMemory(const void* src, char* dest, size_t size) {
 
 EXPORT
 int GetVersion() {
-    return 5; // Version 5 - now includes Uncompress and IsValidCompressedBuffer functions
+    return 7; // Version 7 - now includes CompressFromIOVec functions
 }
 EOF
 
@@ -221,28 +393,25 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_Uncompress", "_UncompressFromPtr", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
-     -DHAVE_SYS_UIO_H=0 \
+     -DHAVE_SYS_UIO_H=1 \
      -DHAVE_UNISTD_H=1 \
-     -DSNAPPY_MAJOR=1 \
-     -DSNAPPY_MINOR=1 \
-     -DSNAPPY_PATCHLEVEL=9 \
      -O3 \
      --no-entry \
-     -o snappy_direct.wasm
+     -o snappy.wasm
 
-if [ -f "snappy_direct.wasm" ]; then
-    FILE_SIZE=$(stat -f%z snappy_direct.wasm 2>/dev/null || stat -c%s snappy_direct.wasm 2>/dev/null || echo "unknown")
+if [ -f "snappy.wasm" ]; then
+    FILE_SIZE=$(stat -f%z snappy.wasm 2>/dev/null || stat -c%s snappy.wasm 2>/dev/null || echo "unknown")
     echo "✅ WASM built from actual Snappy source files!"
     echo "📏 File size: $FILE_SIZE bytes"
     
     # Copy to parent directories for easy access
-    cp snappy_direct.wasm ../..
+    cp snappy.wasm ../..
     
     # Validate
     if command -v wasm-validate &> /dev/null; then
-        if wasm-validate snappy_direct.wasm; then
+        if wasm-validate snappy.wasm; then
             echo "✅ WASM validation passed!"
         fi
     fi
@@ -260,13 +429,17 @@ cd ../..
 
 echo ""
 echo "🎉 Successfully built WASM from actual Snappy source files!"
-echo "📦 Output: snappy_direct.wasm"
+echo "📦 Output: snappy.wasm"
 echo "🧬 This uses the unmodified Google Snappy source code"
 echo "📋 Available functions:"
 echo "   • MaxCompressedLength - Calculate max size needed for compression"
 echo "   • GetUncompressedLength / GetUncompressedLengthFromPtr - Get original size from compressed data"
-echo "   • Compress / CompressFromPtr - Compress data"
+echo "   • Compress / CompressFromPtr - Compress data (default compression level)"
+echo "   • CompressWithOptions / CompressWithOptionsFromPtr - Compress data with specific compression level"
+echo "   • CompressFromIOVec / CompressFromBuffers - Compress from multiple input buffers"
+echo "   • CompressFromIOVecWithOptions / CompressFromBuffersWithOptions - Compress from multiple buffers with compression level"
 echo "   • Uncompress / UncompressFromPtr - Decompress data"
 echo "   • IsValidCompressedBuffer / IsValidCompressedBufferInt - Validate compressed data"
+echo "   • GetMinCompressionLevel / GetMaxCompressionLevel / GetDefaultCompressionLevel - Compression level utilities"
 echo "   • Memory management utilities"
 echo "💡 Test with: python test_snappy_source.py"

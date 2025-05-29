@@ -19,9 +19,9 @@ def main():
 
     # Verify round‑trip
     if recovered_length == len(data):
-        print("✅ get_uncompressed_length matches original length")
+        print("get_uncompressed_length matches original length")
     else:
-        print("❌ Mismatch in recovered length!")
+        print("Mismatch in recovered length!")
 
 if __name__ == "__main__":
     main()

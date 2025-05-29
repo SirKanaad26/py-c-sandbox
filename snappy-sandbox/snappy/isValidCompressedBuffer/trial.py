@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Test script for Snappy WASM module with proper imports
-"""
-
 import wasmtime
 
 def create_wasi_imports(store):
@@ -48,10 +43,8 @@ def create_env_imports(store):
         'emscripten_notify_memory_growth': notify_func
     }
 
-def test_snappy_validation():
-    """Test the IsValidCompressedBuffer function in Snappy WASM module"""
-    
-    print("🧪 Testing Snappy WASM IsValidCompressedBuffer function...")
+def test_snappy_validation():    
+    print("Testing Snappy WASM IsValidCompressedBuffer function...")
     
     try:
         engine = wasmtime.Engine()
@@ -77,13 +70,13 @@ def test_snappy_validation():
         
         # Create instance with imports
         instance = wasmtime.Instance(store, module, imports)
-        print("✅ WASM module loaded successfully with imports!")
+        print("WASM module loaded successfully with imports!")
         
         # Initialize the module
         initialize = instance.exports(store).get("_initialize")
         if initialize:
             initialize(store)
-            print("✅ Module initialized")
+            print("Module initialized")
         
         # Get the functions we need
         get_version = instance.exports(store)["GetVersion"]
@@ -96,22 +89,22 @@ def test_snappy_validation():
         
         # Check version
         version = get_version(store)
-        print(f"📋 WASM module version: {version}")
+        print(f"WASM module version: {version}")
         
         if version < 4:
-            print("❌ This module doesn't have IsValidCompressedBuffer function")
+            print("This module doesn't have IsValidCompressedBuffer function")
             return
         
         # Test data
         test_string = "Hello, Snappy WASM! This is a test string for compression and validation."
         test_bytes = test_string.encode('utf-8')
         
-        print(f"📝 Test data: '{test_string}' ({len(test_bytes)} bytes)")
+        print(f"Test data: '{test_string}' ({len(test_bytes)} bytes)")
         
         # Allocate memory for input
         input_size = len(test_bytes)
         input_ptr = allocate_memory(store, input_size)
-        print(f"📍 Allocated input memory at: {input_ptr}")
+        print(f"Allocated input memory at: {input_ptr}")
         
         # Write test data to WASM memory
         for i, byte in enumerate(test_bytes):
@@ -120,30 +113,30 @@ def test_snappy_validation():
         # Get maximum compressed size and allocate output buffer
         max_compressed_size = max_compressed_length(store, input_size)
         output_ptr = allocate_memory(store, max_compressed_size)
-        print(f"📍 Allocated output memory at: {output_ptr} (max size: {max_compressed_size})")
+        print(f"Allocated output memory at: {output_ptr} (max size: {max_compressed_size})")
         
         # Compress the data
         compressed_size = compress_from_ptr(store, input_ptr, input_size, output_ptr, max_compressed_size)
         
         if compressed_size > 0:
-            print(f"✅ Compression successful! {input_size} bytes → {compressed_size} bytes")
+            print(f"Compression successful! {input_size} bytes → {compressed_size} bytes")
             
             # Test 1: Validate the properly compressed buffer
-            print("\n🔍 Test 1: Validating properly compressed data...")
+            print("\nTest 1: Validating properly compressed data...")
             print(f"   Calling IsValidCompressedBuffer(ptr={output_ptr}, length={compressed_size})")
             is_valid = is_valid_compressed_buffer(store, output_ptr, compressed_size)
             print(f"   Raw return value: {is_valid}")
-            print(f"   Result: {'✅ VALID' if is_valid == 1 else '❌ INVALID'}")
+            print(f"   Result: {'VALID' if is_valid == 1 else 'INVALID'}")
             
             # Test 2: Validate with wrong size (should be invalid)
-            print("\n🔍 Test 2: Validating with wrong size...")
+            print("\nTest 2: Validating with wrong size...")
             print(f"   Calling IsValidCompressedBuffer(ptr={output_ptr}, length={compressed_size - 5})")
             is_valid_wrong_size = is_valid_compressed_buffer(store, output_ptr, compressed_size - 5)
             print(f"   Raw return value: {is_valid_wrong_size}")
-            print(f"   Result: {'✅ VALID' if is_valid_wrong_size == 1 else '❌ INVALID'} (expected invalid)")
+            print(f"   Result: {'VALID' if is_valid_wrong_size == 1 else 'INVALID'} (expected invalid)")
             
             # Test 3: Create some garbage data and test validation
-            print("\n🔍 Test 3: Validating garbage data...")
+            print("\nTest 3: Validating garbage data...")
             garbage_ptr = allocate_memory(store, 20)
             garbage_data = b'\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13'
             for i, byte in enumerate(garbage_data):
@@ -152,14 +145,14 @@ def test_snappy_validation():
             print(f"   Calling IsValidCompressedBuffer(ptr={garbage_ptr}, length={len(garbage_data)})")
             is_valid_garbage = is_valid_compressed_buffer(store, garbage_ptr, len(garbage_data))
             print(f"   Raw return value: {is_valid_garbage}")
-            print(f"   Result: {'✅ VALID' if is_valid_garbage == 1 else '❌ INVALID'} (expected invalid)")
+            print(f"   Result: {'VALID' if is_valid_garbage == 1 else 'INVALID'} (expected invalid)")
             
             # Test 4: Test with zero-length data
-            print("\n🔍 Test 4: Validating zero-length data...")
+            print("\nTest 4: Validating zero-length data...")
             print(f"   Calling IsValidCompressedBuffer(ptr={output_ptr}, length=0)")
             is_valid_empty = is_valid_compressed_buffer(store, output_ptr, 0)
             print(f"   Raw return value: {is_valid_empty}")
-            print(f"   Result: {'✅ VALID' if is_valid_empty == 1 else '❌ INVALID'} (expected invalid)")
+            print(f"   Result: {'VALID' if is_valid_empty == 1 else 'INVALID'} (expected invalid)")
             
             # Cleanup
             free_memory(store, input_ptr)
@@ -168,22 +161,22 @@ def test_snappy_validation():
             print("\n🧹 Memory cleaned up")
             
         else:
-            print("❌ Compression failed!")
+            print("Compression failed!")
             free_memory(store, input_ptr)
             free_memory(store, output_ptr)
             return
         
-        print("\n🎉 All tests completed!")
-        print("\n📊 Summary:")
-        print("   • Test 1 (valid compressed data): Should be VALID ✅")
-        print("   • Test 2 (wrong size): Should be INVALID ❌") 
-        print("   • Test 3 (garbage data): Should be INVALID ❌")
-        print("   • Test 4 (zero length): Should be INVALID ❌")
+        print("\n All tests completed!")
+        print("\n Summary:")
+        print("   • Test 1 (valid compressed data): Should be VALID")
+        print("   • Test 2 (wrong size): Should be INVALID") 
+        print("   • Test 3 (garbage data): Should be INVALID")
+        print("   • Test 4 (zero length): Should be INVALID")
         
     except FileNotFoundError:
-        print("❌ snappy_direct.wasm not found! Make sure to build it first.")
+        print("snappy_direct.wasm not found! Make sure to build it first.")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
 

@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Test the WASM built directly from Google's actual Snappy source files
-Including both MaxCompressedLength and GetUncompressedLength
-"""
-
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func, FuncType, ValType
@@ -48,13 +42,11 @@ class SnappyWasmDirect:
         
         module = Module(self.store.engine, wasm_bytes)
         
-        # Check what imports the module needs
         imports_needed = module.imports
-        print(f"📋 Module requires {len(imports_needed)} imports:")
+        print(f"Module requires {len(imports_needed)} imports:")
         for imp in imports_needed:
             print(f"  - {imp.module}.{imp.name}: {imp.type}")
         
-        # Create imports
         if len(imports_needed) > 0:
             imports = create_wasm_imports(self.store)
             
@@ -66,7 +58,6 @@ class SnappyWasmDirect:
                 else:
                     # Create a dummy function for unknown imports
                     if hasattr(imp.type, 'params') and hasattr(imp.type, 'results'):
-                        # It's a function type
                         dummy = Func(self.store, imp.type, lambda *args: 0 if len(imp.type.results) > 0 else None)
                         import_list.append(dummy)
                     else:
@@ -78,12 +69,11 @@ class SnappyWasmDirect:
         
         self.exports = self.instance.exports(self.store)
         
-        # Get memory reference if available
         if "memory" in self.exports:
             self.memory = self.exports["memory"]
         else:
             self.memory = None
-            print("⚠️  No memory export found - some functions may not work")
+            print(" No memory export found - some functions may not work")
         
     def max_compressed_length(self, source_length: int) -> int:
         """Get maximum compressed length for given source length"""
@@ -100,20 +90,20 @@ def test_snappy_direct_wasm():
     try:
         snappy = SnappyWasmDirect()
     except FileNotFoundError:
-        print("❌ WASM file not found: snappy_direct.wasm")
-        print("💡 Run ./build_from_snappy_source.sh first")
+        print("WASM file not found: snappy_direct.wasm")
+        print("Run ./build_from_snappy_source.sh first")
         return
     except Exception as e:
-        print(f"❌ Failed to load WASM module: {e}")
+        print(f"Failed to load WASM module: {e}")
         return
     
-    print("🗜️  Testing WASM Built from Actual Snappy Source Files")
+    print("Testing WASM Built from Actual Snappy Source Files")
     print("=" * 60)
     
     print()
     
     # Test MaxCompressedLength
-    print("📏 Testing MaxCompressedLength:")
+    print("Testing MaxCompressedLength:")
     test_sizes = [0, 10, 100, 1000, 10000, 100000]
     
     print(f"{'Input Size':>12} | {'Max Compressed':>14} | {'Overhead':>10} | {'Overhead %':>11}")
@@ -131,7 +121,7 @@ def test_snappy_direct_wasm():
             print(f"    Error: {e}")
     
     
-    print(f"\n⚡ Performance Tests")
+    print(f"\n Performance Tests")
     print("-" * 30)
     
     import time
@@ -152,7 +142,7 @@ def test_snappy_direct_wasm():
     except Exception as e:
         print(f"MaxCompressedLength performance test failed: {e}")
         
-    print(f"\n🎉 Test completed!")
+    print(f"\nTest completed!")
 
 
 if __name__ == "__main__":

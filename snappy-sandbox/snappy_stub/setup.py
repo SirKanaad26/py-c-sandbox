@@ -1,4 +1,3 @@
-# setup.py
 # Build configuration for Snappy Cython wrapper
 
 from setuptools import setup, Extension
