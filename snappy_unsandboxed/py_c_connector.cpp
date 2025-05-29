@@ -16,19 +16,9 @@
         "name": "cython_snappy",
         "sources": [
             "py_c_connector.pyx",
-            "snappy\\snappy-c.cc",
-            "snappy\\snappy-sinksource.cc",
-            "snappy\\snappy-stubs-internal.cc",
-            "snappy\\snappy-test.cc",
-            "snappy\\snappy.cc",
-            "snappy\\snappy_benchmark.cc",
-            "snappy\\snappy_compress_fuzzer.cc",
-            "snappy\\snappy_test_data.cc",
-            "snappy\\snappy_test_tool.cc",
-            "snappy\\snappy_uncompress_fuzzer.cc",
-            "snappy\\snappy_unittest.cc",
-            "snappy\\snappy_wrapper.cc",
-            "snappy_wrapper.cc"
+            "snappy/snappy.cc",
+            "snappy/snappy-sinksource.cc",
+            "snappy/snappy-stubs-internal.cc"
         ]
     },
     "module_name": "cython_snappy"
@@ -1535,7 +1525,7 @@ struct __pyx_obj_13cython_snappy_CythonClass;
  *     size_t cython_MaxCompressedLength(size_t source_bytes)
  * 
  * cdef class CythonClass:             # <<<<<<<<<<<<<<
- *     def cython_max_compressed_length(self, source_bytes):
+ *     def max_compressed_length(self, source_bytes):
  *         return cython_MaxCompressedLength(source_bytes)
  */
 struct __pyx_obj_13cython_snappy_CythonClass {
@@ -2235,14 +2225,14 @@ static const char __pyx_k_setstate_cython[] = "__setstate_cython__";
 static const char __pyx_k_asyncio_coroutines[] = "asyncio.coroutines";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
 static const char __pyx_k_py_c_connector_pyx[] = "py_c_connector.pyx";
+static const char __pyx_k_max_compressed_length[] = "max_compressed_length";
 static const char __pyx_k_pyx_unpickle_CythonClass[] = "__pyx_unpickle_CythonClass";
 static const char __pyx_k_CythonClass___reduce_cython[] = "CythonClass.__reduce_cython__";
-static const char __pyx_k_cython_max_compressed_length[] = "cython_max_compressed_length";
 static const char __pyx_k_CythonClass___setstate_cython[] = "CythonClass.__setstate_cython__";
-static const char __pyx_k_CythonClass_cython_max_compresse[] = "CythonClass.cython_max_compressed_length";
+static const char __pyx_k_CythonClass_max_compressed_lengt[] = "CythonClass.max_compressed_length";
 static const char __pyx_k_Incompatible_checksums_0x_x_vs_0[] = "Incompatible checksums (0x%x vs (0xe3b0c44, 0xda39a3e, 0xd41d8cd) = ())";
 /* #### Code section: decls ### */
-static PyObject *__pyx_pf_13cython_snappy_11CythonClass_cython_max_compressed_length(CYTHON_UNUSED struct __pyx_obj_13cython_snappy_CythonClass *__pyx_v_self, PyObject *__pyx_v_source_bytes); /* proto */
+static PyObject *__pyx_pf_13cython_snappy_11CythonClass_max_compressed_length(CYTHON_UNUSED struct __pyx_obj_13cython_snappy_CythonClass *__pyx_v_self, PyObject *__pyx_v_source_bytes); /* proto */
 static PyObject *__pyx_pf_13cython_snappy_11CythonClass_2__reduce_cython__(struct __pyx_obj_13cython_snappy_CythonClass *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_13cython_snappy_11CythonClass_4__setstate_cython__(struct __pyx_obj_13cython_snappy_CythonClass *__pyx_v_self, PyObject *__pyx_v___pyx_state); /* proto */
 static PyObject *__pyx_pf_13cython_snappy___pyx_unpickle_CythonClass(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state); /* proto */
@@ -2281,14 +2271,13 @@ typedef struct {
   PyObject *__pyx_n_s_CythonClass;
   PyObject *__pyx_n_s_CythonClass___reduce_cython;
   PyObject *__pyx_n_s_CythonClass___setstate_cython;
-  PyObject *__pyx_n_s_CythonClass_cython_max_compresse;
+  PyObject *__pyx_n_s_CythonClass_max_compressed_lengt;
   PyObject *__pyx_kp_s_Incompatible_checksums_0x_x_vs_0;
   PyObject *__pyx_n_s_PickleError;
   PyObject *__pyx_n_s__11;
   PyObject *__pyx_kp_u__2;
   PyObject *__pyx_n_s_asyncio_coroutines;
   PyObject *__pyx_n_s_cline_in_traceback;
-  PyObject *__pyx_n_s_cython_max_compressed_length;
   PyObject *__pyx_n_s_cython_snappy;
   PyObject *__pyx_n_s_dict;
   PyObject *__pyx_n_s_dict_2;
@@ -2300,6 +2289,7 @@ typedef struct {
   PyObject *__pyx_n_s_is_coroutine;
   PyObject *__pyx_kp_u_isenabled;
   PyObject *__pyx_n_s_main;
+  PyObject *__pyx_n_s_max_compressed_length;
   PyObject *__pyx_n_s_name;
   PyObject *__pyx_n_s_new;
   PyObject *__pyx_n_s_pickle;
@@ -2381,14 +2371,13 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_CythonClass);
   Py_CLEAR(clear_module_state->__pyx_n_s_CythonClass___reduce_cython);
   Py_CLEAR(clear_module_state->__pyx_n_s_CythonClass___setstate_cython);
-  Py_CLEAR(clear_module_state->__pyx_n_s_CythonClass_cython_max_compresse);
+  Py_CLEAR(clear_module_state->__pyx_n_s_CythonClass_max_compressed_lengt);
   Py_CLEAR(clear_module_state->__pyx_kp_s_Incompatible_checksums_0x_x_vs_0);
   Py_CLEAR(clear_module_state->__pyx_n_s_PickleError);
   Py_CLEAR(clear_module_state->__pyx_n_s__11);
   Py_CLEAR(clear_module_state->__pyx_kp_u__2);
   Py_CLEAR(clear_module_state->__pyx_n_s_asyncio_coroutines);
   Py_CLEAR(clear_module_state->__pyx_n_s_cline_in_traceback);
-  Py_CLEAR(clear_module_state->__pyx_n_s_cython_max_compressed_length);
   Py_CLEAR(clear_module_state->__pyx_n_s_cython_snappy);
   Py_CLEAR(clear_module_state->__pyx_n_s_dict);
   Py_CLEAR(clear_module_state->__pyx_n_s_dict_2);
@@ -2400,6 +2389,7 @@ static int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_n_s_is_coroutine);
   Py_CLEAR(clear_module_state->__pyx_kp_u_isenabled);
   Py_CLEAR(clear_module_state->__pyx_n_s_main);
+  Py_CLEAR(clear_module_state->__pyx_n_s_max_compressed_length);
   Py_CLEAR(clear_module_state->__pyx_n_s_name);
   Py_CLEAR(clear_module_state->__pyx_n_s_new);
   Py_CLEAR(clear_module_state->__pyx_n_s_pickle);
@@ -2459,14 +2449,13 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_CythonClass);
   Py_VISIT(traverse_module_state->__pyx_n_s_CythonClass___reduce_cython);
   Py_VISIT(traverse_module_state->__pyx_n_s_CythonClass___setstate_cython);
-  Py_VISIT(traverse_module_state->__pyx_n_s_CythonClass_cython_max_compresse);
+  Py_VISIT(traverse_module_state->__pyx_n_s_CythonClass_max_compressed_lengt);
   Py_VISIT(traverse_module_state->__pyx_kp_s_Incompatible_checksums_0x_x_vs_0);
   Py_VISIT(traverse_module_state->__pyx_n_s_PickleError);
   Py_VISIT(traverse_module_state->__pyx_n_s__11);
   Py_VISIT(traverse_module_state->__pyx_kp_u__2);
   Py_VISIT(traverse_module_state->__pyx_n_s_asyncio_coroutines);
   Py_VISIT(traverse_module_state->__pyx_n_s_cline_in_traceback);
-  Py_VISIT(traverse_module_state->__pyx_n_s_cython_max_compressed_length);
   Py_VISIT(traverse_module_state->__pyx_n_s_cython_snappy);
   Py_VISIT(traverse_module_state->__pyx_n_s_dict);
   Py_VISIT(traverse_module_state->__pyx_n_s_dict_2);
@@ -2478,6 +2467,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(traverse_module_state->__pyx_n_s_is_coroutine);
   Py_VISIT(traverse_module_state->__pyx_kp_u_isenabled);
   Py_VISIT(traverse_module_state->__pyx_n_s_main);
+  Py_VISIT(traverse_module_state->__pyx_n_s_max_compressed_length);
   Py_VISIT(traverse_module_state->__pyx_n_s_name);
   Py_VISIT(traverse_module_state->__pyx_n_s_new);
   Py_VISIT(traverse_module_state->__pyx_n_s_pickle);
@@ -2547,14 +2537,13 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_CythonClass __pyx_mstate_global->__pyx_n_s_CythonClass
 #define __pyx_n_s_CythonClass___reduce_cython __pyx_mstate_global->__pyx_n_s_CythonClass___reduce_cython
 #define __pyx_n_s_CythonClass___setstate_cython __pyx_mstate_global->__pyx_n_s_CythonClass___setstate_cython
-#define __pyx_n_s_CythonClass_cython_max_compresse __pyx_mstate_global->__pyx_n_s_CythonClass_cython_max_compresse
+#define __pyx_n_s_CythonClass_max_compressed_lengt __pyx_mstate_global->__pyx_n_s_CythonClass_max_compressed_lengt
 #define __pyx_kp_s_Incompatible_checksums_0x_x_vs_0 __pyx_mstate_global->__pyx_kp_s_Incompatible_checksums_0x_x_vs_0
 #define __pyx_n_s_PickleError __pyx_mstate_global->__pyx_n_s_PickleError
 #define __pyx_n_s__11 __pyx_mstate_global->__pyx_n_s__11
 #define __pyx_kp_u__2 __pyx_mstate_global->__pyx_kp_u__2
 #define __pyx_n_s_asyncio_coroutines __pyx_mstate_global->__pyx_n_s_asyncio_coroutines
 #define __pyx_n_s_cline_in_traceback __pyx_mstate_global->__pyx_n_s_cline_in_traceback
-#define __pyx_n_s_cython_max_compressed_length __pyx_mstate_global->__pyx_n_s_cython_max_compressed_length
 #define __pyx_n_s_cython_snappy __pyx_mstate_global->__pyx_n_s_cython_snappy
 #define __pyx_n_s_dict __pyx_mstate_global->__pyx_n_s_dict
 #define __pyx_n_s_dict_2 __pyx_mstate_global->__pyx_n_s_dict_2
@@ -2566,6 +2555,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 #define __pyx_n_s_is_coroutine __pyx_mstate_global->__pyx_n_s_is_coroutine
 #define __pyx_kp_u_isenabled __pyx_mstate_global->__pyx_kp_u_isenabled
 #define __pyx_n_s_main __pyx_mstate_global->__pyx_n_s_main
+#define __pyx_n_s_max_compressed_length __pyx_mstate_global->__pyx_n_s_max_compressed_length
 #define __pyx_n_s_name __pyx_mstate_global->__pyx_n_s_name
 #define __pyx_n_s_new __pyx_mstate_global->__pyx_n_s_new
 #define __pyx_n_s_pickle __pyx_mstate_global->__pyx_n_s_pickle
@@ -2605,20 +2595,20 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 /* "py_c_connector.pyx":5
  * 
  * cdef class CythonClass:
- *     def cython_max_compressed_length(self, source_bytes):             # <<<<<<<<<<<<<<
+ *     def max_compressed_length(self, source_bytes):             # <<<<<<<<<<<<<<
  *         return cython_MaxCompressedLength(source_bytes)
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_13cython_snappy_11CythonClass_1cython_max_compressed_length(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_13cython_snappy_11CythonClass_1max_compressed_length(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_13cython_snappy_11CythonClass_1cython_max_compressed_length = {"cython_max_compressed_length", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_13cython_snappy_11CythonClass_1cython_max_compressed_length, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_13cython_snappy_11CythonClass_1cython_max_compressed_length(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_13cython_snappy_11CythonClass_1max_compressed_length = {"max_compressed_length", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_13cython_snappy_11CythonClass_1max_compressed_length, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_13cython_snappy_11CythonClass_1max_compressed_length(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -2636,7 +2626,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   int __pyx_clineno = 0;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
-  __Pyx_RefNannySetupContext("cython_max_compressed_length (wrapper)", 0);
+  __Pyx_RefNannySetupContext("max_compressed_length (wrapper)", 0);
   #if !CYTHON_METH_FASTCALL
   #if CYTHON_ASSUME_SAFE_MACROS
   __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
@@ -2667,7 +2657,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       }
       if (unlikely(kw_args > 0)) {
         const Py_ssize_t kwd_pos_args = __pyx_nargs;
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "cython_max_compressed_length") < 0)) __PYX_ERR(0, 5, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values + 0, kwd_pos_args, "max_compressed_length") < 0)) __PYX_ERR(0, 5, __pyx_L3_error)
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
@@ -2678,7 +2668,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("cython_max_compressed_length", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 5, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("max_compressed_length", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 5, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -2688,11 +2678,11 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       __Pyx_Arg_XDECREF_FASTCALL(values[__pyx_temp]);
     }
   }
-  __Pyx_AddTraceback("cython_snappy.CythonClass.cython_max_compressed_length", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("cython_snappy.CythonClass.max_compressed_length", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_13cython_snappy_11CythonClass_cython_max_compressed_length(((struct __pyx_obj_13cython_snappy_CythonClass *)__pyx_v_self), __pyx_v_source_bytes);
+  __pyx_r = __pyx_pf_13cython_snappy_11CythonClass_max_compressed_length(((struct __pyx_obj_13cython_snappy_CythonClass *)__pyx_v_self), __pyx_v_source_bytes);
 
   /* function exit code */
   {
@@ -2705,7 +2695,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_13cython_snappy_11CythonClass_cython_max_compressed_length(CYTHON_UNUSED struct __pyx_obj_13cython_snappy_CythonClass *__pyx_v_self, PyObject *__pyx_v_source_bytes) {
+static PyObject *__pyx_pf_13cython_snappy_11CythonClass_max_compressed_length(CYTHON_UNUSED struct __pyx_obj_13cython_snappy_CythonClass *__pyx_v_self, PyObject *__pyx_v_source_bytes) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   size_t __pyx_t_1;
@@ -2713,11 +2703,11 @@ static PyObject *__pyx_pf_13cython_snappy_11CythonClass_cython_max_compressed_le
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_RefNannySetupContext("cython_max_compressed_length", 1);
+  __Pyx_RefNannySetupContext("max_compressed_length", 1);
 
   /* "py_c_connector.pyx":6
  * cdef class CythonClass:
- *     def cython_max_compressed_length(self, source_bytes):
+ *     def max_compressed_length(self, source_bytes):
  *         return cython_MaxCompressedLength(source_bytes)             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
@@ -2731,14 +2721,14 @@ static PyObject *__pyx_pf_13cython_snappy_11CythonClass_cython_max_compressed_le
   /* "py_c_connector.pyx":5
  * 
  * cdef class CythonClass:
- *     def cython_max_compressed_length(self, source_bytes):             # <<<<<<<<<<<<<<
+ *     def max_compressed_length(self, source_bytes):             # <<<<<<<<<<<<<<
  *         return cython_MaxCompressedLength(source_bytes)
  */
 
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_AddTraceback("cython_snappy.CythonClass.cython_max_compressed_length", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("cython_snappy.CythonClass.max_compressed_length", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -3600,7 +3590,7 @@ static void __pyx_tp_dealloc_13cython_snappy_CythonClass(PyObject *o) {
 }
 
 static PyMethodDef __pyx_methods_13cython_snappy_CythonClass[] = {
-  {"cython_max_compressed_length", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_13cython_snappy_11CythonClass_1cython_max_compressed_length, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+  {"max_compressed_length", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_13cython_snappy_11CythonClass_1max_compressed_length, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
   {"__reduce_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_13cython_snappy_11CythonClass_3__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
   {"__setstate_cython__", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_13cython_snappy_11CythonClass_5__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
   {0, 0, 0, 0}
@@ -3725,14 +3715,13 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_CythonClass, __pyx_k_CythonClass, sizeof(__pyx_k_CythonClass), 0, 0, 1, 1},
     {&__pyx_n_s_CythonClass___reduce_cython, __pyx_k_CythonClass___reduce_cython, sizeof(__pyx_k_CythonClass___reduce_cython), 0, 0, 1, 1},
     {&__pyx_n_s_CythonClass___setstate_cython, __pyx_k_CythonClass___setstate_cython, sizeof(__pyx_k_CythonClass___setstate_cython), 0, 0, 1, 1},
-    {&__pyx_n_s_CythonClass_cython_max_compresse, __pyx_k_CythonClass_cython_max_compresse, sizeof(__pyx_k_CythonClass_cython_max_compresse), 0, 0, 1, 1},
+    {&__pyx_n_s_CythonClass_max_compressed_lengt, __pyx_k_CythonClass_max_compressed_lengt, sizeof(__pyx_k_CythonClass_max_compressed_lengt), 0, 0, 1, 1},
     {&__pyx_kp_s_Incompatible_checksums_0x_x_vs_0, __pyx_k_Incompatible_checksums_0x_x_vs_0, sizeof(__pyx_k_Incompatible_checksums_0x_x_vs_0), 0, 0, 1, 0},
     {&__pyx_n_s_PickleError, __pyx_k_PickleError, sizeof(__pyx_k_PickleError), 0, 0, 1, 1},
     {&__pyx_n_s__11, __pyx_k__11, sizeof(__pyx_k__11), 0, 0, 1, 1},
     {&__pyx_kp_u__2, __pyx_k__2, sizeof(__pyx_k__2), 0, 1, 0, 0},
     {&__pyx_n_s_asyncio_coroutines, __pyx_k_asyncio_coroutines, sizeof(__pyx_k_asyncio_coroutines), 0, 0, 1, 1},
     {&__pyx_n_s_cline_in_traceback, __pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 0, 1, 1},
-    {&__pyx_n_s_cython_max_compressed_length, __pyx_k_cython_max_compressed_length, sizeof(__pyx_k_cython_max_compressed_length), 0, 0, 1, 1},
     {&__pyx_n_s_cython_snappy, __pyx_k_cython_snappy, sizeof(__pyx_k_cython_snappy), 0, 0, 1, 1},
     {&__pyx_n_s_dict, __pyx_k_dict, sizeof(__pyx_k_dict), 0, 0, 1, 1},
     {&__pyx_n_s_dict_2, __pyx_k_dict_2, sizeof(__pyx_k_dict_2), 0, 0, 1, 1},
@@ -3744,6 +3733,7 @@ static int __Pyx_CreateStringTabAndInitStrings(void) {
     {&__pyx_n_s_is_coroutine, __pyx_k_is_coroutine, sizeof(__pyx_k_is_coroutine), 0, 0, 1, 1},
     {&__pyx_kp_u_isenabled, __pyx_k_isenabled, sizeof(__pyx_k_isenabled), 0, 1, 0, 0},
     {&__pyx_n_s_main, __pyx_k_main, sizeof(__pyx_k_main), 0, 0, 1, 1},
+    {&__pyx_n_s_max_compressed_length, __pyx_k_max_compressed_length, sizeof(__pyx_k_max_compressed_length), 0, 0, 1, 1},
     {&__pyx_n_s_name, __pyx_k_name, sizeof(__pyx_k_name), 0, 0, 1, 1},
     {&__pyx_n_s_new, __pyx_k_new, sizeof(__pyx_k_new), 0, 0, 1, 1},
     {&__pyx_n_s_pickle, __pyx_k_pickle, sizeof(__pyx_k_pickle), 0, 0, 1, 1},
@@ -3794,13 +3784,13 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   /* "py_c_connector.pyx":5
  * 
  * cdef class CythonClass:
- *     def cython_max_compressed_length(self, source_bytes):             # <<<<<<<<<<<<<<
+ *     def max_compressed_length(self, source_bytes):             # <<<<<<<<<<<<<<
  *         return cython_MaxCompressedLength(source_bytes)
  */
   __pyx_tuple__3 = PyTuple_Pack(2, __pyx_n_s_self, __pyx_n_s_source_bytes); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
-  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_py_c_connector_pyx, __pyx_n_s_cython_max_compressed_length, 5, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(0, 5, __pyx_L1_error)
+  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(2, 0, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_py_c_connector_pyx, __pyx_n_s_max_compressed_length, 5, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(0, 5, __pyx_L1_error)
 
   /* "(tree fragment)":1
  * def __reduce_cython__(self):             # <<<<<<<<<<<<<<
@@ -4230,12 +4220,12 @@ if (!__Pyx_RefNanny) {
   /* "py_c_connector.pyx":5
  * 
  * cdef class CythonClass:
- *     def cython_max_compressed_length(self, source_bytes):             # <<<<<<<<<<<<<<
+ *     def max_compressed_length(self, source_bytes):             # <<<<<<<<<<<<<<
  *         return cython_MaxCompressedLength(source_bytes)
  */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_13cython_snappy_11CythonClass_1cython_max_compressed_length, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CythonClass_cython_max_compresse, NULL, __pyx_n_s_cython_snappy, __pyx_d, ((PyObject *)__pyx_codeobj__4)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 5, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_13cython_snappy_11CythonClass_1max_compressed_length, __Pyx_CYFUNCTION_CCLASS, __pyx_n_s_CythonClass_max_compressed_lengt, NULL, __pyx_n_s_cython_snappy, __pyx_d, ((PyObject *)__pyx_codeobj__4)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 5, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_13cython_snappy_CythonClass, __pyx_n_s_cython_max_compressed_length, __pyx_t_2) < 0) __PYX_ERR(0, 5, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict((PyObject *)__pyx_ptype_13cython_snappy_CythonClass, __pyx_n_s_max_compressed_length, __pyx_t_2) < 0) __PYX_ERR(0, 5, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   PyType_Modified(__pyx_ptype_13cython_snappy_CythonClass);
 
