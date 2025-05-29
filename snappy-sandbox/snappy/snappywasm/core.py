@@ -1,7 +1,7 @@
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func
-from .utils import create_wasm_imports
+from utils import create_wasm_imports
 import ctypes
 from typing import List, Union
 
@@ -51,6 +51,7 @@ class SnappyWasm:
 
         compressed_len = len(compressed_data)
         
+        # Define offsets
         compressed_offset = 0
         result_offset = compressed_len + 1024  # offset for storing the result
 
@@ -80,13 +81,25 @@ class SnappyWasm:
         uncompressed_length = struct.unpack('<I', result_bytes)[0]
         return uncompressed_length
 
-    def compress(self, input_data: bytes) -> bytes:
+    def compress(self, input_data: bytes, compression_level: int = None) -> bytes:
+        """Compress data using Snappy WASM
+        
+        Args:
+            input_data: Data to compress
+            compression_level: Optional compression level (1-2). If None, uses default level.
+        """
         if not self.memory:
             raise RuntimeError("Memory not available")
 
-        func = self.exports.get("CompressFromPtr")
-        if not func:
-            raise RuntimeError("CompressFromPtr not found")
+        # Choose function based on whether compression level is specified
+        if compression_level is not None:
+            func = self.exports.get("CompressWithOptionsFromPtr")
+            if not func:
+                raise RuntimeError("CompressWithOptionsFromPtr not found")
+        else:
+            func = self.exports.get("CompressFromPtr")
+            if not func:
+                raise RuntimeError("CompressFromPtr not found")
 
         max_out_len = self.max_compressed_length(len(input_data))
         input_len = len(input_data)
@@ -106,7 +119,11 @@ class SnappyWasm:
         ctypes.memmove(raw_addr + input_offset, src_array, input_len)
 
         # Call compress function
-        compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
+        if compression_level is not None:
+            compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len, compression_level)
+        else:
+            compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
+            
         if compressed_len <= 0:
             raise RuntimeError("Compression failed")
 
@@ -280,24 +297,28 @@ class SnappyWasm:
         return bool(is_valid)
 
     def get_min_compression_level(self) -> int:
+        """Get the minimum supported compression level"""
         func = self.exports.get("GetMinCompressionLevel")
         if not func:
             return 1  # Default fallback
         return func(self.store)
 
     def get_max_compression_level(self) -> int:
+        """Get the maximum supported compression level"""
         func = self.exports.get("GetMaxCompressionLevel")
         if not func:
             return 2  # Default fallback
         return func(self.store)
 
     def get_default_compression_level(self) -> int:
+        """Get the default compression level"""
         func = self.exports.get("GetDefaultCompressionLevel")
         if not func:
             return 1  # Default fallback
         return func(self.store)
 
     def get_compression_info(self) -> dict:
+        """Get information about available compression levels"""
         return {
             "min_level": self.get_min_compression_level(),
             "max_level": self.get_max_compression_level(),
@@ -305,20 +326,180 @@ class SnappyWasm:
             "supported_levels": list(range(self.get_min_compression_level(), self.get_max_compression_level() + 1))
         }
 
+    def compress_from_buffers(self, buffers: list, compression_level: int = None) -> bytes:
+        """Compress data from multiple separate buffers as if they were one continuous stream
+        
+        Args:
+            buffers: List of bytes objects to compress
+            compression_level: Optional compression level (1-2). If None, uses default level.
+            
+        Returns:
+            Compressed data as bytes
+        """
+        if not self.memory:
+            raise RuntimeError("Memory not available")
+        
+        # Choose function based on whether compression level is specified
+        if compression_level is not None:
+            func = self.exports.get("CompressFromBuffersWithOptions")
+            if not func:
+                raise RuntimeError("CompressFromBuffersWithOptions not found")
+        else:
+            func = self.exports.get("CompressFromBuffers")
+            if not func:
+                raise RuntimeError("CompressFromBuffers not found")
+        
+        # Calculate total length and create flattened buffer
+        total_length = sum(len(buf) for buf in buffers)
+        buffer_count = len(buffers)
+        
+        if buffer_count == 0:
+            # Handle empty buffer list
+            return self.compress(b"", compression_level)
+        
+        # Estimate max compressed length
+        max_compressed_len = self.max_compressed_length(total_length)
+        
+        # Create flattened buffer and lengths array
+        flattened_buffer = bytearray(total_length)
+        lengths = []
+        offset = 0
+        
+        for buf in buffers:
+            buf_len = len(buf)
+            flattened_buffer[offset:offset + buf_len] = buf
+            lengths.append(buf_len)
+            offset += buf_len
+        
+        # Define memory offsets
+        buffer_offset = 0
+        lengths_offset = total_length + 1024
+        output_offset = lengths_offset + (buffer_count * 8) + 1024  # 8 bytes per size_t in WASM
+        
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+        
+        # Copy flattened buffer to WASM memory
+        if total_length > 0:
+            buffer_array = (ctypes.c_ubyte * total_length).from_buffer(flattened_buffer)
+            ctypes.memmove(raw_addr + buffer_offset, buffer_array, total_length)
+        
+        # Copy lengths array to WASM memory (as 32-bit integers)
+        lengths_bytes = bytearray()
+        for length in lengths:
+            lengths_bytes.extend(struct.pack('<I', length))  # Little-endian 32-bit unsigned int
+        
+        lengths_array = (ctypes.c_ubyte * len(lengths_bytes)).from_buffer(lengths_bytes)
+        ctypes.memmove(raw_addr + lengths_offset, lengths_array, len(lengths_bytes))
+        
+        # Call compress function
+        if compression_level is not None:
+            compressed_len = func(self.store, buffer_offset, lengths_offset, buffer_count, 
+                                output_offset, max_compressed_len, compression_level)
+        else:
+            compressed_len = func(self.store, buffer_offset, lengths_offset, buffer_count, 
+                                output_offset, max_compressed_len)
+        
+        if compressed_len <= 0:
+            raise RuntimeError("Multi-buffer compression failed")
+        
+        # Read compressed result
+        result = bytearray(compressed_len)
+        result_array = (ctypes.c_ubyte * compressed_len).from_buffer(result)
+        ctypes.memmove(result_array, raw_addr + output_offset, compressed_len)
+        
+        return bytes(result)
+    
+    def compress_from_iovec(self, iovec_data: list, compression_level: int = None) -> bytes:
+        """Compress data using iovec structures (more advanced scatter-gather)
+        
+        Args:
+            iovec_data: List of (offset, length) tuples representing iovec structures
+            compression_level: Optional compression level (1-2). If None, uses default level.
+            
+        Returns:
+            Compressed data as bytes
+            
+        Note: This is for advanced users who want direct iovec control.
+        Most users should use compress_from_buffers() instead.
+        """
+        if not self.memory:
+            raise RuntimeError("Memory not available")
+        
+        # Choose function based on whether compression level is specified
+        if compression_level is not None:
+            func = self.exports.get("CompressFromIOVecWithOptions")
+            if not func:
+                raise RuntimeError("CompressFromIOVecWithOptions not found")
+        else:
+            func = self.exports.get("CompressFromIOVec")
+            if not func:
+                raise RuntimeError("CompressFromIOVec not found")
+        
+        iov_cnt = len(iovec_data)
+        
+        if iov_cnt == 0:
+            # Handle empty iovec list
+            return self.compress(b"", compression_level)
+        
+        # Calculate total data size for compression estimation
+        total_size = sum(length for _, length in iovec_data)
+        max_compressed_len = self.max_compressed_length(total_size)
+        
+        # Create iovec structures in WASM format (8 bytes each: 4 bytes offset + 4 bytes length)
+        iov_bytes = bytearray()
+        for offset, length in iovec_data:
+            iov_bytes.extend(struct.pack('<II', offset, length))  # Little-endian 32-bit unsigned ints
+        
+        # Define memory offsets
+        iov_offset = 0
+        output_offset = len(iov_bytes) + 1024
+        
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+        
+        # Copy iovec data to WASM memory
+        iov_array = (ctypes.c_ubyte * len(iov_bytes)).from_buffer(iov_bytes)
+        ctypes.memmove(raw_addr + iov_offset, iov_array, len(iov_bytes))
+        
+        # Call compress function
+        if compression_level is not None:
+            compressed_len = func(self.store, iov_offset, iov_cnt, output_offset, 
+                                max_compressed_len, compression_level)
+        else:
+            compressed_len = func(self.store, iov_offset, iov_cnt, output_offset, max_compressed_len)
+        
+        if compressed_len <= 0:
+            raise RuntimeError("IOVec compression failed")
+        
+        # Read compressed result
+        result = bytearray(compressed_len)
+        result_array = (ctypes.c_ubyte * compressed_len).from_buffer(result)
+        ctypes.memmove(result_array, raw_addr + output_offset, compressed_len)
+        
+        return bytes(result)
+
     def get_version(self) -> int:
+        """Get the version of the WASM module"""
         func = self.exports.get("GetVersion")
         if not func:
             return 0
         return func(self.store)
 
+# Example usage:
 if __name__ == "__main__":
-    snappy = SnappyWasm("wasm/snappy_direct.wasm")
+    # Initialize the WASM module
+    snappy = SnappyWasm("wasm/snappy.wasm")
     
     print(f"Snappy WASM Version: {snappy.get_version()}")
     
+    # Get compression level information
     compression_info = snappy.get_compression_info()
     print(f"Compression Info: {compression_info}")
     
+    # Test data
     original_data = b"Hello, this is a test string for Snappy compression and decompression! " * 10
     print(f"Original: {original_data[:50]}...")
     print(f"Original length: {len(original_data)} bytes")
