@@ -80,13 +80,12 @@ class SnappyWasm:
         uncompressed_length = struct.unpack('<I', result_bytes)[0]
         return uncompressed_length
 
-    def compress(self, input_data: bytes) -> bytes:
+    def compress(self, input_data: bytes, compression_level=None) -> bytes:
         if not self.memory:
             raise RuntimeError("Memory not available")
 
         # Choose function based on whether compression level is specified
         if compression_level is not None:
-            print("here")
             func = self.exports.get("CompressWithOptionsFromPtr")
             if not func:
                 raise RuntimeError("CompressWithOptionsFromPtr not found")
