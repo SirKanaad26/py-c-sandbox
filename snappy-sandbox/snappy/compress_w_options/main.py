@@ -4,7 +4,7 @@ from snappywasm.core import SnappyWasm
 def main():
     snappy = SnappyWasm()
     data = b"hello world " * 100
-    compressed = snappy.compress(data,1)
+    compressed = snappy.compress(data, 2)
     print("Compressed Length:", len(compressed))
     print("Original Length:", len(data))
 
