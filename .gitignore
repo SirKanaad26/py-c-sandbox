@@ -35,3 +35,4 @@ env/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 .DS_Store
+**/snappy_direct_source/
