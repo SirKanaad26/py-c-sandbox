@@ -192,6 +192,93 @@ int RawUncompressFromSourceInt(const char* compressed_ptr, size_t compressed_len
     return success ? 1 : 0; // Return 1 for success, 0 for failure
 }
 
+// Export the RawUncompressToIOVec function from the real Snappy library (char* buffer version)
+EXPORT
+bool RawUncompressToIOVec(const char* compressed, size_t compressed_length, const void* iov_ptr, size_t iov_cnt) {
+    // Convert the WASM memory pointer to iovec structures
+    // Each iovec structure contains: void* iov_base, size_t iov_len
+    // In WASM (32-bit), each iovec is 8 bytes: 4 bytes ptr + 4 bytes len
+    
+    const uint32_t* iov_data = static_cast<const uint32_t*>(iov_ptr);
+    std::vector<struct iovec> iovecs(iov_cnt);
+    
+    // Convert WASM iovec format to native iovec format
+    for (size_t i = 0; i < iov_cnt; i++) {
+        uint32_t base_offset = iov_data[i * 2];     // iov_base as offset
+        uint32_t length = iov_data[i * 2 + 1];     // iov_len
+        
+        // Convert offset to actual pointer (assuming base of WASM memory)
+        iovecs[i].iov_base = reinterpret_cast<void*>(base_offset);
+        iovecs[i].iov_len = length;
+    }
+    
+    // Call the real Snappy RawUncompressToIOVec function
+    return snappy::RawUncompressToIOVec(compressed, compressed_length, iovecs.data(), iov_cnt);
+}
+
+// Alternative wrapper that explicitly returns int for clarity
+EXPORT
+int RawUncompressToIOVecInt(const char* compressed_ptr, size_t compressed_length, const void* iov_ptr, size_t iov_cnt) {
+    bool success = RawUncompressToIOVec(compressed_ptr, compressed_length, iov_ptr, iov_cnt);
+    return success ? 1 : 0; // Return 1 for success, 0 for failure
+}
+
+// Export the RawUncompressToIOVec function that works with Source* parameter
+// We create a C wrapper that takes raw buffer parameters and creates a ByteArraySource internally
+EXPORT
+bool RawUncompressToIOVecFromSource(const char* compressed_data, size_t compressed_length, const void* iov_ptr, size_t iov_cnt) {
+    // Convert the WASM memory pointer to iovec structures
+    const uint32_t* iov_data = static_cast<const uint32_t*>(iov_ptr);
+    std::vector<struct iovec> iovecs(iov_cnt);
+    
+    // Convert WASM iovec format to native iovec format
+    for (size_t i = 0; i < iov_cnt; i++) {
+        uint32_t base_offset = iov_data[i * 2];     // iov_base as offset
+        uint32_t length = iov_data[i * 2 + 1];     // iov_len
+        
+        // Convert offset to actual pointer
+        iovecs[i].iov_base = reinterpret_cast<void*>(base_offset);
+        iovecs[i].iov_len = length;
+    }
+    
+    // Create a ByteArraySource from the raw buffer data
+    snappy::ByteArraySource source(compressed_data, compressed_length);
+    // Call the real Snappy RawUncompressToIOVec function with Source*
+    return snappy::RawUncompressToIOVec(&source, iovecs.data(), iov_cnt);
+}
+
+// Alternative wrapper that explicitly returns int for clarity
+EXPORT
+int RawUncompressToIOVecFromSourceInt(const char* compressed_ptr, size_t compressed_length, const void* iov_ptr, size_t iov_cnt) {
+    bool success = RawUncompressToIOVecFromSource(compressed_ptr, compressed_length, iov_ptr, iov_cnt);
+    return success ? 1 : 0; // Return 1 for success, 0 for failure
+}
+
+// Simplified RawUncompressToIOVec that takes flattened buffer pointers and lengths
+// This is easier to use from WASM since it doesn't require complex iovec handling
+EXPORT
+bool RawUncompressToBuffers(const char* compressed, size_t compressed_length, char* buffer_ptr, const size_t* lengths_ptr, size_t buffer_count) {
+    // Create iovec structures from the flattened output buffers
+    std::vector<struct iovec> iovecs(buffer_count);
+    size_t current_offset = 0;
+    
+    for (size_t i = 0; i < buffer_count; i++) {
+        iovecs[i].iov_base = buffer_ptr + current_offset;
+        iovecs[i].iov_len = lengths_ptr[i];
+        current_offset += lengths_ptr[i];
+    }
+    
+    // Call the real Snappy RawUncompressToIOVec function
+    return snappy::RawUncompressToIOVec(compressed, compressed_length, iovecs.data(), buffer_count);
+}
+
+// Alternative wrapper that explicitly returns int for clarity
+EXPORT
+int RawUncompressToBuffersInt(const char* compressed_ptr, size_t compressed_length, char* buffer_ptr, const size_t* lengths_ptr, size_t buffer_count) {
+    bool success = RawUncompressToBuffers(compressed_ptr, compressed_length, buffer_ptr, lengths_ptr, buffer_count);
+    return success ? 1 : 0; // Return 1 for success, 0 for failure
+}
+
 // Export the Uncompress function from the real Snappy library
 EXPORT
 size_t Uncompress(const char* compressed, size_t compressed_length, char* uncompressed_output, size_t max_uncompressed_length) {
@@ -415,7 +502,7 @@ void ReadFromMemory(const void* src, char* dest, size_t size) {
 
 EXPORT
 int GetVersion() {
-    return 9; // Version 9 - now includes RawUncompress functions (both char* and Source* versions)
+    return 10; // Version 10 - now includes RawUncompressToIOVec functions (both char* and Source* versions)
 }
 EOF
 
@@ -441,7 +528,7 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_IsValidCompressed", "_IsValidCompressedInt", "_RawUncompress", "_RawUncompressInt", "_RawUncompressFromSource", "_RawUncompressFromSourceInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_IsValidCompressed", "_IsValidCompressedInt", "_RawUncompress", "_RawUncompressInt", "_RawUncompressFromSource", "_RawUncompressFromSourceInt", "_RawUncompressToIOVec", "_RawUncompressToIOVecInt", "_RawUncompressToIOVecFromSource", "_RawUncompressToIOVecFromSourceInt", "_RawUncompressToBuffers", "_RawUncompressToBuffersInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
      -DHAVE_SYS_UIO_H=1 \
      -DHAVE_UNISTD_H=1 \
@@ -489,6 +576,9 @@ echo "  • CompressFromIOVecWithOptions / CompressFromBuffersWithOptions - Comp
 echo "  • Uncompress / UncompressFromPtr - Decompress data"
 echo "  • RawUncompress / RawUncompressInt - Raw decompression (char* buffer version)"
 echo "  • RawUncompressFromSource / RawUncompressFromSourceInt - Raw decompression (using Source* internally)"
+echo "  • RawUncompressToIOVec / RawUncompressToIOVecInt - Raw decompression to multiple buffers (char* version)"
+echo "  • RawUncompressToIOVecFromSource / RawUncompressToIOVecFromSourceInt - Raw decompression to multiple buffers (using Source* internally)"
+echo "  • RawUncompressToBuffers / RawUncompressToBuffersInt - Simplified raw decompression to multiple buffers"
 echo "  • IsValidCompressedBuffer / IsValidCompressedBufferInt - Validate compressed data (char* buffer)"
 echo "  • IsValidCompressed / IsValidCompressedInt - Validate compressed data (using Source* internally)"
 echo "  • GetMinCompressionLevel / GetMaxCompressionLevel / GetDefaultCompressionLevel - Compression level utilities"
