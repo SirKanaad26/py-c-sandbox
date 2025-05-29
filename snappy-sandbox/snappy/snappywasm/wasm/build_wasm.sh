@@ -1,5 +1,6 @@
 #!/bin/bash
 # Build WASM directly from Google's Snappy source code (actual source files)
+# Updated version with Uncompress and IsValidCompressedBuffer functions
 
 set -e
 
@@ -128,6 +129,47 @@ size_t CompressFromPtr(const char* input_ptr, size_t input_length, char* output_
     return Compress(input_ptr, input_length, output_ptr, max_output_length);
 }
 
+// Export the IsValidCompressedBuffer function from the real Snappy library
+EXPORT
+bool IsValidCompressedBuffer(const char* compressed, size_t compressed_length) {
+    return snappy::IsValidCompressedBuffer(compressed, compressed_length);
+}
+
+// Alternative wrapper that explicitly returns int for clarity
+EXPORT
+int IsValidCompressedBufferInt(const char* compressed_ptr, size_t compressed_length) {
+    bool is_valid = snappy::IsValidCompressedBuffer(compressed_ptr, compressed_length);
+    return is_valid ? 1 : 0; // Return 1 for valid, 0 for invalid
+}
+
+// Export the Uncompress function from the real Snappy library
+EXPORT
+size_t Uncompress(const char* compressed, size_t compressed_length, char* uncompressed_output, size_t max_uncompressed_length) {
+    std::string uncompressed;
+    
+    // Call the real Snappy Uncompress function
+    bool success = snappy::Uncompress(compressed, compressed_length, &uncompressed);
+    
+    if (!success) {
+        return 0; // Error: decompression failed
+    }
+    
+    // Check if output buffer is large enough
+    if (uncompressed.size() > max_uncompressed_length) {
+        return 0; // Error: output buffer too small
+    }
+    
+    // Copy uncompressed data to output buffer
+    std::memcpy(uncompressed_output, uncompressed.data(), uncompressed.size());
+    return uncompressed.size();
+}
+
+// Wrapper function for Uncompress that works with WASM memory pointers
+EXPORT
+size_t UncompressFromPtr(const char* compressed_ptr, size_t compressed_length, char* output_ptr, size_t max_output_length) {
+    return Uncompress(compressed_ptr, compressed_length, output_ptr, max_output_length);
+}
+
 // Export memory allocation functions for managing WASM memory from Python
 EXPORT
 void* AllocateMemory(size_t size) {
@@ -153,7 +195,7 @@ void ReadFromMemory(const void* src, char* dest, size_t size) {
 
 EXPORT
 int GetVersion() {
-    return 3; // Version 3 - now includes Compress function
+    return 5; // Version 5 - now includes Uncompress and IsValidCompressedBuffer functions
 }
 EOF
 
@@ -179,7 +221,7 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_Uncompress", "_UncompressFromPtr", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
      -DHAVE_SYS_UIO_H=0 \
      -DHAVE_UNISTD_H=1 \
@@ -220,4 +262,11 @@ echo ""
 echo "🎉 Successfully built WASM from actual Snappy source files!"
 echo "📦 Output: snappy_direct.wasm"
 echo "🧬 This uses the unmodified Google Snappy source code"
+echo "📋 Available functions:"
+echo "   • MaxCompressedLength - Calculate max size needed for compression"
+echo "   • GetUncompressedLength / GetUncompressedLengthFromPtr - Get original size from compressed data"
+echo "   • Compress / CompressFromPtr - Compress data"
+echo "   • Uncompress / UncompressFromPtr - Decompress data"
+echo "   • IsValidCompressedBuffer / IsValidCompressedBufferInt - Validate compressed data"
+echo "   • Memory management utilities"
 echo "💡 Test with: python test_snappy_source.py"
