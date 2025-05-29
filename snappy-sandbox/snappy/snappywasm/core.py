@@ -748,6 +748,117 @@ class SnappyWasm:
             
         except Exception:
             return False
+        
+    def raw_uncompress_to_iovec_from_source(self, compressed_data: bytes, buffer_sizes: List[int]) -> List[bytes]:
+        """
+        Decompress data into multiple separate buffers using Snappy's RawUncompressToIOVec functionality
+        with Source* abstraction. This creates a ByteArraySource internally and performs scatter-gather 
+        decompression directly into multiple non-contiguous output buffers.
+        
+        Args:
+            compressed_data: Compressed data to decompress 
+            buffer_sizes: List of sizes for each output buffer
+            
+        Returns:
+            List of bytes objects, one for each output buffer
+            
+        Raises:
+            RuntimeError: If decompression fails or WASM function not available
+        """
+        if not self.memory:
+            raise RuntimeError("Memory not available")
+
+        func = self.exports.get("RawUncompressToIOVecFromSource")
+        if not func:
+            raise RuntimeError("RawUncompressToIOVecFromSource not found")
+
+        if not buffer_sizes:
+            return []
+
+        if not compressed_data:
+            raise RuntimeError("Compressed data cannot be empty")
+
+        # Validate that total buffer size matches expected uncompressed length
+        total_buffer_size = sum(buffer_sizes)
+        try:
+            expected_length = self.get_uncompressed_length(compressed_data)
+            if total_buffer_size != expected_length:
+                raise RuntimeError(f"Buffer size mismatch: expected {expected_length}, got {total_buffer_size}")
+        except Exception:
+            # If we can't get uncompressed length, we'll let the WASM function validate
+            pass
+
+        compressed_len = len(compressed_data)
+        buffer_count = len(buffer_sizes)
+        
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        # Memory layout:
+        # 1. Compressed data
+        # 2. iovec structures (each 8 bytes: 4 bytes ptr + 4 bytes len)  
+        # 3. Output buffers
+        
+        iovec_size = 8  # sizeof(struct iovec) in WASM (32-bit: ptr + len)
+        iovec_array_size = buffer_count * iovec_size
+        
+        # Calculate offsets with padding for alignment
+        compressed_offset = 0
+        iovec_offset = compressed_len + 64  # padding for alignment
+        buffers_start_offset = iovec_offset + iovec_array_size + 64  # more padding
+        
+        try:
+            # Copy compressed data to WASM memory
+            compressed_array = (ctypes.c_ubyte * compressed_len).from_buffer_copy(compressed_data)
+            ctypes.memmove(raw_addr + compressed_offset, compressed_array, compressed_len)
+            
+            # Build iovec array and allocate output buffers
+            current_buffer_offset = buffers_start_offset
+            
+            for i, buffer_size in enumerate(buffer_sizes):
+                if buffer_size <= 0:
+                    raise RuntimeError(f"Invalid buffer size at index {i}: {buffer_size}")
+                    
+                iovec_entry_offset = iovec_offset + (i * iovec_size)
+                
+                # Write iovec structure (ptr, len) - both as 32-bit values in WASM
+                ptr_bytes = struct.pack('<I', current_buffer_offset)  # pointer (32-bit)
+                len_bytes = struct.pack('<I', buffer_size)            # length (32-bit)
+                
+                # Copy iovec entry to WASM memory
+                ptr_array = (ctypes.c_ubyte * 4).from_buffer_copy(ptr_bytes)
+                len_array = (ctypes.c_ubyte * 4).from_buffer_copy(len_bytes)
+                
+                ctypes.memmove(raw_addr + iovec_entry_offset, ptr_array, 4)
+                ctypes.memmove(raw_addr + iovec_entry_offset + 4, len_array, 4)
+                
+                current_buffer_offset += buffer_size
+
+            # Call RawUncompressToIOVecFromSource function
+            # Function signature: bool RawUncompressToIOVecFromSource(const char* compressed_data, size_t compressed_length, const void* iov_ptr, size_t iov_cnt)
+            success = func(self.store, compressed_offset, compressed_len, iovec_offset, buffer_count)
+            
+            if not success:
+                raise RuntimeError("IOVec raw decompression from source failed")
+
+            # Read results from each buffer
+            results = []
+            current_buffer_offset = buffers_start_offset
+            
+            for buffer_size in buffer_sizes:
+                result = bytearray(buffer_size)
+                result_array = (ctypes.c_ubyte * buffer_size).from_buffer(result)
+                ctypes.memmove(result_array, raw_addr + current_buffer_offset, buffer_size)
+                results.append(bytes(result))
+                current_buffer_offset += buffer_size
+
+            return results
+            
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
+            raise RuntimeError(f"IOVec decompression from source failed: {str(e)}")
 
 
 if __name__ == "__main__":
