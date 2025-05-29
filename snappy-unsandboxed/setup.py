@@ -14,10 +14,10 @@ if not os.path.exists(SNAPPY_DIR):
 extensions = [
     Extension(
         "snappy_wrapper",
-        ["snappy_wrapper.pyx"],
+        ["snappy_wrapper.pyx","snappy/snappy.cc",],
         include_dirs=[SNAPPY_DIR],  # Include snappy headers
         library_dirs=[os.path.join(SNAPPY_DIR, "build")],  # Look for built library
-        libraries=["snappy"],
+        # libraries=["snappy"],
         language="c++",
         extra_compile_args=["-std=c++11"],
         extra_link_args=[],

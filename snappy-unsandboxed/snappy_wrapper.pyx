@@ -9,9 +9,35 @@ ctypedef unsigned long size_t
 
 # Declare the C++ functions from snappy
 cdef extern from "snappy.h" namespace "snappy":
+    cdef cppclass CompressionOptions:
+        CompressionOptions() nogil
+        CompressionOptions(int level) nogil
+        int level
+
     size_t MaxCompressedLength(size_t source_bytes) nogil
     bool Compress(const char* input, size_t input_length, string* output) nogil
+    bool Compress(const char* input, size_t input_length, string* output, CompressionOptions options) nogil
     bool Uncompress(const char* input, size_t input_length, string* output) nogil
+
+
+# Python-visible wrapper class
+cdef class PyCompressionOptions:
+    cdef CompressionOptions opt
+
+    def __cinit__(self, int level=1):
+        if level < 1 or level > 2:
+            raise ValueError("Compression level must be 1 or 2")
+        self.opt = CompressionOptions(level)
+
+    def set_level(self, int level):
+        if level < 1 or level > 2:
+            raise ValueError("Compression level must be 1 or 2")
+        self.opt.level = level
+
+    def get_level(self):
+        return self.opt.level
+
+
 
 def max_compressed_length(unsigned long source_bytes):
     """
@@ -52,6 +78,24 @@ def compress_data(bytes input_data):
     if not success:
         raise RuntimeError("Compression failed")
     
+    return output
+
+def cython_CompressWithCustomOptions(bytes input_data, PyCompressionOptions py_opt):
+    """
+    Compress data using Snappy with a custom compression level.
+    """
+    cdef const char* input_ptr = input_data
+    cdef size_t input_length = len(input_data)
+    cdef string output
+    cdef CompressionOptions options = py_opt.opt
+    cdef bool success
+
+    with nogil:
+        success = Compress(input_ptr, input_length, &output, options)
+
+    if not success:
+        raise RuntimeError("Compression failed with custom options")
+
     return output
 
 def uncompress_data(bytes compressed_data):

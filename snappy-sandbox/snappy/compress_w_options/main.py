@@ -3,8 +3,9 @@ from snappywasm.core import SnappyWasm
 
 def main():
     snappy = SnappyWasm()
-    data = b"hello world " * 100
-    compressed = snappy.compress(data,1)
+    data = b"Hello Worldadsf"
+    data += data
+    compressed = snappy.compress(data,compression_level=1)
     print("Compressed Length:", len(compressed))
     print("Original Length:", len(data))
 
