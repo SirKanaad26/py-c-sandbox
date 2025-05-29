@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build WASM directly from Google's Snappy source code (actual source files)
-# Updated version with Uncompress and IsValidCompressedBuffer functions
+# Updated version with Uncompress, IsValidCompressedBuffer, and IsValidCompressed functions
 
 set -e
 
@@ -64,7 +64,7 @@ fi
 
 # Verify required files exist
 echo "🔍 Checking required files..."
-REQUIRED_FILES=("snappy.cc" "snappy.h" "snappy-internal.h" "snappy-stubs-internal.h" "snappy-stubs-public.h")
+REQUIRED_FILES=("snappy.cc" "snappy.h" "snappy-internal.h" "snappy-stubs-internal.h" "snappy-stubs-public.h" "snappy-sinksource.h" "snappy-sinksource.cc")
 for file in "${REQUIRED_FILES[@]}"; do
     if [ -f "$file" ]; then
         echo "  $file"
@@ -78,6 +78,7 @@ echo ""
 cat > wasm_wrapper.cc << 'EOF'
 // WASM wrapper for Google Snappy - uses actual source files
 #include "snappy.h"
+#include "snappy-sinksource.h"
 #include <string>
 #include <cstring>
 #include <vector>
@@ -142,6 +143,53 @@ EXPORT
 int IsValidCompressedBufferInt(const char* compressed_ptr, size_t compressed_length) {
     bool is_valid = snappy::IsValidCompressedBuffer(compressed_ptr, compressed_length);
     return is_valid ? 1 : 0; // Return 1 for valid, 0 for invalid
+}
+
+// NEW: Export the IsValidCompressed function that works with Source* parameter
+// We create a C wrapper that takes raw buffer parameters and creates a ByteArraySource internally
+EXPORT
+bool IsValidCompressed(const char* compressed_data, size_t compressed_length) {
+    // Create a ByteArraySource from the raw buffer data
+    snappy::ByteArraySource source(compressed_data, compressed_length);
+    // Call the real Snappy IsValidCompressed function
+    return snappy::IsValidCompressed(&source);
+}
+
+// Alternative wrapper that explicitly returns int for clarity
+EXPORT
+int IsValidCompressedInt(const char* compressed_ptr, size_t compressed_length) {
+    bool is_valid = IsValidCompressed(compressed_ptr, compressed_length);
+    return is_valid ? 1 : 0; // Return 1 for valid, 0 for invalid
+}
+
+// Export the RawUncompress function from the real Snappy library (char* buffer version)
+EXPORT
+bool RawUncompress(const char* compressed, size_t compressed_length, char* uncompressed) {
+    return snappy::RawUncompress(compressed, compressed_length, uncompressed);
+}
+
+// Alternative wrapper that explicitly returns int for clarity
+EXPORT
+int RawUncompressInt(const char* compressed_ptr, size_t compressed_length, char* uncompressed_ptr) {
+    bool success = snappy::RawUncompress(compressed_ptr, compressed_length, uncompressed_ptr);
+    return success ? 1 : 0; // Return 1 for success, 0 for failure
+}
+
+// Export the RawUncompress function that works with Source* parameter (similar to IsValidCompressed)
+// We create a C wrapper that takes raw buffer parameters and creates a ByteArraySource internally
+EXPORT
+bool RawUncompressFromSource(const char* compressed_data, size_t compressed_length, char* uncompressed) {
+    // Create a ByteArraySource from the raw buffer data
+    snappy::ByteArraySource source(compressed_data, compressed_length);
+    // Call the real Snappy RawUncompress function with Source*
+    return snappy::RawUncompress(&source, uncompressed);
+}
+
+// Alternative wrapper that explicitly returns int for clarity
+EXPORT
+int RawUncompressFromSourceInt(const char* compressed_ptr, size_t compressed_length, char* uncompressed_ptr) {
+    bool success = RawUncompressFromSource(compressed_ptr, compressed_length, uncompressed_ptr);
+    return success ? 1 : 0; // Return 1 for success, 0 for failure
 }
 
 // Export the Uncompress function from the real Snappy library
@@ -367,7 +415,7 @@ void ReadFromMemory(const void* src, char* dest, size_t size) {
 
 EXPORT
 int GetVersion() {
-    return 7; // Version 7 - now includes CompressFromIOVec functions
+    return 9; // Version 9 - now includes RawUncompress functions (both char* and Source* versions)
 }
 EOF
 
@@ -393,7 +441,7 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_IsValidCompressed", "_IsValidCompressedInt", "_RawUncompress", "_RawUncompressInt", "_RawUncompressFromSource", "_RawUncompressFromSourceInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
      -DHAVE_SYS_UIO_H=1 \
      -DHAVE_UNISTD_H=1 \
@@ -439,7 +487,10 @@ echo "  • CompressWithOptions / CompressWithOptionsFromPtr - Compress data wit
 echo "  • CompressFromIOVec / CompressFromBuffers - Compress from multiple input buffers"
 echo "  • CompressFromIOVecWithOptions / CompressFromBuffersWithOptions - Compress from multiple buffers with compression level"
 echo "  • Uncompress / UncompressFromPtr - Decompress data"
-echo "  • IsValidCompressedBuffer / IsValidCompressedBufferInt - Validate compressed data"
+echo "  • RawUncompress / RawUncompressInt - Raw decompression (char* buffer version)"
+echo "  • RawUncompressFromSource / RawUncompressFromSourceInt - Raw decompression (using Source* internally)"
+echo "  • IsValidCompressedBuffer / IsValidCompressedBufferInt - Validate compressed data (char* buffer)"
+echo "  • IsValidCompressed / IsValidCompressedInt - Validate compressed data (using Source* internally)"
 echo "  • GetMinCompressionLevel / GetMaxCompressionLevel / GetDefaultCompressionLevel - Compression level utilities"
 echo "  • Memory management utilities"
 echo "Test with: python test_snappy_source.py"
