@@ -1,13 +1,7 @@
-#!/usr/bin/env python3
-"""
-Simple test script for Snappy WASM Uncompress function - focuses on size verification
-"""
-
 import wasmtime
 import os
 
 def create_wasi_imports(store):
-    """Create minimal WASI imports"""
     def fd_close(fd): return 0
     def fd_write(fd, iovs_ptr, iovs_len, nwritten_ptr): return 0
     def fd_seek(fd, offset, whence, newoffset_ptr): return 0
@@ -23,24 +17,18 @@ def create_wasi_imports(store):
     }
 
 def create_env_imports(store):
-    """Create environment imports"""
     def emscripten_notify_memory_growth(index): pass
     notify_type = wasmtime.FuncType([wasmtime.ValType.i32()], [])
     return {'emscripten_notify_memory_growth': wasmtime.Func(store, notify_type, emscripten_notify_memory_growth)}
 
 def write_data_to_memory(store, write_to_memory_func, ptr, data):
-    """Helper to write data to WASM memory"""
     for i, byte in enumerate(data):
         write_to_memory_func(store, ptr + i, byte, 1)
 
 def test_uncompress_simple():
-    """Simple test focusing on the core uncompress functionality"""
-    
-    print("🧪 Simple Snappy WASM Uncompress Test...")
-    
     wasm_file = 'snappywasm/wasm/snappy_direct.wasm'
     if not os.path.exists(wasm_file):
-        print(f"❌ WASM file not found: {wasm_file}")
+        print(f"WASM file not found: {wasm_file}")
         return False
     
     try:
@@ -52,7 +40,6 @@ def test_uncompress_simple():
         
         module = wasmtime.Module(engine, wasm_bytes)
         
-        # Create imports
         wasi_imports = create_wasi_imports(store)
         env_imports = create_env_imports(store)
         
@@ -64,14 +51,12 @@ def test_uncompress_simple():
         ]
         
         instance = wasmtime.Instance(store, module, imports)
-        print("✅ WASM module loaded successfully!")
+        print("WASM module loaded successfully!")
         
-        # Initialize
         initialize = instance.exports(store).get("_initialize")
         if initialize:
             initialize(store)
         
-        # Get functions
         exports = instance.exports(store)
         get_version = exports["GetVersion"]
         allocate_memory = exports["AllocateMemory"]
@@ -83,13 +68,12 @@ def test_uncompress_simple():
         max_compressed_length = exports["MaxCompressedLength"]
         
         version = get_version(store)
-        print(f"📋 WASM module version: {version}")
+        print(f"WASM module version: {version}")
         
         if version < 5:
-            print("❌ Module version too old")
+            print("Module version old")
             return False
         
-        # Test cases with different data
         test_cases = [
             (b"Hello, World!", "Short text"),
             (b"This is a longer test string for Snappy compression!", "Medium text"),
@@ -101,51 +85,49 @@ def test_uncompress_simple():
         all_passed = True
         
         for test_data, description in test_cases:
-            print(f"\n🔍 Testing: {description} ({len(test_data)} bytes)")
+            print(f"\nTesting: {description} ({len(test_data)} bytes)")
             
             try:
-                # Allocate and write input data
                 input_size = len(test_data)
                 input_ptr = allocate_memory(store, input_size)
                 write_data_to_memory(store, write_to_memory, input_ptr, test_data)
                 
-                # Compress
                 max_compressed_size = max_compressed_length(store, input_size)
                 compressed_ptr = allocate_memory(store, max_compressed_size)
                 compressed_size = compress_from_ptr(store, input_ptr, input_size, compressed_ptr, max_compressed_size)
                 
                 if compressed_size <= 0:
-                    print(f"   ❌ Compression failed")
+                    print(f"   Compression failed")
                     all_passed = False
                     continue
                 
-                print(f"   ✅ Compressed: {input_size} → {compressed_size} bytes")
+                print(f"   Compressed: {input_size} → {compressed_size} bytes")
                 
                 # Validate compressed data
                 is_valid = is_valid_compressed_buffer(store, compressed_ptr, compressed_size)
                 if is_valid != 1:
-                    print(f"   ❌ Compressed data is invalid")
+                    print(f"   Compressed data is invalid")
                     all_passed = False
                     continue
                 
-                print(f"   ✅ Compressed data is valid")
+                print(f"   Compressed data is valid")
                 
                 # Uncompress
                 uncompressed_ptr = allocate_memory(store, input_size)  # We know the expected size
                 uncompressed_size = uncompress_from_ptr(store, compressed_ptr, compressed_size, uncompressed_ptr, input_size)
                 
                 if uncompressed_size <= 0:
-                    print(f"   ❌ Decompression failed")
+                    print(f"   Decompression failed")
                     all_passed = False
                     continue
                 
-                print(f"   ✅ Decompressed: {compressed_size} → {uncompressed_size} bytes")
+                print(f"   Decompressed: {compressed_size} → {uncompressed_size} bytes")
                 
                 # Check if sizes match
                 if uncompressed_size == input_size:
-                    print(f"   ✅ Size verification: PASSED")
+                    print(f"   Size verification: PASSED")
                 else:
-                    print(f"   ❌ Size verification: FAILED (expected {input_size}, got {uncompressed_size})")
+                    print(f"   Size verification: FAILED (expected {input_size}, got {uncompressed_size})")
                     all_passed = False
                 
                 # Cleanup
@@ -154,11 +136,10 @@ def test_uncompress_simple():
                 free_memory(store, uncompressed_ptr)
                 
             except Exception as e:
-                print(f"   ❌ Test failed: {e}")
+                print(f"   Test failed: {e}")
                 all_passed = False
         
-        # Test error cases
-        print(f"\n🔍 Testing Error Cases...")
+        print(f"\nTesting Error Cases")
         
         # Invalid compressed data
         garbage_data = b'\xFF\xFF\xFF\xFF\x00\x00\x00\x00'
@@ -166,12 +147,12 @@ def test_uncompress_simple():
         write_data_to_memory(store, write_to_memory, garbage_ptr, garbage_data)
         
         is_valid_garbage = is_valid_compressed_buffer(store, garbage_ptr, len(garbage_data))
-        print(f"   Invalid data validation: {'✅ CORRECTLY INVALID' if is_valid_garbage == 0 else '❌ INCORRECTLY VALID'}")
+        print(f"   Invalid data validation: {'CORRECTLY INVALID' if is_valid_garbage == 0 else 'INCORRECTLY VALID'}")
         
         # Try to decompress invalid data
         bad_output_ptr = allocate_memory(store, 100)
         bad_result = uncompress_from_ptr(store, garbage_ptr, len(garbage_data), bad_output_ptr, 100)
-        print(f"   Invalid data decompression: {'✅ CORRECTLY FAILED' if bad_result == 0 else '❌ INCORRECTLY SUCCEEDED'}")
+        print(f"   Invalid data decompression: {'CORRECTLY FAILED' if bad_result == 0 else 'INCORRECTLY SUCCEEDED'}")
         
         if is_valid_garbage != 0 or bad_result != 0:
             all_passed = False
@@ -180,33 +161,30 @@ def test_uncompress_simple():
         free_memory(store, bad_output_ptr)
         
         # Results
-        print(f"\n🎉 Test Results:")
+        print(f"\nTest Results:")
         if all_passed:
-            print(f"   ✅ ALL TESTS PASSED!")
-            print(f"   🎯 Uncompress function is working correctly")
-            print(f"   📊 Tested compression → validation → decompression cycle")
-            print(f"   🛡️ Error detection working properly")
+            print(f"   TESTS PASSED")
+            print(f"   Uncompress function is working correctly")
+            print(f"   Tested compression → validation → decompression cycle")
+            print(f"   Error detection working properly")
             return True
         else:
-            print(f"   ❌ SOME TESTS FAILED")
+            print(f"   TESTS FAILED")
             return False
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("🧪 SIMPLE SNAPPY WASM UNCOMPRESS TEST")
-    print("=" * 60)
+    print("STARTING UNCOMPRESS TEST")
     
     success = test_uncompress_simple()
     
     print("\n" + "=" * 60)
     if success:
-        print("🎉 UNCOMPRESS TEST: SUCCESS")
-        print("✅ Your Uncompress function is working!")
+        print("UNCOMPRESS TEST: SUCCESS")
     else:
-        print("❌ UNCOMPRESS TEST: FAILED")
+        print("UNCOMPRESS TEST: FAILED")
