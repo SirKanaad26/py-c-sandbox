@@ -49,7 +49,7 @@ class SnappyWasmDirect:
         
         # Check what imports the module needs
         imports_needed = module.imports
-        print(f"📋 Module requires {len(imports_needed)} imports:")
+        print(f"Module requires {len(imports_needed)} imports:")
         for imp in imports_needed:
             print(f"  - {imp.module}.{imp.name}: {imp.type}")
         
@@ -82,9 +82,9 @@ class SnappyWasmDirect:
             self.memory = self.exports["memory"]
         else:
             self.memory = None
-            print("⚠️  No memory export found - some functions may not work")
+            print(" No memory export found - some functions may not work")
         
-        print("\n📦 Available functions:")
+        print("\nAvailable functions:")
         for name in self.exports.keys():
             if not name.startswith("__"):  # Skip internal functions
                 print(f"  - {name}")
@@ -224,17 +224,17 @@ def test_snappy_direct_wasm():
     try:
         snappy = SnappyWasmDirect()
     except FileNotFoundError:
-        print("❌ WASM file not found: snappy_direct.wasm")
-        print("💡 Run ./build_from_snappy_source.sh first")
+        print("WASM file not found: snappy_direct.wasm")
+        print("Run ./build_from_snappy_source.sh first")
         return
     except Exception as e:
-        print(f"❌ Failed to load WASM module: {e}")
+        print(f"Failed to load WASM module: {e}")
         return
     
-    print("🗜️  Testing WASM Built from Actual Snappy Source Files")
+    print(" Testing WASM Built from Actual Snappy Source Files")
     print("=" * 60)
     
-    print(f"📋 Version: {snappy.get_version()}")
+    print(f"Version: {snappy.get_version()}")
     print()
     
     # Test MaxCompressedLength
@@ -257,7 +257,7 @@ def test_snappy_direct_wasm():
     
     # Test GetUncompressedLength if available
     if snappy.memory and "GetUncompressedLengthFromPtr" in snappy.exports:
-        print(f"\n📖 Testing GetUncompressedLength:")
+        print(f"\nTesting GetUncompressedLength:")
         print(f"{'Original Size':>14} | {'Retrieved Size':>15} | {'Mock Data Size':>15} | {'Status':>8}")
         print("-" * 65)
         
@@ -271,18 +271,18 @@ def test_snappy_direct_wasm():
                 # Try to get uncompressed length
                 retrieved_size = snappy.get_uncompressed_length(mock_compressed)
                 
-                status = "✅ PASS" if retrieved_size == original_size else "❌ FAIL"
+                status = "PASS" if retrieved_size == original_size else "FAIL"
                 print(f"{original_size:14,} | {retrieved_size:15,} | {len(mock_compressed):15,} | {status:>8}")
                 
             except Exception as e:
-                print(f"{original_size:14,} | {'ERROR':>15} | {'N/A':>15} | {'❌ FAIL':>8}")
+                print(f"{original_size:14,} | {'ERROR':>15} | {'N/A':>15} | {'FAIL':>8}")
                 print(f"    Error: {e}")
     else:
-        print(f"\n⚠️  GetUncompressedLength not available in this build")
+        print(f"\nGetUncompressedLength not available in this build")
     
     # Test Compress function if available
     if snappy.memory and "CompressFromPtr" in snappy.exports:
-        print(f"\n🗜️  Testing Compress Function:")
+        print(f"\n Testing Compress Function:")
         print(f"{'Test Data':>20} | {'Original':>10} | {'Compressed':>12} | {'Ratio':>8} | {'Retrieved':>10} | {'Status':>8}")
         print("-" * 85)
         
@@ -308,10 +308,10 @@ def test_snappy_direct_wasm():
                 try:
                     retrieved_size = snappy.get_uncompressed_length(compressed)
                     size_match = retrieved_size == len(test_data)
-                    status = "✅ PASS" if size_match else "❌ SIZE"
+                    status = "PASS" if size_match else "SIZE"
                 except:
                     retrieved_size = "ERROR"
-                    status = "❌ FAIL"
+                    status = "FAIL"
                 
                 print(f"{description:>20} | {len(test_data):10,} | {len(compressed):12,} | {ratio:8.2f} | {str(retrieved_size):>10} | {status:>8}")
                 
@@ -320,7 +320,7 @@ def test_snappy_direct_wasm():
                 print(f"    Error: {e}")
         
         # Test compression round-trip (compress + decompress check)
-        print(f"\n🔄 Compression Round-trip Tests:")
+        print(f"\n Compression Round-trip Tests:")
         round_trip_tests = [
             b"Hello, World!",
             b"The quick brown fox jumps over the lazy dog. " * 20,
@@ -341,13 +341,13 @@ def test_snappy_direct_wasm():
                     print(f"  Test {i+1}: Size mismatch {len(test_data)} != {retrieved_size} ❌")
                     
             except Exception as e:
-                print(f"  Test {i+1}: Error - {e} ❌")
+                print(f"  Test {i+1}: Error - {e}")
     
     else:
-        print(f"\n⚠️  Compress function not available in this build")
+        print(f"\n Compress function not available in this build")
     
     # Performance test
-    print(f"\n⚡ Performance Tests")
+    print(f"\n Performance Tests")
     print("-" * 30)
     
     import time

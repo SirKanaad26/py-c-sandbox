@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# main.py
 # Test script for Snappy wrapper
 
 from snappy_wrapper import py_max_compressed_length
@@ -10,7 +8,6 @@ def main():
     print("=== Snappy Max Compressed Length Test ===")
     print()
     
-    # Test various input sizes
     test_sizes = [0, 10, 100, 1000, 10000, 100000, 1000000]
     
     for size in test_sizes:
@@ -24,8 +21,7 @@ def main():
         print("-" * 40)
     
     print()
-    print("✅ Snappy wrapper working successfully!")
-    print("🚀 You can now extend this to wrap compress/decompress functions!")
+    print("Snappy wrapper working successfully!")
 
 if __name__ == "__main__":
     main()
