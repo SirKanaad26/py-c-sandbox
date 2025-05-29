@@ -29,6 +29,14 @@ def main():
             print("✓ Data integrity verified - compression/decompression successful!")
         else:
             print("✗ Data integrity check failed!")
+        
+        data = b"hello world " * 100
+
+        # Use compression level 2 (higher compression)
+        opt = snappy_wrapper.PyCompressionOptions(level=2)
+
+        compressed = snappy_wrapper.cython_CompressWithCustomOptions(data, opt)
+        print(f"Compressed length: {len(compressed)} with level {opt.get_level()}")
     
     except RuntimeError as e:
         print(f"Error: {e}")

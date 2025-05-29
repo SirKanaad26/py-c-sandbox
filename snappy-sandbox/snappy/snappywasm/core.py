@@ -84,9 +84,16 @@ class SnappyWasm:
         if not self.memory:
             raise RuntimeError("Memory not available")
 
-        func = self.exports.get("CompressFromPtr")
-        if not func:
-            raise RuntimeError("CompressFromPtr not found")
+        # Choose function based on whether compression level is specified
+        if compression_level is not None:
+            print("here")
+            func = self.exports.get("CompressWithOptionsFromPtr")
+            if not func:
+                raise RuntimeError("CompressWithOptionsFromPtr not found")
+        else:
+            func = self.exports.get("CompressFromPtr")
+            if not func:
+                raise RuntimeError("CompressFromPtr not found")
 
         max_out_len = self.max_compressed_length(len(input_data))
         input_len = len(input_data)

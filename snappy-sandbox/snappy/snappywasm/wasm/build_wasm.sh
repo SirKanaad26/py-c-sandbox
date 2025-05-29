@@ -477,6 +477,205 @@ size_t CompressFromBuffersWithOptions(const char* buffer_ptr, const size_t* leng
     return compressed_size;
 }
 
+// ========================================
+// ADD THESE FUNCTIONS TO YOUR wasm_wrapper.cc 
+// (Insert after the existing functions, before the GetVersion() function)
+// ========================================
+
+// NEW: Export the RawCompress function from the real Snappy library
+// void RawCompress(const char* input, size_t input_length, char* compressed, size_t* compressed_length);
+EXPORT
+void RawCompress(const char* input, size_t input_length, char* compressed, size_t* compressed_length) {
+    snappy::RawCompress(input, input_length, compressed, compressed_length);
+}
+
+// NEW: Export the RawCompress function with CompressionOptions from the real Snappy library
+// void RawCompress(const char* input, size_t input_length, char* compressed, size_t* compressed_length, CompressionOptions options);
+EXPORT
+void RawCompressWithOptions(const char* input, size_t input_length, char* compressed, size_t* compressed_length, int compression_level) {
+    snappy::CompressionOptions options;
+    options.level = compression_level;
+    snappy::RawCompress(input, input_length, compressed, compressed_length, options);
+}
+
+// NEW: Export the RawCompressFromIOVec function from the real Snappy library
+// void RawCompressFromIOVec(const struct iovec* iov, size_t uncompressed_length, char* compressed, size_t* compressed_length);
+EXPORT
+void RawCompressFromIOVec(const void* iov_ptr, size_t iov_cnt, size_t uncompressed_length, char* compressed, size_t* compressed_length) {
+    const uint32_t* iov_data = static_cast<const uint32_t*>(iov_ptr);
+    std::vector<struct iovec> iovecs(iov_cnt);
+    
+    // Convert WASM iovec format to native iovec format
+    for (size_t i = 0; i < iov_cnt; i++) {
+        uint32_t base_offset = iov_data[i * 2];     // iov_base as offset
+        uint32_t length = iov_data[i * 2 + 1];     // iov_len
+        
+        // Convert offset to actual pointer
+        iovecs[i].iov_base = reinterpret_cast<void*>(base_offset);
+        iovecs[i].iov_len = length;
+    }
+    
+    // Call the real Snappy RawCompressFromIOVec function
+    snappy::RawCompressFromIOVec(iovecs.data(), uncompressed_length, compressed, compressed_length);
+}
+
+// NEW: Export the RawCompressFromIOVec function with CompressionOptions from the real Snappy library
+// void RawCompressFromIOVec(const struct iovec* iov, size_t uncompressed_length, char* compressed, size_t* compressed_length, CompressionOptions options);
+EXPORT
+void RawCompressFromIOVecWithOptions(const void* iov_ptr, size_t iov_cnt, size_t uncompressed_length, char* compressed, size_t* compressed_length, int compression_level) {
+    const uint32_t* iov_data = static_cast<const uint32_t*>(iov_ptr);
+    std::vector<struct iovec> iovecs(iov_cnt);
+    
+    // Convert WASM iovec format to native iovec format
+    for (size_t i = 0; i < iov_cnt; i++) {
+        uint32_t base_offset = iov_data[i * 2];     // iov_base as offset
+        uint32_t length = iov_data[i * 2 + 1];     // iov_len
+        
+        // Convert offset to actual pointer
+        iovecs[i].iov_base = reinterpret_cast<void*>(base_offset);
+        iovecs[i].iov_len = length;
+    }
+    
+    // Create CompressionOptions with the specified level
+    snappy::CompressionOptions options;
+    options.level = compression_level;
+    
+    // Call the real Snappy RawCompressFromIOVec function with options
+    snappy::RawCompressFromIOVec(iovecs.data(), uncompressed_length, compressed, compressed_length, options);
+}
+
+// Simplified RawCompressFromIOVec that takes flattened buffer pointers and lengths
+// This is easier to use from WASM since it doesn't require complex iovec handling
+EXPORT
+void RawCompressFromBuffers(const char* buffer_ptr, const size_t* lengths_ptr, size_t buffer_count, 
+                           size_t uncompressed_length, char* compressed, size_t* compressed_length) {
+    // Create iovec structures from the flattened input buffers
+    std::vector<struct iovec> iovecs(buffer_count);
+    size_t current_offset = 0;
+    
+    for (size_t i = 0; i < buffer_count; i++) {
+        iovecs[i].iov_base = const_cast<char*>(buffer_ptr + current_offset);
+        iovecs[i].iov_len = lengths_ptr[i];
+        current_offset += lengths_ptr[i];
+    }
+    
+    // Call the real Snappy RawCompressFromIOVec function
+    snappy::RawCompressFromIOVec(iovecs.data(), uncompressed_length, compressed, compressed_length);
+}
+
+// RawCompressFromBuffers with CompressionOptions
+EXPORT
+void RawCompressFromBuffersWithOptions(const char* buffer_ptr, const size_t* lengths_ptr, size_t buffer_count,
+                                      size_t uncompressed_length, char* compressed, size_t* compressed_length, int compression_level) {
+    // Create iovec structures from the flattened input buffers
+    std::vector<struct iovec> iovecs(buffer_count);
+    size_t current_offset = 0;
+    
+    for (size_t i = 0; i < buffer_count; i++) {
+        iovecs[i].iov_base = const_cast<char*>(buffer_ptr + current_offset);
+        iovecs[i].iov_len = lengths_ptr[i];
+        current_offset += lengths_ptr[i];
+    }
+    
+    // Create CompressionOptions with the specified level
+    snappy::CompressionOptions options;
+    options.level = compression_level;
+    
+    // Call the real Snappy RawCompressFromIOVec function with options
+    snappy::RawCompressFromIOVec(iovecs.data(), uncompressed_length, compressed, compressed_length, options);
+}
+
+// Custom Sink implementation for WASM that writes to a pre-allocated buffer
+class WASMSink : public snappy::Sink {
+public:
+    WASMSink(char* buffer, size_t max_size) : buffer_(buffer), max_size_(max_size), written_(0) {}
+    
+    virtual void Append(const char* bytes, size_t n) override {
+        if (written_ + n <= max_size_) {
+            std::memcpy(buffer_ + written_, bytes, n);
+            written_ += n;
+        } else {
+            // Buffer overflow - you might want to handle this differently
+            overflow_ = true;
+        }
+    }
+    
+    virtual char* GetAppendBuffer(size_t length, char* scratch) override {
+        if (written_ + length <= max_size_) {
+            return buffer_ + written_;
+        }
+        return scratch; // Fallback to scratch buffer
+    }
+    
+    size_t bytes_written() const { return written_; }
+    bool overflow() const { return overflow_; }
+    
+private:
+    char* buffer_;
+    size_t max_size_;
+    size_t written_;
+    bool overflow_ = false;
+};
+
+// Custom Source implementation for WASM that reads from a buffer
+class WASMSource : public snappy::Source {
+public:
+    WASMSource(const char* buffer, size_t size) : buffer_(buffer), size_(size), pos_(0) {}
+    
+    virtual size_t Available() const override {
+        return size_ - pos_;
+    }
+    
+    virtual const char* Peek(size_t* len) override {
+        *len = size_ - pos_;
+        return buffer_ + pos_;
+    }
+    
+    virtual void Skip(size_t n) override {
+        pos_ = std::min(pos_ + n, size_);
+    }
+    
+private:
+    const char* buffer_;
+    size_t size_;
+    size_t pos_;
+};
+
+// NEW: Export the Compress function with Source/Sink from the real Snappy library
+// size_t Compress(Source* reader, Sink* writer);
+EXPORT
+size_t CompressFromSourceToSink(const char* input_buffer, size_t input_length, char* output_buffer, size_t max_output_length) {
+    WASMSource source(input_buffer, input_length);
+    WASMSink sink(output_buffer, max_output_length);
+    
+    size_t compressed_size = snappy::Compress(&source, &sink);
+    
+    if (sink.overflow()) {
+        return 0; // Error: output buffer too small
+    }
+    
+    return compressed_size;
+}
+
+// NEW: Export the Compress function with Source/Sink and CompressionOptions from the real Snappy library
+// size_t Compress(Source* reader, Sink* writer, CompressionOptions options);
+EXPORT
+size_t CompressFromSourceToSinkWithOptions(const char* input_buffer, size_t input_length, char* output_buffer, size_t max_output_length, int compression_level) {
+    WASMSource source(input_buffer, input_length);
+    WASMSink sink(output_buffer, max_output_length);
+    
+    snappy::CompressionOptions options;
+    options.level = compression_level;
+    
+    size_t compressed_size = snappy::Compress(&source, &sink, options);
+    
+    if (sink.overflow()) {
+        return 0; // Error: output buffer too small
+    }
+    
+    return compressed_size;
+}
+
 // Export memory allocation functions for managing WASM memory from Python
 EXPORT
 void* AllocateMemory(size_t size) {
@@ -502,7 +701,7 @@ void ReadFromMemory(const void* src, char* dest, size_t size) {
 
 EXPORT
 int GetVersion() {
-    return 10; // Version 10 - now includes RawUncompressToIOVec functions (both char* and Source* versions)
+    return 11; // Version 11 - now includes RawCompress, RawCompressFromIOVec, and Source/Sink Compress functions
 }
 EOF
 
@@ -528,7 +727,7 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_IsValidCompressed", "_IsValidCompressedInt", "_RawUncompress", "_RawUncompressInt", "_RawUncompressFromSource", "_RawUncompressFromSourceInt", "_RawUncompressToIOVec", "_RawUncompressToIOVecInt", "_RawUncompressToIOVecFromSource", "_RawUncompressToIOVecFromSourceInt", "_RawUncompressToBuffers", "_RawUncompressToBuffersInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_RawCompress", "_RawCompressWithOptions", "_RawCompressFromIOVec", "_RawCompressFromIOVecWithOptions", "_RawCompressFromBuffers", "_RawCompressFromBuffersWithOptions", "_CompressFromSourceToSink", "_CompressFromSourceToSinkWithOptions", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_IsValidCompressed", "_IsValidCompressedInt", "_RawUncompress", "_RawUncompressInt", "_RawUncompressFromSource", "_RawUncompressFromSourceInt", "_RawUncompressToIOVec", "_RawUncompressToIOVecInt", "_RawUncompressToIOVecFromSource", "_RawUncompressToIOVecFromSourceInt", "_RawUncompressToBuffers", "_RawUncompressToBuffersInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
      -DHAVE_SYS_UIO_H=1 \
      -DHAVE_UNISTD_H=1 \
