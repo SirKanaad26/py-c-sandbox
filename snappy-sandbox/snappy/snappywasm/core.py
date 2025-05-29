@@ -1,7 +1,7 @@
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func
-from .utils import create_wasm_imports
+from utils import create_wasm_imports
 import ctypes
 
 class SnappyWasm:
@@ -80,13 +80,25 @@ class SnappyWasm:
         uncompressed_length = struct.unpack('<I', result_bytes)[0]
         return uncompressed_length
 
-    def compress(self, input_data: bytes) -> bytes:
+    def compress(self, input_data: bytes, compression_level: int = None) -> bytes:
+        """Compress data using Snappy WASM
+        
+        Args:
+            input_data: Data to compress
+            compression_level: Optional compression level (1-2). If None, uses default level.
+        """
         if not self.memory:
             raise RuntimeError("Memory not available")
 
-        func = self.exports.get("CompressFromPtr")
-        if not func:
-            raise RuntimeError("CompressFromPtr not found")
+        # Choose function based on whether compression level is specified
+        if compression_level is not None:
+            func = self.exports.get("CompressWithOptionsFromPtr")
+            if not func:
+                raise RuntimeError("CompressWithOptionsFromPtr not found")
+        else:
+            func = self.exports.get("CompressFromPtr")
+            if not func:
+                raise RuntimeError("CompressFromPtr not found")
 
         max_out_len = self.max_compressed_length(len(input_data))
         input_len = len(input_data)
@@ -106,7 +118,11 @@ class SnappyWasm:
         ctypes.memmove(raw_addr + input_offset, src_array, input_len)
 
         # Call compress function
-        compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
+        if compression_level is not None:
+            compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len, compression_level)
+        else:
+            compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
+            
         if compressed_len <= 0:
             raise RuntimeError("Compression failed")
 
@@ -195,6 +211,36 @@ class SnappyWasm:
         
         return bool(is_valid)
 
+    def get_min_compression_level(self) -> int:
+        """Get the minimum supported compression level"""
+        func = self.exports.get("GetMinCompressionLevel")
+        if not func:
+            return 1  # Default fallback
+        return func(self.store)
+
+    def get_max_compression_level(self) -> int:
+        """Get the maximum supported compression level"""
+        func = self.exports.get("GetMaxCompressionLevel")
+        if not func:
+            return 2  # Default fallback
+        return func(self.store)
+
+    def get_default_compression_level(self) -> int:
+        """Get the default compression level"""
+        func = self.exports.get("GetDefaultCompressionLevel")
+        if not func:
+            return 1  # Default fallback
+        return func(self.store)
+
+    def get_compression_info(self) -> dict:
+        """Get information about available compression levels"""
+        return {
+            "min_level": self.get_min_compression_level(),
+            "max_level": self.get_max_compression_level(),
+            "default_level": self.get_default_compression_level(),
+            "supported_levels": list(range(self.get_min_compression_level(), self.get_max_compression_level() + 1))
+        }
+
     def get_version(self) -> int:
         """Get the version of the WASM module"""
         func = self.exports.get("GetVersion")
@@ -205,30 +251,55 @@ class SnappyWasm:
 # Example usage:
 if __name__ == "__main__":
     # Initialize the WASM module
-    snappy = SnappyWasm("path/to/your/snappy.wasm")
+    snappy = SnappyWasm("wasm/snappy_direct.wasm")
+    
+    print(f"Snappy WASM Version: {snappy.get_version()}")
+    
+    # Get compression level information
+    compression_info = snappy.get_compression_info()
+    print(f"Compression Info: {compression_info}")
     
     # Test data
-    original_data = b"Hello, this is a test string for Snappy compression and decompression!"
-    print(f"Original: {original_data}")
+    original_data = b"Hello, this is a test string for Snappy compression and decompression! " * 10
+    print(f"Original: {original_data[:50]}...")
     print(f"Original length: {len(original_data)} bytes")
     
-    # Compress
-    compressed = snappy.compress(original_data)
-    print(f"Compressed length: {len(compressed)} bytes")
-    print(f"Compression ratio: {(1 - len(compressed)/len(original_data))*100:.1f}%")
+    # Test different compression levels
+    for level in compression_info["supported_levels"]:
+        print(f"\n--- Testing Compression Level {level} ---")
+        
+        # Compress with specific level
+        compressed = snappy.compress(original_data, compression_level=level)
+        print(f"Compressed length (level {level}): {len(compressed)} bytes")
+        print(f"Compression ratio (level {level}): {(1 - len(compressed)/len(original_data))*100:.1f}%")
+        
+        # Validate compressed data
+        is_valid = snappy.is_valid_compressed_buffer(compressed)
+        print(f"Compressed data is valid: {is_valid}")
+        
+        # Get uncompressed length
+        expected_length = snappy.get_uncompressed_length(compressed)
+        print(f"Expected uncompressed length: {expected_length} bytes")
+        
+        # Uncompress
+        uncompressed = snappy.uncompress(compressed)
+        print(f"Uncompressed length: {len(uncompressed)} bytes")
+        
+        # Verify integrity
+        integrity_check = original_data == uncompressed
+        print(f"Data integrity check: {'✅ PASS' if integrity_check else '❌ FAIL'}")
+        
+        if not integrity_check:
+            print(f"Original:     {original_data[:100]}")
+            print(f"Uncompressed: {uncompressed[:100]}")
     
-    # Validate compressed data
-    is_valid = snappy.is_valid_compressed_buffer(compressed)
-    print(f"Compressed data is valid: {is_valid}")
+    # Test default compression (no level specified)
+    print(f"\n--- Testing Default Compression ---")
+    compressed_default = snappy.compress(original_data)
+    print(f"Default compressed length: {len(compressed_default)} bytes")
+    print(f"Default compression ratio: {(1 - len(compressed_default)/len(original_data))*100:.1f}%")
     
-    # Get uncompressed length
-    expected_length = snappy.get_uncompressed_length(compressed)
-    print(f"Expected uncompressed length: {expected_length} bytes")
-    
-    # Uncompress
-    uncompressed = snappy.uncompress(compressed)
-    print(f"Uncompressed: {uncompressed}")
-    print(f"Uncompressed length: {len(uncompressed)} bytes")
-    
-    # Verify integrity
-    print(f"Data integrity check: {'✅ PASS' if original_data == uncompressed else '❌ FAIL'}")
+    # Verify default compression works
+    uncompressed_default = snappy.uncompress(compressed_default)
+    default_check = original_data == uncompressed_default
+    print(f"Default compression integrity: {'✅ PASS' if default_check else '❌ FAIL'}")

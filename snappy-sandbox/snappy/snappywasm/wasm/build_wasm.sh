@@ -170,6 +170,48 @@ size_t UncompressFromPtr(const char* compressed_ptr, size_t compressed_length, c
     return Uncompress(compressed_ptr, compressed_length, output_ptr, max_output_length);
 }
 
+// Export the Compress function with CompressionOptions from the real Snappy library
+EXPORT
+size_t CompressWithOptions(const char* input, size_t input_length, char* compressed_output, size_t max_compressed_length, int compression_level) {
+    // Create CompressionOptions with the specified level
+    snappy::CompressionOptions options;
+    options.level = compression_level;
+    
+    std::string compressed;
+    size_t compressed_size = snappy::Compress(input, input_length, &compressed, options);
+    
+    // Check if output buffer is large enough
+    if (compressed_size > max_compressed_length) {
+        return 0; // Error: output buffer too small
+    }
+    
+    // Copy compressed data to output buffer
+    std::memcpy(compressed_output, compressed.data(), compressed_size);
+    return compressed_size;
+}
+
+// Wrapper function for CompressWithOptions that works with WASM memory pointers
+EXPORT
+size_t CompressWithOptionsFromPtr(const char* input_ptr, size_t input_length, char* output_ptr, size_t max_output_length, int compression_level) {
+    return CompressWithOptions(input_ptr, input_length, output_ptr, max_output_length, compression_level);
+}
+
+// Utility functions for CompressionOptions
+EXPORT
+int GetMinCompressionLevel() {
+    return snappy::CompressionOptions::MinCompressionLevel();
+}
+
+EXPORT
+int GetMaxCompressionLevel() {
+    return snappy::CompressionOptions::MaxCompressionLevel();
+}
+
+EXPORT
+int GetDefaultCompressionLevel() {
+    return snappy::CompressionOptions::DefaultCompressionLevel();
+}
+
 // Export memory allocation functions for managing WASM memory from Python
 EXPORT
 void* AllocateMemory(size_t size) {
@@ -195,7 +237,7 @@ void ReadFromMemory(const void* src, char* dest, size_t size) {
 
 EXPORT
 int GetVersion() {
-    return 5; // Version 5 - now includes Uncompress and IsValidCompressedBuffer functions
+    return 6; // Version 6 - now includes CompressWithOptions function
 }
 EOF
 
@@ -221,7 +263,7 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_Uncompress", "_UncompressFromPtr", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
      -DHAVE_SYS_UIO_H=0 \
      -DHAVE_UNISTD_H=1 \
@@ -265,8 +307,10 @@ echo "🧬 This uses the unmodified Google Snappy source code"
 echo "📋 Available functions:"
 echo "   • MaxCompressedLength - Calculate max size needed for compression"
 echo "   • GetUncompressedLength / GetUncompressedLengthFromPtr - Get original size from compressed data"
-echo "   • Compress / CompressFromPtr - Compress data"
+echo "   • Compress / CompressFromPtr - Compress data (default compression level)"
+echo "   • CompressWithOptions / CompressWithOptionsFromPtr - Compress data with specific compression level"
 echo "   • Uncompress / UncompressFromPtr - Decompress data"
 echo "   • IsValidCompressedBuffer / IsValidCompressedBufferInt - Validate compressed data"
+echo "   • GetMinCompressionLevel / GetMaxCompressionLevel / GetDefaultCompressionLevel - Compression level utilities"
 echo "   • Memory management utilities"
 echo "💡 Test with: python test_snappy_source.py"
