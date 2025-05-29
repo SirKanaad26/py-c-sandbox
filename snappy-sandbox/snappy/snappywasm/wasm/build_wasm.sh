@@ -7,7 +7,7 @@ set -e
 echo "🔧 Building WASM from Real Snappy Source Files..."
 
 # Create build directory
-BUILD_DIR="snappy_direct_source"
+BUILD_DIR="snappy_source"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
@@ -399,19 +399,19 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -DHAVE_UNISTD_H=1 \
      -O3 \
      --no-entry \
-     -o snappy_direct.wasm
+     -o snappy.wasm
 
-if [ -f "snappy_direct.wasm" ]; then
-    FILE_SIZE=$(stat -f%z snappy_direct.wasm 2>/dev/null || stat -c%s snappy_direct.wasm 2>/dev/null || echo "unknown")
+if [ -f "snappy.wasm" ]; then
+    FILE_SIZE=$(stat -f%z snappy.wasm 2>/dev/null || stat -c%s snappy.wasm 2>/dev/null || echo "unknown")
     echo "✅ WASM built from actual Snappy source files!"
     echo "📏 File size: $FILE_SIZE bytes"
     
     # Copy to parent directories for easy access
-    cp snappy_direct.wasm ../..
+    cp snappy.wasm ../..
     
     # Validate
     if command -v wasm-validate &> /dev/null; then
-        if wasm-validate snappy_direct.wasm; then
+        if wasm-validate snappy.wasm; then
             echo "✅ WASM validation passed!"
         fi
     fi
@@ -429,7 +429,7 @@ cd ../..
 
 echo ""
 echo "🎉 Successfully built WASM from actual Snappy source files!"
-echo "📦 Output: snappy_direct.wasm"
+echo "📦 Output: snappy.wasm"
 echo "🧬 This uses the unmodified Google Snappy source code"
 echo "📋 Available functions:"
 echo "   • MaxCompressedLength - Calculate max size needed for compression"
