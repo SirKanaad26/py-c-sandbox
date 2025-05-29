@@ -119,7 +119,7 @@ class SnappyWasm:
 
         return bytes(result)
 
-    def compress_from_iovec(self, data_buffers: List[Union[bytes, bytearray]]) -> bytes:
+    def compress_from_iovec(self, data_buffers: List[Union[bytes, bytearray]], compression_level=-1) -> bytes:
         """
         Compress data from multiple buffers using Snappy's CompressFromIOVec functionality.
         
@@ -135,7 +135,11 @@ class SnappyWasm:
         if not self.memory:
             raise RuntimeError("Memory not available")
 
-        func = self.exports.get("CompressFromIOVec")
+        if compression_level == -1:
+            func = self.exports.get("CompressFromIOVec")
+        else:
+            func = self.exports.get(f"CompressFromIOVecWithOptions")
+
         if not func:
             raise RuntimeError("CompressFromIOVec not found")
 
@@ -191,7 +195,10 @@ class SnappyWasm:
 
         # Call CompressFromIOVec function
         # Function signature: size_t CompressFromIOVec(const struct iovec* iov, size_t iov_cnt, char* output, size_t output_len)
-        compressed_len = func(self.store, iovec_offset, iovec_count, output_offset, max_out_len)
+        if compression_level == -1:
+            compressed_len = func(self.store, iovec_offset, iovec_count, output_offset, max_out_len)
+        else:
+            compressed_len = func(self.store, iovec_offset, iovec_count, output_offset, max_out_len, compression_level)
         
         if compressed_len <= 0:
             raise RuntimeError("IOVec compression failed")
