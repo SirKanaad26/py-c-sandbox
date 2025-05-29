@@ -1,7 +1,7 @@
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func
-from utils import create_wasm_imports
+from .utils import create_wasm_imports
 import ctypes
 
 class SnappyWasm:
@@ -79,25 +79,13 @@ class SnappyWasm:
         uncompressed_length = struct.unpack('<I', result_bytes)[0]
         return uncompressed_length
 
-    def compress(self, input_data: bytes, compression_level: int = None) -> bytes:
-        """Compress data using Snappy WASM
-        
-        Args:
-            input_data: Data to compress
-            compression_level: Optional compression level (1-2). If None, uses default level.
-        """
+    def compress(self, input_data: bytes) -> bytes:
         if not self.memory:
             raise RuntimeError("Memory not available")
 
-        # Choose function based on whether compression level is specified
-        if compression_level is not None:
-            func = self.exports.get("CompressWithOptionsFromPtr")
-            if not func:
-                raise RuntimeError("CompressWithOptionsFromPtr not found")
-        else:
-            func = self.exports.get("CompressFromPtr")
-            if not func:
-                raise RuntimeError("CompressFromPtr not found")
+        func = self.exports.get("CompressFromPtr")
+        if not func:
+            raise RuntimeError("CompressFromPtr not found")
 
         max_out_len = self.max_compressed_length(len(input_data))
         input_len = len(input_data)
@@ -117,11 +105,7 @@ class SnappyWasm:
         ctypes.memmove(raw_addr + input_offset, src_array, input_len)
 
         # Call compress function
-        if compression_level is not None:
-            compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len, compression_level)
-        else:
-            compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
-            
+        compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
         if compressed_len <= 0:
             raise RuntimeError("Compression failed")
 
