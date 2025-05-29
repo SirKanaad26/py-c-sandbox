@@ -13,22 +13,22 @@ cd "$BUILD_DIR"
 
 # Download Snappy source if not already present
 if [ ! -d "snappy" ]; then
-    echo "📥 Downloading Google Snappy source code..."
+    echo "Downloading Google Snappy source code..."
     git clone https://github.com/google/snappy.git
-    echo "✅ Downloaded Snappy repository"
+    echo "Downloaded Snappy repository"
 fi
 
 cd snappy
 
 # Check if emscripten is available
 if ! command -v emcc &> /dev/null; then
-    echo "❌ Emscripten not found!"
+    echo "Emscripten not found!"
     echo "Please install Emscripten SDK"
     exit 1
 fi
 
-echo "🔍 Configuring Snappy build..."
-echo "📋 Repository info:"
+echo "Configuring Snappy build..."
+echo "Repository info:"
 echo "  Commit: $(git rev-parse --short HEAD)"
 echo "  Branch: $(git branch --show-current 2>/dev/null || echo 'detached')"
 echo "  Remote: $(git remote get-url origin)"
@@ -36,7 +36,7 @@ echo ""
 
 # Check if we need to configure the build
 if [ ! -f "snappy-stubs-public.h" ]; then
-    echo "📦 Configuring Snappy with CMake..."
+    echo "Configuring Snappy with CMake..."
     
     # Create a build directory
     mkdir -p build_wasm
@@ -49,17 +49,17 @@ if [ ! -f "snappy-stubs-public.h" ]; then
         -DSNAPPY_BUILD_BENCHMARKS=OFF
     
     # We don't need to build everything, just generate the config files
-    echo "✅ Configuration complete"
+    echo "Configuration complete"
     
     # Copy generated files back to source directory
     if [ -f "snappy-stubs-public.h" ]; then
         cp snappy-stubs-public.h ..
-        echo "✅ Generated snappy-stubs-public.h"
+        echo "Generated snappy-stubs-public.h"
     fi
     
     cd ..
 else
-    echo "✅ snappy-stubs-public.h already exists"
+    echo "snappy-stubs-public.h already exists"
 fi
 
 # Verify required files exist
@@ -67,9 +67,9 @@ echo "🔍 Checking required files..."
 REQUIRED_FILES=("snappy.cc" "snappy.h" "snappy-internal.h" "snappy-stubs-internal.h" "snappy-stubs-public.h")
 for file in "${REQUIRED_FILES[@]}"; do
     if [ -f "$file" ]; then
-        echo "  ✅ $file"
+        echo "  $file"
     else
-        echo "  ❌ $file (missing)"
+        echo "  $file (missing)"
     fi
 done
 echo ""
@@ -385,8 +385,8 @@ if [ -f "snappy-stubs-internal.cc" ]; then
     SNAPPY_SOURCES="$SNAPPY_SOURCES snappy-stubs-internal.cc"
 fi
 
-echo "📋 Compiling these source files: $SNAPPY_SOURCES"
-echo "📋 Plus wrapper: wasm_wrapper.cc"
+echo "Compiling these source files: $SNAPPY_SOURCES"
+echo "Plus wrapper: wasm_wrapper.cc"
 
 # Compile with the actual Snappy source files
 emcc $SNAPPY_SOURCES wasm_wrapper.cc \
@@ -403,8 +403,8 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
 
 if [ -f "snappy.wasm" ]; then
     FILE_SIZE=$(stat -f%z snappy.wasm 2>/dev/null || stat -c%s snappy.wasm 2>/dev/null || echo "unknown")
-    echo "✅ WASM built from actual Snappy source files!"
-    echo "📏 File size: $FILE_SIZE bytes"
+    echo "WASM built from actual Snappy source files!"
+    echo "File size: $FILE_SIZE bytes"
     
     # Copy to parent directories for easy access
     cp snappy.wasm ../..
@@ -412,34 +412,34 @@ if [ -f "snappy.wasm" ]; then
     # Validate
     if command -v wasm-validate &> /dev/null; then
         if wasm-validate snappy.wasm; then
-            echo "✅ WASM validation passed!"
+            echo "WASM validation passed!"
         fi
     fi
     
-    echo "📋 Built from actual Google Snappy source files"
-    echo "📋 Commit: $(git rev-parse HEAD)"
+    echo "Built from actual Google Snappy source files"
+    echo "Commit: $(git rev-parse HEAD)"
     
 else
-    echo "❌ Build failed!"
-    echo "💡 Check the compilation output above for errors"
+    echo "Build failed!"
+    echo "Check the compilation output above for errors"
     exit 1
 fi
 
 cd ../..
 
 echo ""
-echo "🎉 Successfully built WASM from actual Snappy source files!"
-echo "📦 Output: snappy.wasm"
-echo "🧬 This uses the unmodified Google Snappy source code"
-echo "📋 Available functions:"
-echo "   • MaxCompressedLength - Calculate max size needed for compression"
-echo "   • GetUncompressedLength / GetUncompressedLengthFromPtr - Get original size from compressed data"
-echo "   • Compress / CompressFromPtr - Compress data (default compression level)"
-echo "   • CompressWithOptions / CompressWithOptionsFromPtr - Compress data with specific compression level"
-echo "   • CompressFromIOVec / CompressFromBuffers - Compress from multiple input buffers"
-echo "   • CompressFromIOVecWithOptions / CompressFromBuffersWithOptions - Compress from multiple buffers with compression level"
-echo "   • Uncompress / UncompressFromPtr - Decompress data"
-echo "   • IsValidCompressedBuffer / IsValidCompressedBufferInt - Validate compressed data"
-echo "   • GetMinCompressionLevel / GetMaxCompressionLevel / GetDefaultCompressionLevel - Compression level utilities"
-echo "   • Memory management utilities"
-echo "💡 Test with: python test_snappy_source.py"
+echo "Successfully built WASM from actual Snappy source files!"
+echo "Output: snappy.wasm"
+echo "This uses the unmodified Google Snappy source code"
+echo "Available functions:"
+echo "  • MaxCompressedLength - Calculate max size needed for compression"
+echo "  • GetUncompressedLength / GetUncompressedLengthFromPtr - Get original size from compressed data"
+echo "  • Compress / CompressFromPtr - Compress data (default compression level)"
+echo "  • CompressWithOptions / CompressWithOptionsFromPtr - Compress data with specific compression level"
+echo "  • CompressFromIOVec / CompressFromBuffers - Compress from multiple input buffers"
+echo "  • CompressFromIOVecWithOptions / CompressFromBuffersWithOptions - Compress from multiple buffers with compression level"
+echo "  • Uncompress / UncompressFromPtr - Decompress data"
+echo "  • IsValidCompressedBuffer / IsValidCompressedBufferInt - Validate compressed data"
+echo "  • GetMinCompressionLevel / GetMaxCompressionLevel / GetDefaultCompressionLevel - Compression level utilities"
+echo "  • Memory management utilities"
+echo "Test with: python test_snappy_source.py"
