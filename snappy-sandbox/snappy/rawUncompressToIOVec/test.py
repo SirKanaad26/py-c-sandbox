@@ -1,7 +1,7 @@
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func
-from .utils import create_wasm_imports
+from utils import create_wasm_imports
 import ctypes
 from typing import List, Union
 
@@ -119,7 +119,7 @@ class SnappyWasm:
 
         return bytes(result)
 
-    def compress_from_iovec(self, data_buffers: List[Union[bytes, bytearray]], compression_level=-1) -> bytes:
+    def compress_from_iovec(self, data_buffers: List[Union[bytes, bytearray]]) -> bytes:
         """
         Compress data from multiple buffers using Snappy's CompressFromIOVec functionality.
         
@@ -135,11 +135,7 @@ class SnappyWasm:
         if not self.memory:
             raise RuntimeError("Memory not available")
 
-        if compression_level == -1:
-            func = self.exports.get("CompressFromIOVec")
-        else:
-            func = self.exports.get(f"CompressFromIOVecWithOptions")
-
+        func = self.exports.get("CompressFromIOVec")
         if not func:
             raise RuntimeError("CompressFromIOVec not found")
 
@@ -195,10 +191,7 @@ class SnappyWasm:
 
         # Call CompressFromIOVec function
         # Function signature: size_t CompressFromIOVec(const struct iovec* iov, size_t iov_cnt, char* output, size_t output_len)
-        if compression_level == -1:
-            compressed_len = func(self.store, iovec_offset, iovec_count, output_offset, max_out_len)
-        else:
-            compressed_len = func(self.store, iovec_offset, iovec_count, output_offset, max_out_len, compression_level)
+        compressed_len = func(self.store, iovec_offset, iovec_count, output_offset, max_out_len)
         
         if compressed_len <= 0:
             raise RuntimeError("IOVec compression failed")
@@ -703,52 +696,6 @@ class SnappyWasm:
         if not func:
             return 0
         return func(self.store)
-    
-    def raw_uncompress(self, compressed_data: bytes, uncompressed_buffer: bytearray) -> bool:
-        if not self.memory:
-            return False
-
-        func = self.exports.get("RawUncompress")
-        if not func:
-            return False
-
-        if not compressed_data or len(uncompressed_buffer) == 0:
-            return False
-
-        compressed_len = len(compressed_data)
-        uncompressed_len = len(uncompressed_buffer)
-
-        # Define offsets in WASM memory
-        compressed_offset = 0
-        output_offset = compressed_len + 1024  # leave gap to prevent overwrite
-
-        try:
-            # Convert compressed data to byte array
-            compressed_array = (ctypes.c_ubyte * compressed_len).from_buffer_copy(compressed_data)
-
-            # Access WASM memory
-            mem_ptr = self.memory.data_ptr(self.store)
-            raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
-
-            # Copy compressed data into WASM memory
-            ctypes.memmove(raw_addr + compressed_offset, compressed_array, compressed_len)
-
-            # Call raw uncompress function
-            # Function signature: bool RawUncompress(const char* compressed, size_t compressed_length, char* uncompressed)
-            success = func(self.store, compressed_offset, compressed_len, output_offset)
-            
-            if not success:
-                return False
-
-            # Copy uncompressed data back to the provided buffer
-            result_array = (ctypes.c_ubyte * uncompressed_len).from_buffer(uncompressed_buffer)
-            ctypes.memmove(result_array, raw_addr + output_offset, uncompressed_len)
-
-            return True
-            
-        except Exception:
-            return False
-
 
 if __name__ == "__main__":
     snappy = SnappyWasm("snappy.wasm")
