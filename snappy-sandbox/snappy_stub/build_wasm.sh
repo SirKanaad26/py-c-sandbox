@@ -1,14 +1,11 @@
-#!/bin/bash
-# build_wasm_simple.sh
-# Simplified WASM build using pre-installed Snappy
 
 set -e  # Exit on any error
 
-echo "🔧 Building Snappy WASM module (using system Snappy)..."
+echo " Building Snappy WASM module (using system Snappy)..."
 
 # Check if emcc is available
 if ! command -v emcc &> /dev/null; then
-    echo "❌ Error: Emscripten not found!"
+    echo "Error: Emscripten not found!"
     echo "Please install Emscripten first:"
     echo "  git clone https://github.com/emscripten-core/emsdk.git"
     echo "  cd emsdk"
@@ -45,7 +42,7 @@ else
 fi
 
 if [ -z "$SNAPPY_INCLUDE" ]; then
-    echo "❌ Error: Snappy headers not found!"
+    echo "Error: Snappy headers not found!"
     echo "Please install Snappy first:"
     echo "  macOS: brew install snappy"
     echo "  Ubuntu: sudo apt-get install libsnappy-dev"
@@ -53,17 +50,17 @@ if [ -z "$SNAPPY_INCLUDE" ]; then
     exit 1
 fi
 
-echo "📦 Found Snappy headers at: $SNAPPY_INCLUDE"
-echo "📦 Found Snappy library at: $SNAPPY_LIB"
+echo "Found Snappy headers at: $SNAPPY_INCLUDE"
+echo "Found Snappy library at: $SNAPPY_LIB"
 
 # Create build directory
 mkdir -p wasm_build
 cd wasm_build
 
-echo "📁 Build directory: $(pwd)"
+echo "Build directory: $(pwd)"
 
 # Try to build a minimal version first - just our wrapper without linking to Snappy
-echo "🔨 Building minimal WASM wrapper (without Snappy linking)..."
+echo "Building minimal WASM wrapper (without Snappy linking)..."
 
 cat > minimal_wrapper.c << 'EOF'
 // Minimal wrapper that doesn't depend on actual Snappy library
@@ -109,22 +106,22 @@ emcc minimal_wrapper.c \
      -o snappy_wasm.js
 
 if [ $? -eq 0 ]; then
-    echo "✅ Minimal WASM module built successfully!"
-    echo "📦 Files created:"
+    echo "Minimal WASM module built successfully!"
+    echo "Files created:"
     echo "   - snappy_wasm.js   (JavaScript loader)"
     echo "   - snappy_wasm.wasm (WebAssembly binary)"
     echo ""
-    echo "⚠️  Note: This is using a mock implementation of snappy_max_compressed_length"
+    echo "Note: This is using a mock implementation of snappy_max_compressed_length"
     echo "   It approximates the Snappy algorithm but doesn't use the actual library."
     echo "   For production use, you'd want to build with the real Snappy library."
 else
-    echo "❌ Failed to build WASM module"
+    echo "Failed to build WASM module"
     exit 1
 fi
 
 cd ..
-echo "🎉 Build complete! Check the wasm_build/ directory."
+echo "Build complete! Check the wasm_build/ directory."
 echo ""
-echo "🧪 To test:"
+echo "To test:"
 echo "   make wasm-test        # Run Node.js tests"
 echo "   python -m http.server 8000 # Then open test_wasm.html"

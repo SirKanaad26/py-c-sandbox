@@ -62,7 +62,7 @@
     </style>
 </head>
 <body>
-    <h1>🗜️ Snappy WebAssembly Test</h1>
+    <h1>Snappy WebAssembly Test</h1>
     
     <div class="container">
         <h2>Module Status</h2>
@@ -146,14 +146,14 @@
                 window.snappyModule = snappyModule; // Make available globally
                 
                 document.getElementById('status').innerHTML = 
-                    '<div class="success">✅ WASM module loaded successfully!<br>' +
+                    '<div class="success"> WASM module loaded successfully!<br>' +
                     'Version: ' + getVersion() + '</div>';
                 
             } catch (error) {
                 console.error('Detailed error:', error);
                 document.getElementById('status').innerHTML = 
-                    '<div class="error">❌ Failed to load WASM module:<br>' + error.message + '<br><br>' +
-                    '🔧 Troubleshooting:<br>' +
+                    '<div class="error"> Failed to load WASM module:<br>' + error.message + '<br><br>' +
+                    'Troubleshooting:<br>' +
                     '1. Make sure you\'re running from a web server<br>' +
                     '2. Check that wasm_build/snappy_wasm.js exists<br>' +
                     '3. Check browser console for details</div>';
@@ -171,7 +171,7 @@
             const result = testFunction(input);
             
             document.getElementById('basicResult').innerHTML = 
-                `Input: ${input}\nOutput: ${result}\n${result === input * 2 ? '✅ Test passed!' : '❌ Test failed!'}`;
+                `Input: ${input}\nOutput: ${result}\n${result === input * 2 ? 'Test passed!' : 'Test failed!'}`;
         }
 
         function calculateMaxLength() {
@@ -223,9 +223,9 @@
                     `Uncompressed length status: ${status} (0=OK)\n` +
                     `Original size: ${testSize}\n` +
                     `Retrieved size: ${retrievedSize}\n` +
-                    `Size match: ${testSize === retrievedSize ? '✅ PASS' : '❌ FAIL'}\n` +
+                    `Size match: ${testSize === retrievedSize ? 'PASS' : 'FAIL'}\n` +
                     `Validation status: ${validationStatus} (0=OK)\n` +
-                    `Validation: ${validationStatus === 0 ? '✅ PASS' : '❌ FAIL'}`;
+                    `Validation: ${validationStatus === 0 ? 'PASS' : 'FAIL'}`;
                 
             } finally {
                 // Clean up
