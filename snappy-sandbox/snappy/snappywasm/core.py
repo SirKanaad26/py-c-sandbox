@@ -1,7 +1,7 @@
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func
-from utils import create_wasm_imports
+from .utils import create_wasm_imports
 import ctypes
 from typing import List, Union
 
