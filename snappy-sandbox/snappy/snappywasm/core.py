@@ -353,6 +353,61 @@ class SnappyWasm:
 
         return bytes(result)
 
+    def raw_uncompress(self, compressed_data: bytes, uncompressed_length: int) -> bytes:
+        """
+        Uncompress Snappy-compressed data using the Source* abstraction.
+        This uses RawUncompressFromSource which internally creates a ByteArraySource.
+        
+        Args:
+            compressed_data: The compressed data bytes
+            uncompressed_length: The expected length of uncompressed data
+            
+        Returns:
+            bytes: The uncompressed data
+            
+        Raises:
+            RuntimeError: If decompression fails or memory is not available
+        """
+        if not self.memory:
+            raise RuntimeError("Memory not available")
+
+        func = self.exports.get("RawUncompressFromSource")
+        if not func:
+            raise RuntimeError("RawUncompressFromSource not found")
+
+        compressed_len = len(compressed_data)
+        
+        # Calculate memory offsets (ensure they don't overlap)
+        compressed_offset = 0
+        uncompressed_offset = compressed_len + 16  # Add some padding
+        
+        # Ensure we have enough memory
+        total_memory_needed = uncompressed_offset + uncompressed_length
+        if total_memory_needed > self.memory.data_size(self.store):
+            raise RuntimeError(f"Not enough WASM memory. Need {total_memory_needed}, have {self.memory.data_size(self.store)}")
+
+        # Convert compressed data to byte array
+        compressed_array = (ctypes.c_ubyte * compressed_len).from_buffer_copy(compressed_data)
+
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        # Copy compressed data into WASM memory
+        ctypes.memmove(raw_addr + compressed_offset, compressed_array, compressed_len)
+
+        # Call decompression function with Source* abstraction
+        success = func(self.store, compressed_offset, compressed_len, uncompressed_offset)
+        
+        if not success:
+            raise RuntimeError("Decompression failed")
+
+        # Read the uncompressed data from WASM memory
+        uncompressed_array = (ctypes.c_ubyte * uncompressed_length).from_address(raw_addr + uncompressed_offset)
+        uncompressed_data = bytes(uncompressed_array)
+        
+        return uncompressed_data
+
     def raw_uncompress_to_iovec(self, compressed_data: bytes, buffer_sizes: List[int]) -> List[bytes]:
         """
         Decompress data into multiple separate buffers using Snappy's RawUncompressToIOVec functionality.
