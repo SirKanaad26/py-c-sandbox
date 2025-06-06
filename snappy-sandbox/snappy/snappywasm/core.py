@@ -1050,6 +1050,150 @@ class SnappyWasm:
         except Exception:
             return b''
 
+    def raw_compress_from_iovec(self, data_buffers: List[Union[bytes, bytearray]]) -> bytes:
+        """
+        void RawCompressFromIOVec(const struct iovec* iov,
+                                  size_t iov_cnt,
+                                  size_t uncompressed_length,
+                                  char* compressed,
+                                  size_t* compressed_length);
+        """
+        if not data_buffers:
+            raise RuntimeError("No buffers provided")
+
+        fn = self.exports.get("RawCompressFromIOVec")
+        if not fn:
+            raise RuntimeError("RawCompressFromIOVec not exported")
+
+        total_in = sum(len(b) for b in data_buffers)
+        iov_cnt = len(data_buffers)
+        iov_off = 0
+        entry = 8  # 4‑byte ptr + 4‑byte len
+        data_off = iov_off + iov_cnt * entry + 64
+        out_off = data_off + total_in + 1024
+        len_ptr = out_off + self.max_compressed_length(total_in) + 16
+
+        # base address of linear memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_base = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        # write iovec entries and the buffers
+        curr = data_off
+        for i, buf in enumerate(data_buffers):
+            L = len(buf)
+            # ptr field
+            ctypes.memmove(
+                raw_base + iov_off + i*entry + 0,
+                (ctypes.c_ubyte * 4).from_buffer_copy(struct.pack("<I", curr)),
+                4
+            )
+            # len field
+            ctypes.memmove(
+                raw_base + iov_off + i*entry + 4,
+                (ctypes.c_ubyte * 4).from_buffer_copy(struct.pack("<I", L)),
+                4
+            )
+            # data
+            if L:
+                ctypes.memmove(
+                    raw_base + curr,
+                    (ctypes.c_ubyte * L).from_buffer_copy(buf),
+                    L
+                )
+            curr += L
+
+        # invoke the raw‐compress
+        fn(self.store, iov_off, iov_cnt, total_in, out_off, len_ptr)
+
+        # read back compressed length (uint32)
+        tmp = (ctypes.c_ubyte * 4)()
+        ctypes.memmove(tmp, raw_base + len_ptr, 4)
+        comp_len = struct.unpack("<I", bytes(tmp))[0]
+
+        # copy out compressed bytes
+        result = bytearray(comp_len)
+        ctypes.memmove(
+            (ctypes.c_ubyte * comp_len).from_buffer(result),
+            raw_base + out_off,
+            comp_len
+        )
+        return bytes(result)
+
+
+    def raw_compress_from_iovec_with_options(
+        self,
+        data_buffers: List[Union[bytes, bytearray]],
+        options: int
+    ) -> bytes:
+        """
+        void RawCompressFromIOVec(const struct iovec* iov,
+                                  size_t iov_cnt,
+                                  size_t uncompressed_length,
+                                  char* compressed,
+                                  size_t* compressed_length,
+                                  CompressionOptions options);
+        """
+        if not data_buffers:
+            raise RuntimeError("No buffers provided")
+
+        # validate options against WASM exports
+        lo = self.exports.get("GetMinCompressionLevel", lambda store: 0)(self.store)
+        hi = self.exports.get("GetMaxCompressionLevel", lambda store: lo)(self.store)
+        if options < lo or options > hi:
+            raise RuntimeError(f"Invalid compression option {options}")
+
+        fn = self.exports.get("RawCompressFromIOVecWithOptions")
+        if not fn:
+            raise RuntimeError("RawCompressFromIOVecWithOptions not exported")
+
+        total_in = sum(len(b) for b in data_buffers)
+        iov_cnt = len(data_buffers)
+        iov_off = 0
+        entry = 8
+        data_off = iov_off + iov_cnt * entry + 64
+        out_off = data_off + total_in + 1024
+        len_ptr = out_off + self.max_compressed_length(total_in) + 16
+
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_base = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        curr = data_off
+        for i, buf in enumerate(data_buffers):
+            L = len(buf)
+            ctypes.memmove(
+                raw_base + iov_off + i*entry + 0,
+                (ctypes.c_ubyte * 4).from_buffer_copy(struct.pack("<I", curr)),
+                4
+            )
+            ctypes.memmove(
+                raw_base + iov_off + i*entry + 4,
+                (ctypes.c_ubyte * 4).from_buffer_copy(struct.pack("<I", L)),
+                4
+            )
+            if L:
+                ctypes.memmove(
+                    raw_base + curr,
+                    (ctypes.c_ubyte * L).from_buffer_copy(buf),
+                    L
+                )
+            curr += L
+
+        # invoke the raw‐compress with options
+        fn(self.store, iov_off, iov_cnt, total_in, out_off, len_ptr, options)
+
+        tmp = (ctypes.c_ubyte * 4)()
+        ctypes.memmove(tmp, raw_base + len_ptr, 4)
+        comp_len = struct.unpack("<I", bytes(tmp))[0]
+
+        result = bytearray(comp_len)
+        ctypes.memmove(
+            (ctypes.c_ubyte * comp_len).from_buffer(result),
+            raw_base + out_off,
+            comp_len
+        )
+        return bytes(result)
+
+
 
     def get_max_compressed_length(self, source_length: int) -> int:
         """
