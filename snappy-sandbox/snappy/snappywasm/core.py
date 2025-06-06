@@ -99,7 +99,7 @@ class SnappyWasm:
 
         # Define offset to write input and output
         input_offset = 0
-        output_offset = input_len + 1024  # leave a gap to prevent overwrite
+        output_offset = input_len + 16  # leave a gap to prevent overwrite
 
         # Convert input to byte array
         src_array = (ctypes.c_ubyte * input_len).from_buffer_copy(input_data)
@@ -726,7 +726,7 @@ class SnappyWasm:
 
         # Define offsets in WASM memory
         compressed_offset = 0
-        output_offset = compressed_len + 1024  # leave gap to prevent overwrite
+        output_offset = compressed_len + 16  # leave gap to prevent overwrite
 
         try:
             # Convert compressed data to byte array
@@ -865,6 +865,222 @@ class SnappyWasm:
             if isinstance(e, RuntimeError):
                 raise
             raise RuntimeError(f"IOVec decompression from source failed: {str(e)}")
+    
+    def raw_compress(self, input_data: bytes) -> bytes:
+        """
+        Compress raw data using the sandboxed Snappy RawCompress function.
+        
+        Args:
+            input_data: Raw bytes to compress
+            
+        Returns:
+            Compressed bytes, or empty bytes if compression fails
+        """
+        if not self.memory:
+            return b''
+
+        func = self.exports.get("RawCompress")
+        if not func:
+            return b''
+
+        if not input_data:
+            return b''
+
+        import struct
+        input_len = len(input_data)
+        
+        # Estimate maximum compressed size (Snappy's worst case is roughly input + input/6 + 32)
+        max_compressed_len = input_len + (input_len // 6) + 32
+        
+        # Define offsets in WASM memory
+        input_offset = 0
+        output_offset = input_len + 16  # leave gap to prevent overwrite
+        length_offset = output_offset + max_compressed_len + 16  # offset for compressed length
+
+        try:
+            # Convert input data to byte array
+            input_array = (ctypes.c_ubyte * input_len).from_buffer_copy(input_data)
+
+            # Access WASM memory
+            mem_ptr = self.memory.data_ptr(self.store)
+            raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+            # Copy input data into WASM memory
+            ctypes.memmove(raw_addr + input_offset, input_array, input_len)
+            
+            # Call raw compress function
+            # Function signature: void RawCompress(const char* input, size_t input_length, char* compressed, size_t* compressed_length)
+            func(self.store, input_offset, input_len, output_offset, length_offset)
+            
+            # Read the actual compressed length from memory
+            actual_len_byte = (ctypes.c_ubyte * 4)()
+            ctypes.memmove(actual_len_byte, raw_addr + length_offset, 4)
+            actual_compressed_len = struct.unpack('<I', bytes(actual_len_byte))[0]
+            
+            if actual_compressed_len == 0 or actual_compressed_len > max_compressed_len:
+                return b''
+
+            # Copy compressed data back from WASM memory
+            result_array = (ctypes.c_ubyte * actual_compressed_len)()
+            ctypes.memmove(result_array, raw_addr + output_offset, actual_compressed_len)
+            
+            return bytes(result_array)
+            
+        except Exception as e:
+            print(f"Compression failed: {str(e)}")
+            return b''
+
+
+    def raw_compress_with_options(self, input_data: bytes, compression_level: int = 1) -> bytes:
+        """
+        Compress raw data using the sandboxed Snappy RawCompress function with compression options.
+        
+        Args:
+            input_data: Raw bytes to compress
+            compression_level: Compression level (typically 1-9, but Snappy may have different ranges)
+            
+        Returns:
+            Compressed bytes, or empty bytes if compression fails
+        """
+        if not self.memory:
+            return b''
+
+        func = self.exports.get("RawCompressWithOptions")
+        if not func:
+            return b''
+
+        if not input_data:
+            return b''
+
+        import struct
+        input_len = len(input_data)
+        
+        # Estimate maximum compressed size
+        max_compressed_len = input_len + (input_len // 6) + 32
+        
+        # Define offsets in WASM memory
+        input_offset = 0
+        output_offset = input_len + 16  # leave gap to prevent overwrite
+        length_offset = output_offset + max_compressed_len + 16  # offset for compressed length
+
+        try:
+            # Convert input data to byte array
+            input_array = (ctypes.c_ubyte * input_len).from_buffer_copy(input_data)
+
+            # Access WASM memory
+            mem_ptr = self.memory.data_ptr(self.store)
+            raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+            # Copy input data into WASM memory
+            ctypes.memmove(raw_addr + input_offset, input_array, input_len)
+
+            # Call raw compress function with options
+            # Function signature: void RawCompressWithOptions(const char* input, size_t input_length, char* compressed, size_t* compressed_length, int compression_level)
+            func(self.store, input_offset, input_len, output_offset, length_offset, compression_level)
+            
+            # Read the actual compressed length from memory
+            actual_len_byte = (ctypes.c_ubyte * 4)()
+            ctypes.memmove(actual_len_byte, raw_addr + length_offset, 4)
+            actual_compressed_len = struct.unpack('<I', actual_len_byte)[0]
+            
+            if actual_compressed_len == 0 or actual_compressed_len > max_compressed_len:
+                return b''
+
+            # Copy compressed data back from WASM memory
+            result_array = (ctypes.c_ubyte * actual_compressed_len)()
+            ctypes.memmove(result_array, raw_addr + output_offset, actual_compressed_len)
+            
+            return bytes(result_array)
+            
+        except Exception:
+            return b''
+
+
+    def get_max_compressed_length(self, source_length: int) -> int:
+        """
+        Get the maximum possible compressed length for a given source length.
+        This is useful for pre-allocating buffers.
+        
+        Args:
+            source_length: Length of the source data
+            
+        Returns:
+            Maximum possible compressed length, or 0 if function not available
+        """
+        if not self.memory:
+            return 0
+
+        func = self.exports.get("MaxCompressedLength")
+        if not func:
+            # Fallback estimation: Snappy's worst case is roughly input + input/6 + 32
+            return source_length + (source_length // 6) + 32
+
+        try:
+            # Function signature: size_t MaxCompressedLength(size_t source_length)
+            max_len = func(self.store, source_length)
+            return max_len
+            
+        except Exception:
+            # Fallback estimation
+            return source_length + (source_length // 6) + 32
+
+
+    def get_max_compressed_length(self, source_length: int) -> int:
+        """
+        Get the maximum possible compressed length for a given source length.
+        This is useful for pre-allocating buffers.
+        
+        Args:
+            source_length: Length of the source data
+            
+        Returns:
+            Maximum possible compressed length, or 0 if function not available
+        """
+        if not self.memory:
+            return 0
+
+        func = self.exports.get("MaxCompressedLength")
+        if not func:
+            # Fallback estimation: Snappy's worst case is roughly input + input/6 + 32
+            return source_length + (source_length // 6) + 32
+
+        try:
+            # Function signature: size_t MaxCompressedLength(size_t source_length)
+            max_len = func(self.store, source_length)
+            return max_len
+            
+        except Exception:
+            # Fallback estimation
+            return source_length + (source_length // 6) + 32
+
+
+    def get_max_compressed_length(self, source_length: int) -> int:
+        """
+        Get the maximum possible compressed length for a given source length.
+        This is useful for pre-allocating buffers.
+        
+        Args:
+            source_length: Length of the source data
+            
+        Returns:
+            Maximum possible compressed length, or 0 if function not available
+        """
+        if not self.memory:
+            return 0
+
+        func = self.exports.get("MaxCompressedLength")
+        if not func:
+            # Fallback estimation: Snappy's worst case is roughly input + input/6 + 32
+            return source_length + (source_length // 6) + 32
+
+        try:
+            # Function signature: size_t MaxCompressedLength(size_t source_length)
+            max_len = func(self.store, source_length)
+            return max_len
+            
+        except Exception:
+            # Fallback estimation
+            return source_length + (source_length // 6) + 32
 
 
 if __name__ == "__main__":
