@@ -5,6 +5,7 @@ def main():
     snappy = SnappyWasm()
     data = b"hello world " * 10
     compressed = snappy.compress(data)
+    print(compressed)
     print("Compressed Length:", len(compressed))
     print("Original Length:", len(data))
 
