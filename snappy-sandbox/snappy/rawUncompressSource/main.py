@@ -5,9 +5,6 @@ from snappywasm.core import SnappyWasm
 import time
 
 def test_raw_uncompress():
-    """Test the RawUncompress functionality"""
-    
-    # Initialize the WASM module
     snappy = SnappyWasm()
     
     print("=== Snappy WASM RawUncompress Test ===\n")
@@ -48,17 +45,8 @@ def test_raw_uncompress():
         print(f"Original size: {len(test_case['data'])} bytes")
         
         try:
-            # First, you would need compressed data to test decompression
-            # For this test, we'll assume you have a way to compress data first
-            # compressed_data = snappy.compress(test_case['data'])  # You'd need this function
-
-            # data = b"hello world " * 10
             compressed_data = snappy.compress(test_case['data'])
-            # For demonstration, let's create mock compressed data
-            # In reality, you'd get this from actual Snappy compression
             original_data = test_case['data']
-            
-            print("⚠️  Note: This test requires actual compressed data.")
             print("   You'll need to compress the test data first using Snappy.")
             print("original data is ->",original_data)
             print("compressed_data is ->",compressed_data)
