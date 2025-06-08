@@ -6,9 +6,10 @@ import ctypes
 from typing import List, Union
 
 class SnappyWasm:
-    def __init__(self, wasm_path="snappywasm/wasm/snappy.wasm"):
-        if not os.path.exists(wasm_path):
-            raise FileNotFoundError(f"WASM file not found: {wasm_path}")
+    def __init__(self, wasm_path=None):
+        if not wasm_path:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            wasm_path = os.path.join(current_dir, "wasm", "snappy.wasm")
 
         self.store = Store()
 
@@ -39,7 +40,44 @@ class SnappyWasm:
         if not func:
             raise RuntimeError("MaxCompressedLength not found")
         return func(self.store, source_length)
-    
+
+    def compress_source_sink(self, data: Union[str, bytes]) -> bytes:
+        """Compress data using CompressFromSourceToSink function"""
+        if isinstance(data, str):
+            data = data.encode('utf-8')
+        
+        func = self.exports.get("CompressFromSourceToSink")
+        if not func:
+            raise RuntimeError("CompressFromSourceToSink not found")
+        
+        input_len = len(data)
+        max_out_len = self.max_compressed_length(input_len)
+        
+        # Memory offsets - use larger gaps for safety
+        input_offset = 0
+        output_offset = input_len + 1024  # Fixed large gap
+        
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+        
+        # Copy input data
+        input_array = (ctypes.c_ubyte * input_len).from_buffer_copy(data)
+        ctypes.memmove(raw_addr + input_offset, input_array, input_len)
+        
+        # Call compression
+        compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
+        
+        if compressed_len <= 0:
+            raise RuntimeError("Compression failed")
+        
+        # Copy result
+        result = bytearray(compressed_len)
+        result_array = (ctypes.c_ubyte * compressed_len).from_buffer(result)
+        ctypes.memmove(result_array, raw_addr + output_offset, compressed_len)
+        
+        return bytes(result)
+
     def get_uncompressed_length(self, compressed_data: bytes) -> int:
         """Get the uncompressed length from compressed data"""
         if not self.memory:
@@ -985,7 +1023,6 @@ class SnappyWasm:
             print(f"Compression failed: {str(e)}")
             return b''
 
-
     def raw_compress_with_options(self, input_data: bytes, compression_level: int = 1) -> bytes:
         """
         Compress raw data using the sandboxed Snappy RawCompress function with compression options.
@@ -1119,7 +1156,6 @@ class SnappyWasm:
         )
         return bytes(result)
 
-
     def raw_compress_from_iovec_with_options(
         self,
         data_buffers: List[Union[bytes, bytearray]],
@@ -1193,8 +1229,6 @@ class SnappyWasm:
         )
         return bytes(result)
 
-
-
     def get_max_compressed_length(self, source_length: int) -> int:
         """
         Get the maximum possible compressed length for a given source length.
@@ -1222,65 +1256,6 @@ class SnappyWasm:
         except Exception:
             # Fallback estimation
             return source_length + (source_length // 6) + 32
-
-
-    def get_max_compressed_length(self, source_length: int) -> int:
-        """
-        Get the maximum possible compressed length for a given source length.
-        This is useful for pre-allocating buffers.
-        
-        Args:
-            source_length: Length of the source data
-            
-        Returns:
-            Maximum possible compressed length, or 0 if function not available
-        """
-        if not self.memory:
-            return 0
-
-        func = self.exports.get("MaxCompressedLength")
-        if not func:
-            # Fallback estimation: Snappy's worst case is roughly input + input/6 + 32
-            return source_length + (source_length // 6) + 32
-
-        try:
-            # Function signature: size_t MaxCompressedLength(size_t source_length)
-            max_len = func(self.store, source_length)
-            return max_len
-            
-        except Exception:
-            # Fallback estimation
-            return source_length + (source_length // 6) + 32
-
-
-    def get_max_compressed_length(self, source_length: int) -> int:
-        """
-        Get the maximum possible compressed length for a given source length.
-        This is useful for pre-allocating buffers.
-        
-        Args:
-            source_length: Length of the source data
-            
-        Returns:
-            Maximum possible compressed length, or 0 if function not available
-        """
-        if not self.memory:
-            return 0
-
-        func = self.exports.get("MaxCompressedLength")
-        if not func:
-            # Fallback estimation: Snappy's worst case is roughly input + input/6 + 32
-            return source_length + (source_length // 6) + 32
-
-        try:
-            # Function signature: size_t MaxCompressedLength(size_t source_length)
-            max_len = func(self.store, source_length)
-            return max_len
-            
-        except Exception:
-            # Fallback estimation
-            return source_length + (source_length // 6) + 32
-
 
 if __name__ == "__main__":
     snappy = SnappyWasm("snappy.wasm")
