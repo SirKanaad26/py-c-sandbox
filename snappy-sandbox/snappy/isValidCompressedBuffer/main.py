@@ -1,184 +1,287 @@
-import wasmtime
+#!/usr/bin/env python3
+"""
+Test file for IsValidCompressedBuffer function using SnappyWasm class
+Tests the char* buffer version of the validation function
+"""
 
-def create_wasi_imports(store):
-    """Create minimal WASI imports"""
-    
-    # Dummy WASI functions - these won't actually be called in our use case
-    def fd_close(fd):
-        return 0  # Success
-    
-    def fd_write(fd, iovs_ptr, iovs_len, nwritten_ptr):
-        return 0  # Success
-    
-    def fd_seek(fd, offset, whence, newoffset_ptr): 
-        return 0  # Success
-    
-    # Create function types
-    fd_close_type = wasmtime.FuncType([wasmtime.ValType.i32()], [wasmtime.ValType.i32()])
-    fd_write_type = wasmtime.FuncType([wasmtime.ValType.i32(), wasmtime.ValType.i32(), wasmtime.ValType.i32(), wasmtime.ValType.i32()], [wasmtime.ValType.i32()])
-    fd_seek_type = wasmtime.FuncType([wasmtime.ValType.i32(), wasmtime.ValType.i64(), wasmtime.ValType.i32(), wasmtime.ValType.i32()], [wasmtime.ValType.i32()])
-    
-    # Create functions
-    fd_close_func = wasmtime.Func(store, fd_close_type, fd_close)
-    fd_write_func = wasmtime.Func(store, fd_write_type, fd_write)
-    fd_seek_func = wasmtime.Func(store, fd_seek_type, fd_seek)
-    
-    return {
-        'fd_close': fd_close_func,
-        'fd_write': fd_write_func, 
-        'fd_seek': fd_seek_func
-    }
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def create_env_imports(store):
-    """Create environment imports"""
-    
-    def emscripten_notify_memory_growth(index):
-        # Just a notification, nothing to do
-        pass
-    
-    notify_type = wasmtime.FuncType([wasmtime.ValType.i32()], [])
-    notify_func = wasmtime.Func(store, notify_type, emscripten_notify_memory_growth)
-    
-    return {
-        'emscripten_notify_memory_growth': notify_func
-    }
+from snappywasm.core import SnappyWasm
 
-def test_snappy_validation():    
-    print("Testing Snappy WASM IsValidCompressedBuffer function...")
+def test_is_valid_compressed_buffer():
+    """Test the is_valid_compressed_buffer method"""
+    
+    print("🚀 Snappy WASM Test - IsValidCompressedBuffer (char* buffer version)")
+    print("=" * 70)
+    
+    # Initialize SnappyWasm
+    snappy = SnappyWasm()
+    
+    print(f"✅ Snappy WASM version: {snappy.get_version()}")
+    print()
+    
+    # Test data
+    test_data = "Hello, World! This is a test of Snappy compression validation."
+    print(f"Original data: '{test_data}'")
+    print(f"Original size: {len(test_data.encode('utf-8'))} bytes")
+    print()
+    
+    # Compress the data first
+    try:
+        compressed_data = snappy.compress(test_data.encode('utf-8'))
+        print(f"✅ Compression successful!")
+        print(f"   Compressed size: {len(compressed_data)} bytes")
+        print()
+        
+        # Test IsValidCompressedBuffer
+        print("--- Testing IsValidCompressedBuffer ---")
+        try:
+            is_valid_buffer = snappy.is_valid_compressed_buffer(compressed_data)
+            print(f"IsValidCompressedBuffer result: {is_valid_buffer}")
+            print(f"Status: {'✅ PASS' if is_valid_buffer else '❌ FAIL'}")
+            
+            # Verify with decompression if valid
+            if is_valid_buffer:
+                try:
+                    decompressed = snappy.uncompress(compressed_data)
+                    if decompressed == test_data.encode('utf-8'):
+                        print(f"✅ Decompression verification: SUCCESS")
+                    else:
+                        print(f"❌ Decompression verification: FAILED")
+                except Exception as e:
+                    print(f"❌ Decompression failed: {e}")
+                    
+        except Exception as e:
+            print(f"❌ IsValidCompressedBuffer failed: {e}")
+            
+    except Exception as e:
+        print(f"❌ Compression failed: {e}")
+        return
+
+def test_invalid_data():
+    """Test validation function with invalid data"""
+    
+    print("\n--- Testing with Invalid Data ---")
+    
+    snappy = SnappyWasm()
+    
+    invalid_test_cases = [
+        {
+            "name": "Random text",
+            "data": b"This is not compressed data at all!",
+            "description": "Regular text as bytes"
+        },
+        {
+            "name": "Empty data",
+            "data": b"",
+            "description": "Empty byte string"
+        },
+        {
+            "name": "Single byte",
+            "data": b"\x00",
+            "description": "Single null byte"
+        },
+        {
+            "name": "JSON data",
+            "data": b'{"invalid": "compressed", "data": true}',
+            "description": "JSON as raw bytes"
+        },
+        {
+            "name": "Binary sequence",
+            "data": bytes(range(50)),
+            "description": "Sequential byte values 0-49"
+        }
+    ]
+    
+    for test_case in invalid_test_cases:
+        print(f"\nTest: {test_case['name']}")
+        print(f"Description: {test_case['description']}")
+        print(f"Data size: {len(test_case['data'])} bytes")
+        
+        try:
+            is_valid = snappy.is_valid_compressed_buffer(test_case['data'])
+            expected = "Expected: False"
+            result = "✅ CORRECT" if not is_valid else "⚠️ UNEXPECTED TRUE"
+            print(f"IsValidCompressedBuffer: {is_valid} ({expected}) - {result}")
+        except Exception as e:
+            print(f"❌ Error: {e}")
+
+def test_multiple_data_types():
+    """Test validation with different types of compressed data"""
+    
+    print("\n--- Testing Multiple Data Types ---")
+    
+    snappy = SnappyWasm()
+    
+    test_cases = [
+        {
+            "name": "Short text",
+            "data": "Hi!",
+            "description": "Very short text"
+        },
+        {
+            "name": "Repetitive pattern",
+            "data": "ABCD" * 50,
+            "description": "Repeating 4-character pattern"
+        },
+        {
+            "name": "Lorem ipsum",
+            "data": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 10,
+            "description": "Standard lorem ipsum text"
+        },
+        {
+            "name": "Numbers and symbols",
+            "data": "1234567890!@#$%^&*()_+-=[]{}|;:,.<>?" * 20,
+            "description": "Mixed numbers and symbols"
+        },
+        {
+            "name": "Unicode text",
+            "data": "Hello 世界 🌍 Привет мир 🚀",
+            "description": "Unicode characters and emojis"
+        }
+    ]
+    
+    for test_case in test_cases:
+        print(f"\nTest: {test_case['name']}")
+        print(f"Description: {test_case['description']}")
+        original_data = test_case['data'].encode('utf-8')
+        print(f"Original size: {len(original_data)} bytes")
+        
+        try:
+            # Compress the data
+            compressed_data = snappy.compress(original_data)
+            compression_ratio = (1 - len(compressed_data) / len(original_data)) * 100
+            print(f"Compressed size: {len(compressed_data)} bytes ({compression_ratio:.1f}% reduction)")
+            
+            # Test validation
+            is_valid = snappy.is_valid_compressed_buffer(compressed_data)
+            print(f"IsValidCompressedBuffer: {is_valid}")
+            
+            if is_valid:
+                # Verify decompression
+                try:
+                    decompressed = snappy.uncompress(compressed_data)
+                    if decompressed == original_data:
+                        print(f"✅ Round-trip verification: SUCCESS")
+                    else:
+                        print(f"❌ Round-trip verification: FAILED")
+                except Exception as e:
+                    print(f"❌ Decompression error: {e}")
+            else:
+                print(f"⚠️ Validation failed for compressed data")
+                
+        except Exception as e:
+            print(f"❌ Compression failed: {e}")
+
+def test_edge_cases():
+    """Test edge cases and boundary conditions"""
+    
+    print("\n--- Testing Edge Cases ---")
+    
+    snappy = SnappyWasm()
+    
+    # Test minimum size data
+    print("\nMinimum size data:")
+    for size in [1, 2, 3, 5, 10]:
+        data = b"A" * size
+        try:
+            compressed = snappy.compress(data)
+            is_valid = snappy.is_valid_compressed_buffer(compressed)
+            print(f"Size {size:2d}: {len(data)} → {len(compressed)} bytes, valid: {is_valid}")
+        except Exception as e:
+            print(f"Size {size:2d}: Failed - {e}")
+    
+    # Test larger data sizes
+    print("\nLarger data sizes:")
+    for size in [100, 500, 1000, 2000]:
+        data = f"Test data of size {size}: " + "x" * (size - 20)
+        data_bytes = data.encode('utf-8')
+        try:
+            compressed = snappy.compress(data_bytes)
+            is_valid = snappy.is_valid_compressed_buffer(compressed)
+            ratio = (1 - len(compressed) / len(data_bytes)) * 100
+            print(f"Size {size:4d}: {len(data_bytes)} → {len(compressed)} bytes ({ratio:.1f}%), valid: {is_valid}")
+        except Exception as e:
+            print(f"Size {size:4d}: Failed - {e}")
+
+def test_malformed_data():
+    """Test with potentially malformed compressed data"""
+    
+    print("\n--- Testing Malformed Data ---")
+    
+    snappy = SnappyWasm()
+    
+    # Test data that might look like compressed data but isn't
+    malformed_cases = [
+        {
+            "name": "Short random bytes",
+            "data": b"\x01\x02\x03\x04\x05",
+            "description": "Short sequence that might be mistaken for header"
+        },
+        {
+            "name": "Long random data",
+            "data": bytes([i % 256 for i in range(100)]),
+            "description": "Longer random byte sequence"
+        },
+        {
+            "name": "Null bytes",
+            "data": b"\x00" * 50,
+            "description": "All null bytes"
+        },
+        {
+            "name": "High values",
+            "data": b"\xFF" * 20,
+            "description": "All 0xFF bytes"
+        },
+        {
+            "name": "Truncated header",
+            "data": b"\x0C",  # This might look like a length but is incomplete
+            "description": "Single byte that could be part of length encoding"
+        }
+    ]
+    
+    for test_case in malformed_cases:
+        print(f"\nTest: {test_case['name']}")
+        print(f"Description: {test_case['description']}")
+        print(f"Data: {test_case['data'][:20]}{'...' if len(test_case['data']) > 20 else ''}")
+        print(f"Size: {len(test_case['data'])} bytes")
+        
+        try:
+            is_valid = snappy.is_valid_compressed_buffer(test_case['data'])
+            print(f"IsValidCompressedBuffer: {is_valid} (Expected: False)")
+            if is_valid:
+                print(f"⚠️ Unexpected: Data validated as compressed!")
+            else:
+                print(f"✅ Correctly identified as invalid")
+        except Exception as e:
+            print(f"❌ Error during validation: {e}")
+
+def main():
+    """Main test function"""
     
     try:
-        engine = wasmtime.Engine()
-        store = wasmtime.Store(engine)
+        test_is_valid_compressed_buffer()
+        test_invalid_data()
+        test_multiple_data_types()
+        test_edge_cases()
+        test_malformed_data()
         
-        # Load the WASM file
-        with open('snappy_direct.wasm', 'rb') as f:
-            wasm_bytes = f.read()
+        print("\n" + "=" * 70)
+        print("✅ IsValidCompressedBuffer tests completed!")
+        print("=" * 70)
+        print("Summary:")
+        print("• Tested char* buffer-based validation")
+        print("• Verified with valid compressed data")
+        print("• Tested rejection of invalid data")
+        print("• Checked various data types and sizes")
+        print("• Examined edge cases and malformed data")
         
-        module = wasmtime.Module(engine, wasm_bytes)
-        
-        # Create required imports
-        wasi_imports = create_wasi_imports(store)
-        env_imports = create_env_imports(store)
-        
-        # Combine all imports in the order expected by the module
-        imports = [
-            env_imports['emscripten_notify_memory_growth'],  # env.emscripten_notify_memory_growth
-            wasi_imports['fd_close'],                        # wasi_snapshot_preview1.fd_close
-            wasi_imports['fd_write'],                        # wasi_snapshot_preview1.fd_write
-            wasi_imports['fd_seek']                          # wasi_snapshot_preview1.fd_seek
-        ]
-        
-        # Create instance with imports
-        instance = wasmtime.Instance(store, module, imports)
-        print("WASM module loaded successfully with imports!")
-        
-        # Initialize the module
-        initialize = instance.exports(store).get("_initialize")
-        if initialize:
-            initialize(store)
-            print("Module initialized")
-        
-        # Get the functions we need
-        get_version = instance.exports(store)["GetVersion"]
-        allocate_memory = instance.exports(store)["AllocateMemory"]
-        free_memory = instance.exports(store)["FreeMemory"]
-        write_to_memory = instance.exports(store)["WriteToMemory"]
-        compress_from_ptr = instance.exports(store)["CompressFromPtr"]
-        is_valid_compressed_buffer = instance.exports(store)["IsValidCompressedBuffer"]
-        max_compressed_length = instance.exports(store)["MaxCompressedLength"]
-        
-        # Check version
-        version = get_version(store)
-        print(f"WASM module version: {version}")
-        
-        if version < 4:
-            print("This module doesn't have IsValidCompressedBuffer function")
-            return
-        
-        # Test data
-        test_string = "Hello, Snappy WASM! This is a test string for compression and validation."
-        test_bytes = test_string.encode('utf-8')
-        
-        print(f"Test data: '{test_string}' ({len(test_bytes)} bytes)")
-        
-        # Allocate memory for input
-        input_size = len(test_bytes)
-        input_ptr = allocate_memory(store, input_size)
-        print(f"Allocated input memory at: {input_ptr}")
-        
-        # Write test data to WASM memory
-        for i, byte in enumerate(test_bytes):
-            write_to_memory(store, input_ptr + i, byte, 1)
-        
-        # Get maximum compressed size and allocate output buffer
-        max_compressed_size = max_compressed_length(store, input_size)
-        output_ptr = allocate_memory(store, max_compressed_size)
-        print(f"Allocated output memory at: {output_ptr} (max size: {max_compressed_size})")
-        
-        # Compress the data
-        compressed_size = compress_from_ptr(store, input_ptr, input_size, output_ptr, max_compressed_size)
-        
-        if compressed_size > 0:
-            print(f"Compression successful! {input_size} bytes → {compressed_size} bytes")
-            
-            # Test 1: Validate the properly compressed buffer
-            print("\nTest 1: Validating properly compressed data...")
-            print(f"   Calling IsValidCompressedBuffer(ptr={output_ptr}, length={compressed_size})")
-            is_valid = is_valid_compressed_buffer(store, output_ptr, compressed_size)
-            print(f"   Raw return value: {is_valid}")
-            print(f"   Result: {'VALID' if is_valid == 1 else 'INVALID'}")
-            
-            # Test 2: Validate with wrong size (should be invalid)
-            print("\nTest 2: Validating with wrong size...")
-            print(f"   Calling IsValidCompressedBuffer(ptr={output_ptr}, length={compressed_size - 5})")
-            is_valid_wrong_size = is_valid_compressed_buffer(store, output_ptr, compressed_size - 5)
-            print(f"   Raw return value: {is_valid_wrong_size}")
-            print(f"   Result: {'VALID' if is_valid_wrong_size == 1 else 'INVALID'} (expected invalid)")
-            
-            # Test 3: Create some garbage data and test validation
-            print("\nTest 3: Validating garbage data...")
-            garbage_ptr = allocate_memory(store, 20)
-            garbage_data = b'\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13'
-            for i, byte in enumerate(garbage_data):
-                write_to_memory(store, garbage_ptr + i, byte, 1)
-            
-            print(f"   Calling IsValidCompressedBuffer(ptr={garbage_ptr}, length={len(garbage_data)})")
-            is_valid_garbage = is_valid_compressed_buffer(store, garbage_ptr, len(garbage_data))
-            print(f"   Raw return value: {is_valid_garbage}")
-            print(f"   Result: {'VALID' if is_valid_garbage == 1 else 'INVALID'} (expected invalid)")
-            
-            # Test 4: Test with zero-length data
-            print("\nTest 4: Validating zero-length data...")
-            print(f"   Calling IsValidCompressedBuffer(ptr={output_ptr}, length=0)")
-            is_valid_empty = is_valid_compressed_buffer(store, output_ptr, 0)
-            print(f"   Raw return value: {is_valid_empty}")
-            print(f"   Result: {'VALID' if is_valid_empty == 1 else 'INVALID'} (expected invalid)")
-            
-            # Cleanup
-            free_memory(store, input_ptr)
-            free_memory(store, output_ptr)
-            free_memory(store, garbage_ptr)
-            print("\n🧹 Memory cleaned up")
-            
-        else:
-            print("Compression failed!")
-            free_memory(store, input_ptr)
-            free_memory(store, output_ptr)
-            return
-        
-        print("\n All tests completed!")
-        print("\n Summary:")
-        print("   • Test 1 (valid compressed data): Should be VALID")
-        print("   • Test 2 (wrong size): Should be INVALID") 
-        print("   • Test 3 (garbage data): Should be INVALID")
-        print("   • Test 4 (zero length): Should be INVALID")
-        
-    except FileNotFoundError:
-        print("snappy_direct.wasm not found! Make sure to build it first.")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"❌ Test suite failed: {e}")
         import traceback
         traceback.print_exc()
 
 if __name__ == "__main__":
-    test_snappy_validation()
+    main()

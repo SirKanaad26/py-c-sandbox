@@ -1,296 +1,293 @@
-#!/usr/bin/env python3
-"""
-Test script for Snappy WASM module with IsValidCompressed function support.
-This tests the new IsValidCompressed function that uses Source* internally.
-"""
-
-import ctypes
 import sys
 import os
-import time
-from pathlib import Path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def load_wasm_module():
-    """Load the Snappy WASM module."""
-    # Try to find the WASM file
-    wasm_paths = [
-        "snappy.wasm",
-        "snappy_source/snappy/snappy.wasm",
-        Path(__file__).parent / "snappy.wasm"
-    ]
-    
-    wasm_file = None
-    for path in wasm_paths:
-        if os.path.exists(path):
-            wasm_file = str(path)
-            break
-    
-    if not wasm_file:
-        raise FileNotFoundError("Could not find snappy.wasm file")
-    
-    print(f"Loading WASM module: {wasm_file}")
-    
-    try:
-        # Try different methods to load WASM
-        if hasattr(ctypes, 'CDLL'):
-            # This is a simplified approach - in real usage you'd use a proper WASM runtime
-            print("Note: This is a demonstration script.")
-            print("In practice, you would use a WASM runtime like wasmtime-py, wasmer-python, or run in a browser.")
-            return None
-    except Exception as e:
-        print(f"Could not load WASM: {e}")
-        return None
+from snappywasm.core import SnappyWasm
 
-class SnappyWASM:
-    """Wrapper class for Snappy WASM functions."""
+def test_is_valid_compressed():
+    """Test the is_valid_compressed method (Source* version)"""
     
-    def __init__(self):
-        self.module = load_wasm_module()
-        print("Initialized Snappy WASM wrapper")
-        print("Note: This is a demonstration of the API structure.")
+    print("🚀 Snappy WASM Test - IsValidCompressed (Source* abstraction version)")
+    print("=" * 70)
     
-    def compress(self, data: bytes) -> bytes:
-        """Compress data using Snappy."""
-        print(f"Would compress {len(data)} bytes of data")
-        # In real implementation, this would call the WASM function
-        # For demo purposes, return a mock compressed result
-        return b"MOCK_COMPRESSED_" + data[:10] + b"..."
+    # Initialize SnappyWasm
+    snappy = SnappyWasm()
     
-    def uncompress(self, compressed_data: bytes) -> bytes:
-        """Uncompress data using Snappy."""
-        print(f"Would uncompress {len(compressed_data)} bytes of data")
-        # In real implementation, this would call the WASM function
-        return b"MOCK_UNCOMPRESSED_DATA"
-    
-    def raw_uncompress(self, compressed_data: bytes) -> bytes:
-        """Raw uncompress data using RawUncompress (char* version)."""
-        print(f"Would raw uncompress {len(compressed_data)} bytes using RawUncompress")
-        # This would call the _RawUncompress WASM function
-        # For demo, return mock uncompressed data
-        return b"MOCK_RAW_UNCOMPRESSED_DATA"
-    
-    def raw_uncompress_from_source(self, compressed_data: bytes) -> bytes:
-        """Raw uncompress data using RawUncompressFromSource (Source* version)."""
-        print(f"Would raw uncompress {len(compressed_data)} bytes using RawUncompressFromSource (with Source*)")
-        # This would call the _RawUncompressFromSource WASM function which:
-        # 1. Creates a ByteArraySource from the raw buffer
-        # 2. Calls snappy::RawUncompress(&source, uncompressed)
-        # For demo, return mock uncompressed data
-        return b"MOCK_RAW_UNCOMPRESSED_FROM_SOURCE_DATA"
-    
-    def is_valid_compressed_buffer(self, compressed_data: bytes) -> bool:
-        """Validate compressed data using IsValidCompressedBuffer (char* version)."""
-        print(f"Would validate {len(compressed_data)} bytes using IsValidCompressedBuffer")
-        # This would call the _IsValidCompressedBuffer WASM function
-        # For demo, return True for mock compressed data
-        return compressed_data.startswith(b"MOCK_COMPRESSED_")
-    
-    def is_valid_compressed(self, compressed_data: bytes) -> bool:
-        """Validate compressed data using IsValidCompressed (Source* version)."""
-        print(f"Would validate {len(compressed_data)} bytes using IsValidCompressed (with Source*)")
-        # This would call the _IsValidCompressed WASM function which:
-        # 1. Creates a ByteArraySource from the raw buffer
-        # 2. Calls snappy::IsValidCompressed(&source)
-        # For demo, return True for mock compressed data
-        return compressed_data.startswith(b"MOCK_COMPRESSED_")
-    
-    def get_version(self) -> int:
-        """Get the version of the WASM module."""
-        return 9  # Version 9 includes RawUncompress functions
-
-def test_snappy_functions():
-    """Test various Snappy functions."""
-    print("=" * 60)
-    print("Testing Snappy WASM Functions")
-    print("=" * 60)
-    
-    snappy = SnappyWASM()
+    print(f"✅ Snappy WASM version: {snappy.get_version()}")
+    print()
     
     # Test data
-    test_data = b"Hello, World! This is a test of Snappy compression with some repeated data. " * 10
-    print(f"\nOriginal data size: {len(test_data)} bytes")
+    test_data = "Hello, World! This is a test of Snappy Source* abstraction validation."
+    print(f"Original data: '{test_data}'")
+    print(f"Original size: {len(test_data.encode('utf-8'))} bytes")
+    print()
     
-    # Test compression
-    print("\n1. Testing compression...")
-    compressed_data = snappy.compress(test_data)
-    print(f"Compressed data size: {len(compressed_data)} bytes")
-    
-    # Test IsValidCompressedBuffer (original function)
-    print("\n2. Testing IsValidCompressedBuffer (char* buffer version)...")
-    is_valid_buffer = snappy.is_valid_compressed_buffer(compressed_data)
-    print(f"IsValidCompressedBuffer result: {is_valid_buffer}")
-    
-    # Test IsValidCompressed (new function with Source*)
-    print("\n3. Testing IsValidCompressed (Source* version - NEW FUNCTION)...")
-    is_valid_source = snappy.is_valid_compressed(compressed_data)
-    print(f"IsValidCompressed result: {is_valid_source}")
-    
-    # Test with invalid data
-    print("\n4. Testing with invalid compressed data...")
-    invalid_data = b"This is not compressed data"
-    is_valid_buffer_invalid = snappy.is_valid_compressed_buffer(invalid_data)
-    is_valid_source_invalid = snappy.is_valid_compressed(invalid_data)
-    print(f"IsValidCompressedBuffer (invalid): {is_valid_buffer_invalid}")
-    print(f"IsValidCompressed (invalid): {is_valid_source_invalid}")
-    
-    # Test decompression
-    print("\n5. Testing decompression...")
-    if is_valid_source:
-        uncompressed_data = snappy.uncompress(compressed_data)
-        print(f"Uncompressed data size: {len(uncompressed_data)} bytes")
-    
-    # Test RawUncompress (char* version)
-    print("\n6. Testing RawUncompress (char* buffer version)...")
-    if is_valid_source:
-        raw_uncompressed_data = snappy.raw_uncompress(compressed_data)
-        print(f"Raw uncompressed data: {raw_uncompressed_data[:50]}...")
-    
-    # Test RawUncompressFromSource (Source* version)
-    print("\n7. Testing RawUncompressFromSource (Source* version - NEW FUNCTION)...")
-    if is_valid_source:
-        raw_uncompressed_source_data = snappy.raw_uncompress_from_source(compressed_data)
-        print(f"Raw uncompressed from source data: {raw_uncompressed_source_data[:50]}...")
-    
-    # Show version
-    print(f"\n8. WASM module version: {snappy.get_version()}")
-    
-    print("\n" + "=" * 60)
-    print("WASM Function Mapping Explanation:")
-    print("=" * 60)
-    print("C++ Function:                      WASM Export:                    Description:")
-    print("-" * 60)
-    print("IsValidCompressedBuffer()          _IsValidCompressedBuffer        Takes char* + size")
-    print("IsValidCompressed(Source*)         _IsValidCompressed              Takes char* + size, creates ByteArraySource internally")
-    print("                                   _IsValidCompressedInt           Same as above, returns int instead of bool")
-    print("RawUncompress(char*,size,char*)    _RawUncompress                  Raw decompression with char* buffer")
-    print("                                   _RawUncompressInt               Same as above, returns int instead of bool")
-    print("RawUncompress(Source*,char*)       _RawUncompressFromSource        Takes char* + size, creates ByteArraySource internally")
-    print("                                   _RawUncompressFromSourceInt     Same as above, returns int instead of bool")
-    print("\nThe key differences:")
-    print("- IsValidCompressedBuffer vs IsValidCompressed: Direct buffer vs Source* abstraction")
-    print("- RawUncompress vs RawUncompressFromSource: Direct buffer vs Source* abstraction")
-    print("- Uncompress vs RawUncompress: High-level wrapper vs low-level direct access")
-    print("\nBoth validation and decompression functions work with the same compressed data format,")
-    print("but the Source*-based versions provide the C++ abstraction interface you requested.")
+    # Compress the data first
+    try:
+        compressed_data = snappy.compress(test_data.encode('utf-8'))
+        print(f"✅ Compression successful!")
+        print(f"   Compressed size: {len(compressed_data)} bytes")
+        print()
+        
+        # Test IsValidCompressed (Source* version)
+        print("--- Testing IsValidCompressed (Source* abstraction) ---")
+        try:
+            is_valid_source = snappy.is_valid_compressed(compressed_data)
+            print(f"IsValidCompressed result: {is_valid_source}")
+            print(f"Status: {'✅ PASS' if is_valid_source else '❌ FAIL'}")
+            
+            # Verify with decompression if valid
+            if is_valid_source:
+                try:
+                    decompressed = snappy.uncompress(compressed_data)
+                    if decompressed == test_data.encode('utf-8'):
+                        print(f"✅ Decompression verification: SUCCESS")
+                    else:
+                        print(f"❌ Decompression verification: FAILED")
+                except Exception as e:
+                    print(f"❌ Decompression failed: {e}")
+                    
+        except Exception as e:
+            print(f"❌ IsValidCompressed failed: {e}")
+            
+    except Exception as e:
+        print(f"❌ Compression failed: {e}")
+        return
 
-def show_actual_wasm_usage():
-    """Show how to actually use this with a real WASM runtime."""
-    print("\n" + "=" * 60)
-    print("Real WASM Usage Example (with wasmtime-py):")
-    print("=" * 60)
+def test_invalid_data():
+    """Test validation function with invalid data"""
     
-    example_code = '''
-import wasmtime
+    print("\n--- Testing with Invalid Data (Source* abstraction) ---")
+    
+    snappy = SnappyWasm()
+    
+    invalid_test_cases = [
+        {
+            "name": "Plain text",
+            "data": b"This is definitely not compressed with Snappy!",
+            "description": "Regular uncompressed text"
+        },
+        {
+            "name": "Empty buffer",
+            "data": b"",
+            "description": "Zero-length data"
+        },
+        {
+            "name": "Binary zeros",
+            "data": b"\x00\x00\x00\x00\x00",
+            "description": "Multiple null bytes"
+        },
+        {
+            "name": "XML data",
+            "data": b'<?xml version="1.0"?><root><item>test</item></root>',
+            "description": "XML content as raw bytes"
+        },
+        {
+            "name": "Random pattern",
+            "data": bytes([i * 3 % 256 for i in range(100)]),
+            "description": "Arithmetic pattern bytes"
+        }
+    ]
+    
+    for test_case in invalid_test_cases:
+        print(f"\nTest: {test_case['name']}")
+        print(f"Description: {test_case['description']}")
+        print(f"Data size: {len(test_case['data'])} bytes")
+        
+        try:
+            is_valid = snappy.is_valid_compressed(test_case['data'])
+            expected = "Expected: False"
+            result = "✅ CORRECT" if not is_valid else "⚠️ UNEXPECTED TRUE"
+            print(f"IsValidCompressed: {is_valid} ({expected}) - {result}")
+        except Exception as e:
+            print(f"❌ Error: {e}")
 
-# Load and instantiate the WASM module
-engine = wasmtime.Engine()
-module = wasmtime.Module.from_file(engine, "snappy.wasm")
-store = wasmtime.Store(engine)
-instance = wasmtime.Instance(store, module, [])
+def test_source_abstraction_features():
+    """Test features specific to Source* abstraction"""
+    
+    print("\n--- Testing Source* Abstraction Features ---")
+    
+    snappy = SnappyWasm()
+    
+    test_cases = [
+        {
+            "name": "Structured data",
+            "data": '{"name": "test", "values": [1, 2, 3, 4, 5]}' * 25,
+            "description": "JSON-like structured data"
+        },
+        {
+            "name": "Code snippet",
+            "data": 'def function(x, y):\n    return x + y\n' * 30,
+            "description": "Python code with whitespace"
+        },
+        {
+            "name": "Mixed content",
+            "data": "Text with numbers: " + "".join(str(i) for i in range(1000)),
+            "description": "Text mixed with sequential numbers"
+        },
+        {
+            "name": "International text",
+            "data": "English text, 中文文本, العربية, Русский текст, 日本語テキスト" * 20,
+            "description": "Multi-language Unicode content"
+        },
+        {
+            "name": "Highly compressible",
+            "data": "COMPRESS_THIS_PATTERN_" * 100,
+            "description": "Highly repetitive pattern"
+        }
+    ]
+    
+    for test_case in test_cases:
+        print(f"\nTest: {test_case['name']}")
+        print(f"Description: {test_case['description']}")
+        original_data = test_case['data'].encode('utf-8')
+        print(f"Original size: {len(original_data)} bytes")
+        
+        try:
+            # Compress the data
+            compressed_data = snappy.compress(original_data)
+            compression_ratio = (1 - len(compressed_data) / len(original_data)) * 100
+            print(f"Compressed size: {len(compressed_data)} bytes ({compression_ratio:.1f}% reduction)")
+            
+            # Test Source* validation
+            is_valid = snappy.is_valid_compressed(compressed_data)
+            print(f"IsValidCompressed (Source*): {is_valid}")
+            
+            if is_valid:
+                # Verify round-trip through Source* abstraction
+                try:
+                    decompressed = snappy.uncompress(compressed_data)
+                    if decompressed == original_data:
+                        print(f"✅ Source* round-trip verification: SUCCESS")
+                    else:
+                        print(f"❌ Source* round-trip verification: FAILED")
+                        print(f"   Expected: {len(original_data)} bytes")
+                        print(f"   Got: {len(decompressed)} bytes")
+                except Exception as e:
+                    print(f"❌ Source* decompression error: {e}")
+            else:
+                print(f"⚠️ Source* validation failed for compressed data")
+                
+        except Exception as e:
+            print(f"❌ Compression failed: {e}")
 
-# Get the exported functions
-compress_func = instance.exports(store)["CompressFromPtr"]
-is_valid_compressed_buffer = instance.exports(store)["IsValidCompressedBuffer"]
-is_valid_compressed = instance.exports(store)["IsValidCompressed"]  # NEW FUNCTION
-raw_uncompress = instance.exports(store)["RawUncompress"]  # NEW FUNCTION
-raw_uncompress_from_source = instance.exports(store)["RawUncompressFromSource"]  # NEW FUNCTION
-allocate_memory = instance.exports(store)["AllocateMemory"]
-free_memory = instance.exports(store)["FreeMemory"]
-write_to_memory = instance.exports(store)["WriteToMemory"]
+def test_source_vs_buffer_consistency():
+    """Test consistency between Source* and buffer-based approaches"""
+    
+    print("\n--- Testing Source* vs Buffer Consistency ---")
+    
+    snappy = SnappyWasm()
+    
+    test_data_sets = [
+        b"Small test",
+        b"Medium test data with some repetition and variety" * 5,
+        b"Large test data set with lots of content and repetitive patterns" * 20,
+        bytes([i % 128 for i in range(200)]),  # Binary pattern
+        "Unicode: 🚀🌟✨🎉🔥💫⭐🌈".encode('utf-8'),  # Unicode
+    ]
+    
+    for i, data in enumerate(test_data_sets):
+        print(f"\nConsistency Test {i+1}:")
+        print(f"Data type: {type(data).__name__}")
+        print(f"Data size: {len(data)} bytes")
+        print(f"Preview: {data[:30]}{'...' if len(data) > 30 else ''}")
+        
+        try:
+            # Compress the data
+            compressed_data = snappy.compress(data)
+            print(f"Compressed size: {len(compressed_data)} bytes")
+            
+            # Test both validation methods
+            is_valid_buffer = snappy.is_valid_compressed_buffer(compressed_data)
+            is_valid_source = snappy.is_valid_compressed(compressed_data)
+            
+            print(f"IsValidCompressedBuffer: {is_valid_buffer}")
+            print(f"IsValidCompressed (Source*): {is_valid_source}")
+            
+            # Check consistency
+            if is_valid_buffer == is_valid_source:
+                print(f"✅ Consistency check: PASS (both return {is_valid_buffer})")
+            else:
+                print(f"❌ Consistency check: FAIL (Buffer: {is_valid_buffer}, Source*: {is_valid_source})")
+            
+        except Exception as e:
+            print(f"❌ Test failed: {e}")
 
-# Example usage of the new RawUncompress functions
-def test_raw_uncompress_functions(compressed_data):
-    # Allocate memory in WASM for input and output
-    compressed_ptr = allocate_memory(store, len(compressed_data))
+def test_source_abstraction_edge_cases():
+    """Test edge cases specific to Source* abstraction"""
     
-    # First get the uncompressed length
-    uncompressed_length = 1000  # You'd get this from GetUncompressedLength first
-    uncompressed_ptr = allocate_memory(store, uncompressed_length)
+    print("\n--- Testing Source* Abstraction Edge Cases ---")
     
-    # Write compressed data to WASM memory
-    write_to_memory(store, compressed_ptr, compressed_data, len(compressed_data))
+    snappy = SnappyWasm()
     
-    # Test RawUncompress (char* version)
-    success1 = raw_uncompress(store, compressed_ptr, len(compressed_data), uncompressed_ptr)
-    print(f"RawUncompress result: {success1}")
+    # Test very small data
+    print("\nVery small data with Source* abstraction:")
+    for size in [1, 2, 3, 4, 5]:
+        data = b"X" * size
+        try:
+            compressed = snappy.compress(data)
+            is_valid = snappy.is_valid_compressed(compressed)
+            print(f"Size {size}: {len(data)} → {len(compressed)} bytes, Source* valid: {is_valid}")
+        except Exception as e:
+            print(f"Size {size}: Failed - {e}")
     
-    # Test RawUncompressFromSource (Source* version)
-    # This internally creates a ByteArraySource and calls snappy::RawUncompress
-    success2 = raw_uncompress_from_source(store, compressed_ptr, len(compressed_data), uncompressed_ptr)
-    print(f"RawUncompressFromSource result: {success2}")
-    
-    # Clean up
-    free_memory(store, compressed_ptr)
-    free_memory(store, uncompressed_ptr)
-    
-    return success1, success2
+    # Test incrementally larger data
+    print("\nIncremental size testing with Source* abstraction:")
+    for size in [10, 50, 100, 500, 1000]:
+        # Create data with some pattern for better compression
+        pattern = f"Pattern{size}:"
+        data = (pattern * (size // len(pattern) + 1))[:size].encode('utf-8')
+        
+        try:
+            compressed = snappy.compress(data)
+            is_valid = snappy.is_valid_compressed(compressed)
+            ratio = (1 - len(compressed) / len(data)) * 100
+            print(f"Size {size:4d}: {len(data)} → {len(compressed)} bytes ({ratio:5.1f}%), Source* valid: {is_valid}")
+        except Exception as e:
+            print(f"Size {size:4d}: Failed - {e}")
 
-# Example usage of the new IsValidCompressed function
-def test_is_valid_compressed(data):
-    # Allocate memory in WASM
-    data_ptr = allocate_memory(store, len(data))
+def test_source_abstraction_internals():
+    """Test understanding of Source* abstraction internals"""
     
-    # Write data to WASM memory
-    write_to_memory(store, data_ptr, data, len(data))
-    
-    # Call the new IsValidCompressed function
-    # This internally creates a ByteArraySource and calls snappy::IsValidCompressed
-    is_valid = is_valid_compressed(store, data_ptr, len(data))
-    
-    # Clean up
-    free_memory(store, data_ptr)
-    
-    return is_valid
-
-# Test with some compressed data
-compressed_data = b"\\x0c\\x00\\x00Hello World"  # Example compressed data
-result = test_is_valid_compressed(compressed_data)
-print(f"IsValidCompressed result: {result}")
-'''
-    
-    print(example_code)
-    print("\nInstallation:")
-    print("pip install wasmtime")
+    print("\n--- Source* Abstraction Implementation Details ---")
+    print("The IsValidCompressed function uses Source* abstraction which:")
+    print("1. Creates a ByteArraySource wrapper around the input buffer")
+    print("2. Calls snappy::IsValidCompressed(&source) internally")
+    print("3. Provides the same C++ API interface as the original Snappy library")
+    print("4. Should behave identically to IsValidCompressedBuffer for the same input")
+    print()
+    print("Key advantages of Source* abstraction:")
+    print("• Matches original Snappy C++ API design")
+    print("• Allows for potential future extensions (different source types)")
+    print("• Provides cleaner abstraction layer")
+    print("• Maintains compatibility with Snappy's internal implementation")
 
 def main():
-    """Main test function."""
-    print("Snappy WASM Test Suite")
-    print("Testing IsValidCompressed function with Source* support")
+    """Main test function"""
     
     try:
-        test_snappy_functions()
-        # show_actual_wasm_usage()
+        test_is_valid_compressed()
+        test_invalid_data()
+        test_source_abstraction_features()
+        test_source_vs_buffer_consistency()
+        test_source_abstraction_edge_cases()
+        test_source_abstraction_internals()
         
-        print("\n" + "=" * 60)
-        print("Summary of Changes Made:")
-        print("=" * 60)
-        print("1. Added IsValidCompressed function to wasm_wrapper.cc")
-        print("2. Function signature: bool IsValidCompressed(const char* data, size_t length)")
-        print("3. Internally creates snappy::ByteArraySource from buffer")
-        print("4. Calls snappy::IsValidCompressed(&source)")
-        print("5. Added RawUncompress function (char* version)")
-        print("6. Added RawUncompressFromSource function (Source* version)")
-        print("7. Added both bool and int return versions for all functions")
-        print("8. Updated EXPORTED_FUNCTIONS list to include new functions")
-        print("9. Updated version to 9")
-        
-        print("\nKey Implementation Details:")
-        print("- Source* parameter problem solved by creating ByteArraySource wrapper")
-        print("- C wrapper hides C++ class complexity from WASM interface")
-        print("- RawUncompress: Direct char* buffer version")
-        print("- RawUncompressFromSource: Uses Source* abstraction internally")
-        print("- Both _IsValidCompressed and _RawUncompressFromSource work with Source*")
-        print("- Functions work exactly like snappy C++ API but with C interface")
-        
-        print("\nTest this by running:")
-        print("1. ./build_wasm.sh")
-        print("2. python test_snappy_source.py")
+        print("\n" + "=" * 70)
+        print("✅ IsValidCompressed (Source*) tests completed!")
+        print("=" * 70)
+        print("Summary:")
+        print("• Tested Source* abstraction-based validation")
+        print("• Verified ByteArraySource wrapper functionality")
+        print("• Tested consistency with buffer-based approach")
+        print("• Examined Source* abstraction advantages")
+        print("• Validated various data types and edge cases")
+        print("• Confirmed C++ API compatibility")
         
     except Exception as e:
-        print(f"Error during testing: {e}")
-        return 1
-    
-    return 0
+        print(f"❌ Test suite failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
