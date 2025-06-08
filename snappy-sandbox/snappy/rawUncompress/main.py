@@ -1,8 +1,7 @@
-import sys
-import os
-from snappywasm.core import SnappyWasm
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from snappywasm.core import SnappyWasm
 
 def test_raw_uncompress():
     print("Testing Raw Uncompress Functionality\n")

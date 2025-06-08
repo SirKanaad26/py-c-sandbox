@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
-"""
-Test script for Snappy WASM RawUncompress functionality.
-This script tests the raw_uncompress method from core.py.
-"""
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import sys
-import time
 from snappywasm.core import SnappyWasm
+import time
 
 def test_raw_uncompress():
     """Test the RawUncompress functionality"""
