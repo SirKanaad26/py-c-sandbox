@@ -1,8 +1,6 @@
 # validators.py
 
-from ctypes import Union
-from typing import List
-
+from typing import List, Union
 
 def validate_max_compressed_length(source_length: int, result: int):
     """Validate the result returned by MaxCompressedLength."""

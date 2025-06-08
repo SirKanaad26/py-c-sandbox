@@ -4,7 +4,7 @@ from wasmtime import Store, Module, Instance, Func
 from .utils import create_wasm_imports
 import ctypes
 from typing import List, Union
-from validators import *
+from .validators import *
 
 class SnappyWasm:
     def __init__(self, wasm_path=None):
@@ -807,9 +807,10 @@ class SnappyWasm:
 
         # Call validation function (returns 1 for valid, 0 for invalid in WASM)
         is_valid = func(self.store, compressed_offset, compressed_len)
-        validate_is_valid_compressed_buffer_result(compressed_data, is_valid)
+        res = bool(is_valid)
+        validate_is_valid_compressed_buffer_result(compressed_data, res)
 
-        return bool(is_valid)
+        return res
 
     def is_valid_compressed(self, compressed_data: bytes) -> bool:
         """
@@ -1308,7 +1309,14 @@ class SnappyWasm:
         )
         result_bytes = bytes(result)
         max_out_len = self.max_compressed_length(total_in)
-        validate_raw_compress_from_iovec_output(data_buffers, result_bytes, max_out_len)
+        validate_raw_compress_from_iovec_with_options_output(
+            data_buffers,
+            result_bytes,
+            max_out_len,
+            options,
+            lo,
+            hi
+)
         return result_bytes
     
     def get_max_compressed_length(self, source_length: int) -> int:
