@@ -1,14 +1,13 @@
-import sys
-import os
-from snappywasm.core import SnappyWasm
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from snappywasm.core import SnappyWasm
 
 def test_raw_uncompress():
     print("Testing Raw Uncompress Functionality\n")
     
     try:
-        snappy = SnappyWasm("snappywasm/wasm/snappy.wasm")
+        snappy = SnappyWasm()
         print("SnappyWasm initialized successfully\n")
     except Exception as e:
         print(f"Initialization failed: {e}")
@@ -43,7 +42,7 @@ def test_raw_uncompress():
 
 def test_integration():
     print("Integration Test")
-    snappy = SnappyWasm("snappywasm/wasm/snappy.wasm")
+    snappy = SnappyWasm()
     original = b"Integration test for raw_uncompress."
     print(f"Original: {original!r}")
 

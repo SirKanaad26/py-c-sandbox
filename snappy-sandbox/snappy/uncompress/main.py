@@ -18,9 +18,14 @@ def create_wasi_imports(store):
     }
 
 def create_env_imports(store):
-    def emscripten_notify_memory_growth(index): pass
+    
+    def emscripten_notify_memory_growth(index): 
+        pass
+
     notify_type = wasmtime.FuncType([wasmtime.ValType.i32()], [])
-    return {'emscripten_notify_memory_growth': wasmtime.Func(store, notify_type, emscripten_notify_memory_growth)}
+    return {
+        'emscripten_notify_memory_growth': wasmtime.Func(store, notify_type, emscripten_notify_memory_growth)
+    }
 
 def write_data_to_memory(store, write_to_memory_func, ptr, data):
     for i, byte in enumerate(data):
