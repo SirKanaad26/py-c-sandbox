@@ -78,6 +78,43 @@ class SnappyWasm:
         
         return bytes(result)
 
+    def compress_source_sink_with_options(self, data: Union[str, bytes], compression_level: int) -> bytes:
+        """Compress data using CompressFromSourceToSinkWithOptions function"""
+        if isinstance(data, str):
+            data = data.encode('utf-8')
+        
+        func = self.exports.get("CompressFromSourceToSinkWithOptions")
+        if not func:
+            raise RuntimeError("CompressFromSourceToSinkWithOptions not found")
+        
+        input_len = len(data)
+        max_out_len = self.max_compressed_length(input_len)
+        
+        # Memory offsets - use larger gap for bigger data
+        input_offset = 0
+        output_offset = input_len + max(1024, input_len // 4)  # Dynamic gap
+        
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+        
+        # Copy input data
+        input_array = (ctypes.c_ubyte * input_len).from_buffer_copy(data)
+        ctypes.memmove(raw_addr + input_offset, input_array, input_len)
+        
+        # Call compression with options
+        compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len, compression_level)
+        
+        if compressed_len <= 0:
+            raise RuntimeError("Compression failed")
+        
+        # Copy result
+        result = bytearray(compressed_len)
+        result_array = (ctypes.c_ubyte * compressed_len).from_buffer(result)
+        ctypes.memmove(result_array, raw_addr + output_offset, compressed_len)
+        
+        return bytes(result)
+
     def get_uncompressed_length(self, compressed_data: bytes) -> int:
         """Get the uncompressed length from compressed data"""
         if not self.memory:
