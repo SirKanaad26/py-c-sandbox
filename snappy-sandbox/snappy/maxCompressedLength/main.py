@@ -8,10 +8,6 @@ def test_snappy_direct_wasm():
     """Test both MaxCompressedLength and GetUncompressedLength"""
     try:
         snappy = SnappyWasm()
-    except FileNotFoundError:
-        print("WASM file not found: snappy_direct.wasm")
-        print("Run ./build_from_snappy_source.sh first")
-        return
     except Exception as e:
         print(f"Failed to load WASM module: {e}")
         return
