@@ -6,7 +6,6 @@ This script tests the raw_uncompress method from core.py.
 
 import sys
 import time
-# from core import SnappyWASM
 from snappywasm.core import SnappyWasm
 
 def test_raw_uncompress():
@@ -14,10 +13,6 @@ def test_raw_uncompress():
     
     # Initialize the WASM module
     snappy = SnappyWasm()
-    
-    # TODO: Initialize your WASM module here
-    # This would typically involve loading the WASM file and setting up memory/exports
-    # snappy.load_wasm("path/to/your/snappy.wasm")
     
     print("=== Snappy WASM RawUncompress Test ===\n")
     
@@ -119,13 +114,6 @@ def test_raw_uncompress():
         else:
             print("✗ Invalid data incorrectly validated")
             
-        # This should raise an exception when using safe method
-        # try:
-        #     snappy.raw_uncompress_safe(invalid_data)
-        #     print("✗ Safe decompression should have failed")
-        # except ValueError as e:
-        #     print(f"✓ Safe decompression correctly rejected invalid data: {e}")
-            
     except Exception as e:
         print(f"✗ Error handling test failed: {e}")
     
@@ -149,87 +137,12 @@ def benchmark_performance():
         print("  Performance test would require actual compression/decompression")
         print("  Skipping for now...\n")
 
-# def interactive_test():
-#     """Interactive test mode"""
-    
-#     print("\n=== Interactive Test Mode ===\n")
-    
-#     snappy = SnappyWASM()
-    
-#     while True:
-#         print("\nOptions:")
-#         print("1. Test with custom text")
-#         print("2. Load compressed file")
-#         print("3. Exit")
-        
-#         choice = input("Enter your choice (1-3): ").strip()
-        
-#         if choice == "1":
-#             text = input("Enter text to test: ")
-#             data = text.encode('utf-8')
-#             print(f"Text length: {len(data)} bytes")
-#             print("Note: You would need to compress this first before testing decompression")
-            
-#         elif choice == "2":
-#             filename = input("Enter compressed file path: ")
-#             try:
-#                 with open(filename, 'rb') as f:
-#                     compressed_data = f.read()
-#                 print(f"Loaded {len(compressed_data)} bytes from {filename}")
-                
-#                 # Test validation
-#                 if snappy.is_valid_compressed(compressed_data):
-#                     print("✓ File contains valid Snappy compressed data")
-                    
-#                     # You would need to know or detect the uncompressed length
-#                     max_length = int(input("Enter maximum expected uncompressed length: "))
-                    
-#                     try:
-#                         result = snappy.raw_uncompress_safe(compressed_data, max_length)
-#                         print(f"✓ Successfully decompressed to {len(result)} bytes")
-                        
-#                         # Optionally save result
-#                         save = input("Save decompressed data to file? (y/n): ").lower()
-#                         if save == 'y':
-#                             output_file = input("Enter output filename: ")
-#                             with open(output_file, 'wb') as f:
-#                                 f.write(result)
-#                             print(f"Saved to {output_file}")
-                            
-#                     except Exception as e:
-#                         print(f"✗ Decompression failed: {e}")
-#                 else:
-#                     print("✗ File does not contain valid Snappy compressed data")
-                    
-#             except FileNotFoundError:
-#                 print(f"✗ File not found: {filename}")
-#             except Exception as e:
-#                 print(f"✗ Error reading file: {e}")
-                
-#         elif choice == "3":
-#             break
-#         else:
-#             print("Invalid choice. Please try again.")
 
 def main():
     """Main test function"""
     
     print("Snappy WASM RawUncompress Test Suite")
     print("====================================\n")
-    
-    # if len(sys.argv) > 1:
-    #     mode = sys.argv[1].lower()
-        
-    #     if mode == "basic":
-    #         test_raw_uncompress()
-    #     elif mode == "benchmark":
-    #         benchmark_performance()
-    #     elif mode == "interactive":
-    #         interactive_test()
-    #     else:
-    #         print(f"Unknown mode: {mode}")
-    #         print("Available modes: basic, benchmark, interactive")
-    # else:
     print("Usage: python main.py [basic|benchmark|interactive]")
     print("\nRunning basic tests by default...\n")
     test_raw_uncompress()
