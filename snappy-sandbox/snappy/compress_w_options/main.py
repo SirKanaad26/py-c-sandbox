@@ -1,4 +1,3 @@
-
 from snappywasm.core import SnappyWasm
 
 def main():
