@@ -1160,7 +1160,76 @@ static CYTHON_INLINE float __PYX_NAN() {
 #include <string>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/uio.h>
 #include "snappy.h"
+
+    #include <string>
+    #include "snappy.h"
+    #include "snappy-sinksource.h"
+    
+    class BytesSource : public snappy::Source {
+    private:
+        const char* data_;
+        size_t size_;
+        size_t pos_;
+        
+    public:
+        BytesSource(const char* data, size_t size) 
+            : data_(data), size_(size), pos_(0) {}
+        
+        virtual ~BytesSource() {}
+        
+        virtual size_t Available() const override {
+            return size_ - pos_;
+        }
+        
+        virtual const char* Peek(size_t* len) override {
+            *len = Available();
+            return data_ + pos_;
+        }
+        
+        virtual void Skip(size_t n) override {
+            pos_ += n;
+            if (pos_ > size_) pos_ = size_;
+        }
+    };
+    
+    class StringSink : public snappy::Sink {
+    private:
+        std::string* dest_;
+        
+    public:
+        StringSink(std::string* dest) : dest_(dest) {}
+        
+        virtual ~StringSink() {}
+        
+        virtual void Append(const char* data, size_t n) override {
+            dest_->append(data, n);
+        }
+        
+        virtual char* GetAppendBuffer(size_t length, char* scratch) override {
+            dest_->resize(dest_->size() + length);
+            return &(*dest_)[dest_->size() - length];
+        }
+        
+        virtual char* GetAppendBufferVariable(
+            size_t min_size, size_t desired_size_hint, char* scratch,
+            size_t scratch_size, size_t* allocated_size) override {
+            *allocated_size = desired_size_hint;
+            return GetAppendBuffer(desired_size_hint, scratch);
+        }
+        
+        virtual void AppendAndTakeOwnership(
+            char* data, size_t n,
+            void (*deleter)(void*, const char*, size_t),
+            void* deleter_arg) override {
+            Append(data, n);
+            (*deleter)(deleter_arg, data, n);
+        }
+    };
+    
 #ifdef _OPENMP
 #include <omp.h>
 #endif /* _OPENMP */
@@ -1368,6 +1437,7 @@ static const char *__pyx_filename;
 static const char* const __pyx_f[] = {
   "snappy_wrapper.pyx",
   "<stringsource>",
+  "cpython/type.pxd",
 };
 /* #### Code section: utility_code_proto_before_types ### */
 /* Atomics.proto */
@@ -1548,7 +1618,7 @@ static const char* const __pyx_f[] = {
 /*--- Type declarations ---*/
 struct __pyx_obj_14snappy_wrapper_PyCompressionOptions;
 
-/* "snappy_wrapper.pyx":35
+/* "snappy_wrapper.pyx":158
  * 
  * # Python wrapper class for CompressionOptions
  * cdef class PyCompressionOptions:             # <<<<<<<<<<<<<<
@@ -1878,6 +1948,121 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds);
         __Pyx__ArgTypeTest(obj, type, name, exact))
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact);
 
+/* GetException.proto */
+#if CYTHON_FAST_THREAD_STATE
+#define __Pyx_GetException(type, value, tb)  __Pyx__GetException(__pyx_tstate, type, value, tb)
+static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb);
+#else
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb);
+#endif
+
+/* SwapException.proto */
+#if CYTHON_FAST_THREAD_STATE
+#define __Pyx_ExceptionSwap(type, value, tb)  __Pyx__ExceptionSwap(__pyx_tstate, type, value, tb)
+static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb);
+#else
+static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb);
+#endif
+
+/* GetTopmostException.proto */
+#if CYTHON_USE_EXC_INFO_STACK && CYTHON_FAST_THREAD_STATE
+static _PyErr_StackItem * __Pyx_PyErr_GetTopmostException(PyThreadState *tstate);
+#endif
+
+/* SaveResetException.proto */
+#if CYTHON_FAST_THREAD_STATE
+#define __Pyx_ExceptionSave(type, value, tb)  __Pyx__ExceptionSave(__pyx_tstate, type, value, tb)
+static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb);
+#define __Pyx_ExceptionReset(type, value, tb)  __Pyx__ExceptionReset(__pyx_tstate, type, value, tb)
+static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject *type, PyObject *value, PyObject *tb);
+#else
+#define __Pyx_ExceptionSave(type, value, tb)   PyErr_GetExcInfo(type, value, tb)
+#define __Pyx_ExceptionReset(type, value, tb)  PyErr_SetExcInfo(type, value, tb)
+#endif
+
+/* GetItemInt.proto */
+#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
+    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck) :\
+    (is_list ? (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL) :\
+               __Pyx_GetItemInt_Generic(o, to_py_func(i))))
+#define __Pyx_GetItemInt_List(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
+    __Pyx_GetItemInt_List_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) :\
+    (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL))
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_List_Fast(PyObject *o, Py_ssize_t i,
+                                                              int wraparound, int boundscheck);
+#define __Pyx_GetItemInt_Tuple(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck)\
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ?\
+    __Pyx_GetItemInt_Tuple_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) :\
+    (PyErr_SetString(PyExc_IndexError, "tuple index out of range"), (PyObject*)NULL))
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Tuple_Fast(PyObject *o, Py_ssize_t i,
+                                                              int wraparound, int boundscheck);
+static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
+                                                     int is_list, int wraparound, int boundscheck);
+
+/* BuildPyUnicode.proto */
+static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, const char* chars, int clength,
+                                                int prepend_sign, char padding_char);
+
+/* COrdinalToPyUnicode.proto */
+static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value);
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t width, char padding_char);
+
+/* GCCDiagnostics.proto */
+#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#define __Pyx_HAS_GCC_DIAGNOSTIC
+#endif
+
+/* IncludeStdlibH.proto */
+#include <stdlib.h>
+
+/* CIntToPyUnicode.proto */
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_From_size_t(size_t value, Py_ssize_t width, char padding_char, char format_char);
+
+/* JoinPyUnicode.proto */
+static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
+                                      Py_UCS4 max_char);
+
+/* ListAppend.proto */
+#if CYTHON_USE_PYLIST_INTERNALS && CYTHON_ASSUME_SAFE_MACROS
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
+        Py_INCREF(x);
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+        L->ob_item[len] = x;
+        #else
+        PyList_SET_ITEM(list, len, x);
+        #endif
+        __Pyx_SET_SIZE(list, len + 1);
+        return 0;
+    }
+    return PyList_Append(list, x);
+}
+#else
+#define __Pyx_PyList_Append(L,x) PyList_Append(L,x)
+#endif
+
+/* PyObjectFormatSimple.proto */
+#if CYTHON_COMPILING_IN_PYPY
+    #define __Pyx_PyObject_FormatSimple(s, f) (\
+        likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) :\
+        PyObject_Format(s, f))
+#elif CYTHON_USE_TYPE_SLOTS
+    #define __Pyx_PyObject_FormatSimple(s, f) (\
+        likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) :\
+        likely(PyLong_CheckExact(s)) ? PyLong_Type.tp_repr(s) :\
+        likely(PyFloat_CheckExact(s)) ? PyFloat_Type.tp_repr(s) :\
+        PyObject_Format(s, f))
+#else
+    #define __Pyx_PyObject_FormatSimple(s, f) (\
+        likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) :\
+        PyObject_Format(s, f))
+#endif
+
 /* DefaultPlacementNew.proto */
 #include <new>
 template<typename T>
@@ -1923,6 +2108,25 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v);
 
 /* SetupReduce.proto */
 static int __Pyx_setup_reduce(PyObject* type_obj);
+
+/* TypeImport.proto */
+#ifndef __PYX_HAVE_RT_ImportType_proto_3_1_0
+#define __PYX_HAVE_RT_ImportType_proto_3_1_0
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#include <stdalign.h>
+#endif
+#if (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || __cplusplus >= 201103L
+#define __PYX_GET_STRUCT_ALIGNMENT_3_1_0(s) alignof(s)
+#else
+#define __PYX_GET_STRUCT_ALIGNMENT_3_1_0(s) sizeof(void*)
+#endif
+enum __Pyx_ImportType_CheckSize_3_1_0 {
+   __Pyx_ImportType_CheckSize_Error_3_1_0 = 0,
+   __Pyx_ImportType_CheckSize_Warn_3_1_0 = 1,
+   __Pyx_ImportType_CheckSize_Ignore_3_1_0 = 2
+};
+static PyTypeObject *__Pyx_ImportType_3_1_0(PyObject* module, const char *module_name, const char *class_name, size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_3_1_0 check_size);
+#endif
 
 /* FetchSharedCythonModule.proto */
 static PyObject *__Pyx_FetchSharedCythonABIModule(void);
@@ -2128,11 +2332,6 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename);
 
-/* GCCDiagnostics.proto */
-#if !defined(__INTEL_COMPILER) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
-#define __Pyx_HAS_GCC_DIAGNOSTIC
-#endif
-
 /* CIntFromPy.proto */
 static CYTHON_INLINE int __Pyx_PyLong_As_int(PyObject *);
 
@@ -2159,6 +2358,9 @@ static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, P
 
 /* CIntToPy.proto */
 static CYTHON_INLINE PyObject* __Pyx_PyLong_From_int(int value);
+
+/* CIntToPy.proto */
+static CYTHON_INLINE PyObject* __Pyx_PyLong_From_uint32_t(uint32_t value);
 
 /* FormatTypeName.proto */
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -2273,6 +2475,20 @@ static int __Pyx_State_RemoveModule(void*);
 
 /* Module declarations from "libc.stdint" */
 
+/* Module declarations from "libc.stdlib" */
+
+/* Module declarations from "libc.stdio" */
+
+/* Module declarations from "__builtin__" */
+
+/* Module declarations from "cpython.type" */
+
+/* Module declarations from "cpython" */
+
+/* Module declarations from "cpython.object" */
+
+/* Module declarations from "cpython.bytes" */
+
 /* Module declarations from "snappy_wrapper" */
 static CYTHON_INLINE PyObject *__pyx_convert_PyObject_string_to_py_6libcpp_6string_std__in_string(std::string const &); /*proto*/
 static CYTHON_INLINE PyObject *__pyx_convert_PyUnicode_string_to_py_6libcpp_6string_std__in_string(std::string const &); /*proto*/
@@ -2290,11 +2506,16 @@ static PyObject *__pyx_builtin_staticmethod;
 static PyObject *__pyx_builtin_ValueError;
 static PyObject *__pyx_builtin_TypeError;
 static PyObject *__pyx_builtin_RuntimeError;
+static PyObject *__pyx_builtin_MemoryError;
+static PyObject *__pyx_builtin_range;
 /* #### Code section: string_decls ### */
 static const char __pyx_k_[] = "?";
 static const char __pyx_k_Q[] = "\200\001\330\004\n\210+\220Q";
+static const char __pyx_k_i[] = "i";
+static const char __pyx_k_j[] = "j";
 static const char __pyx_k_gc[] = "gc";
 static const char __pyx_k_A_9[] = "\200A\340\010!\320!9\270\021";
+static const char __pyx_k_buf[] = "buf";
 static const char __pyx_k_pop[] = "pop";
 static const char __pyx_k_AQ_1[] = "\200\001\360\026\000\n\013\330\010\021\320\021$\240A\240Q\330\004\013\2101";
 static const char __pyx_k_A_5Q[] = "\200A\340\010!\320!5\260Q";
@@ -2303,16 +2524,24 @@ static const char __pyx_k_func[] = "__func__";
 static const char __pyx_k_main[] = "__main__";
 static const char __pyx_k_name[] = "__name__";
 static const char __pyx_k_self[] = "self";
+static const char __pyx_k_sink[] = "sink";
+static const char __pyx_k_size[] = "size";
 static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_A_t4q[] = "\200A\330\010\017\210t\2204\220q";
+static const char __pyx_k_Chunk[] = "Chunk ";
 static const char __pyx_k_c_A_1[] = "\200\001\360\026\000\t!\240\001\330\010\036\230c\240\021\240!\360\006\000\n\013\330\010\021\320\021(\250\001\250\033\260A\340\004\013\2101";
+static const char __pyx_k_chunk[] = "chunk";
 static const char __pyx_k_level[] = "level";
+static const char __pyx_k_range[] = "range";
 static const char __pyx_k_enable[] = "enable";
 static const char __pyx_k_module[] = "__module__";
 static const char __pyx_k_output[] = "output";
 static const char __pyx_k_reduce[] = "__reduce__";
 static const char __pyx_k_result[] = "result";
+static const char __pyx_k_source[] = "source";
+static const char __pyx_k_buf_ptr[] = "buf_ptr";
 static const char __pyx_k_disable[] = "disable";
+static const char __pyx_k_iov_cnt[] = "iov_cnt";
 static const char __pyx_k_options[] = "options";
 static const char __pyx_k_success[] = "success";
 static const char __pyx_k_add_note[] = "add_note";
@@ -2323,58 +2552,106 @@ static const char __pyx_k_setstate[] = "__setstate__";
 static const char __pyx_k_TypeError[] = "TypeError";
 static const char __pyx_k_get_level[] = "get_level";
 static const char __pyx_k_input_ptr[] = "input_ptr";
+static const char __pyx_k_iov_array[] = "iov_array";
 static const char __pyx_k_isenabled[] = "isenabled";
+static const char __pyx_k_kBlockLog[] = "kBlockLog";
 static const char __pyx_k_max_level[] = "max_level";
 static const char __pyx_k_min_level[] = "min_level";
 static const char __pyx_k_pyx_state[] = "__pyx_state";
 static const char __pyx_k_reduce_ex[] = "__reduce_ex__";
 static const char __pyx_k_ValueError[] = "ValueError";
 static const char __pyx_k_input_data[] = "input_data";
+static const char __pyx_k_kBlockSize[] = "kBlockSize";
 static const char __pyx_k_output_ptr[] = "output_ptr";
+static const char __pyx_k_Buffer_size[] = "Buffer size ";
+static const char __pyx_k_MemoryError[] = "MemoryError";
+static const char __pyx_k_Q_a_Q_Q_Q_Q[] = "\200\001\340\004\005\330\010\025\220Q\330\010\026\220a\330\010\035\230Q\330\010\035\230Q\330\010\035\230Q\330\010\035\230Q";
+static const char __pyx_k_c__A_aq_q_A[] = "\200\001\360\026\000\t!\240\001\330\010\036\230c\240\021\240!\360\010\000\005\016\210_\230A\230[\250\001\330\004\005\330\r\016\330\014\025\320\025&\240a\240q\330\010\017\210q\340\010\014\210A";
+static const char __pyx_k_data_chunks[] = "data_chunks";
 static const char __pyx_k_RuntimeError[] = "RuntimeError";
+static const char __pyx_k_buffer_sizes[] = "buffer_sizes";
+static const char __pyx_k_c__A_1_8_A_A[] = "\200\001\360\026\000\t!\240\001\330\010\036\230c\240\021\240!\360\014\000\005\016\210_\230A\230[\250\001\330\004\013\210>\230\021\230!\2301\340\004\005\330\r\016\330\014\036\320\0368\270\001\270\030\300\021\340\010\020\220\010\230\001\340\010\014\210A\330\010\014\210A";
 static const char __pyx_k_c_q_t1_l_1_1[] = "\200\001\360\034\000\t!\240\001\330\010\036\230c\240\021\240!\360\010\000\n\013\330\010\022\320\022'\240q\250\013\260>\300\021\300!\340\004\007\200t\2101\330\010\016\210l\230!\2301\340\004\013\2101";
 static const char __pyx_k_compress_raw[] = "compress_raw";
 static const char __pyx_k_input_length[] = "input_length";
 static const char __pyx_k_is_coroutine[] = "_is_coroutine";
+static const char __pyx_k_output_bytes[] = "output_bytes";
 static const char __pyx_k_source_bytes[] = "source_bytes";
 static const char __pyx_k_staticmethod[] = "staticmethod";
 static const char __pyx_k_stringsource[] = "<stringsource>";
+static const char __pyx_k_total_length[] = "total_length";
 static const char __pyx_k_compress_data[] = "compress_data";
 static const char __pyx_k_default_level[] = "default_level";
+static const char __pyx_k_get_constants[] = "get_constants";
 static const char __pyx_k_output_buffer[] = "output_buffer";
 static const char __pyx_k_reduce_cython[] = "__reduce_cython__";
+static const char __pyx_k_output_buffers[] = "output_buffers";
 static const char __pyx_k_snappy_wrapper[] = "snappy_wrapper";
 static const char __pyx_k_uncompress_raw[] = "uncompress_raw";
+static const char __pyx_k_bytes_processed[] = "bytes_processed";
 static const char __pyx_k_c_A_aq_t1_l_1_1[] = "\200\001\360\034\000\t!\240\001\330\010\036\230c\240\021\240!\360\010\000\n\013\330\010\022\220*\230A\230[\250\016\260a\260q\340\004\007\200t\2101\330\010\016\210l\230!\2301\340\004\013\2101";
 static const char __pyx_k_compressed_data[] = "compressed_data";
 static const char __pyx_k_setstate_cython[] = "__setstate_cython__";
 static const char __pyx_k_uncompress_data[] = "uncompress_data";
 static const char __pyx_k_compressed_length[] = "compressed_length";
+static const char __pyx_k_kMaxHashTableBits[] = "kMaxHashTableBits";
+static const char __pyx_k_kMaxHashTableSize[] = "kMaxHashTableSize";
+static const char __pyx_k_kMinHashTableBits[] = "kMinHashTableBits";
+static const char __pyx_k_kMinHashTableSize[] = "kMinHashTableSize";
 static const char __pyx_k_max_output_length[] = "max_output_length";
+static const char __pyx_k_must_be_bytes_got[] = " must be bytes, got ";
 static const char __pyx_k_Compression_failed[] = "Compression failed";
 static const char __pyx_k_asyncio_coroutines[] = "asyncio.coroutines";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
 static const char __pyx_k_snappy_wrapper_pyx[] = "snappy_wrapper.pyx";
+static const char __pyx_k_c__A_1HAQ_4q_aq_q_A[] = "\200\001\360\034\000\t!\240\001\330\010\036\230c\240\021\240!\360\n\000\005\016\210_\230A\230[\250\001\330\004\005\330\r\016\330\014\026\320\026+\2501\250H\260A\260Q\340\010\013\2104\210q\330\014\022\220,\230a\230q\340\010\017\210q\340\010\014\210A";
+static const char __pyx_k_compress_from_iovec[] = "compress_from_iovec";
+static const char __pyx_k_uncompress_to_iovec[] = "uncompress_to_iovec";
 static const char __pyx_k_uncompressed_length[] = "uncompressed_length";
 static const char __pyx_k_Decompression_failed[] = "Decompression failed";
 static const char __pyx_k_PyCompressionOptions[] = "PyCompressionOptions";
+static const char __pyx_k_c__A_1_j_4q_aq_q_A_A[] = "\200\001\360\034\000\t!\240\001\330\010\036\230c\240\021\240!\360\014\000\005\016\210_\230A\230[\250\001\330\004\013\210>\230\021\230!\2301\340\004\005\330\r\016\330\014\026\220j\240\001\240\030\250\021\340\010\013\2104\210q\330\014\022\220,\230a\230q\340\010\017\210q\340\010\014\210A\330\010\014\210A";
+static const char __pyx_k_must_be_non_negative[] = " must be non-negative";
 static const char __pyx_k_max_compressed_length[] = "max_compressed_length";
+static const char __pyx_k_compress_raw_from_iovec[] = "compress_raw_from_iovec";
+static const char __pyx_k_compress_source_to_sink[] = "compress_source_to_sink";
 static const char __pyx_k_get_uncompressed_length[] = "get_uncompressed_length";
+static const char __pyx_k_IOVec_compression_failed[] = "IOVec compression failed";
 static const char __pyx_k_Raw_decompression_failed[] = "Raw decompression failed";
 static const char __pyx_k_A_c_xs_N_1_N_87RS_A_l_1_1[] = "\320\000$\240A\360\036\000\t!\240\001\330\010\036\230c\240\021\240!\360\010\000\005\010\200x\210s\220!\330\r\016\330\014 \240\010\250\001\250\033\260N\300!\3001\340\r\016\330\014 \240\010\250\001\250\033\260N\300!\3008\3107\320RS\340\004\007\320\007\031\230\023\230A\330\010\016\210l\230!\2301\340\004\013\2101";
+static const char __pyx_k_Failed_to_allocate_buffer[] = "Failed to allocate buffer ";
+static const char __pyx_k_uncompress_source_to_sink[] = "uncompress_source_to_sink";
+static const char __pyx_k_IOVec_decompression_failed[] = "IOVec decompression failed";
 static const char __pyx_k_is_valid_compressed_buffer[] = "is_valid_compressed_buffer";
+static const char __pyx_k_is_valid_compressed_source[] = "is_valid_compressed_source";
+static const char __pyx_k_raw_uncompress_from_source[] = "raw_uncompress_from_source";
 static const char __pyx_k_c_q_t1_l_1_e1A_1_q_t1_l_1_1[] = "\200\001\360\034\000\t!\240\001\330\010\036\230c\240\021\240!\360\n\000\n\013\330\010\022\320\022'\240q\250\013\260>\300\021\300!\340\004\007\200t\2101\330\010\016\210l\230!\2301\360\010\000\t\037\230e\2401\240A\330\010\033\2301\340\t\n\330\010\022\220-\230q\240\013\250>\270\021\340\004\007\200t\2101\330\010\016\210l\230!\2301\340\004\013\2101";
+static const char __pyx_k_Failed_to_allocate_IOVec_array[] = "Failed to allocate IOVec array";
 static const char __pyx_k_PyCompressionOptions_get_level[] = "PyCompressionOptions.get_level";
 static const char __pyx_k_PyCompressionOptions_max_level[] = "PyCompressionOptions.max_level";
 static const char __pyx_k_PyCompressionOptions_min_level[] = "PyCompressionOptions.min_level";
+static const char __pyx_k_Source_Sink_compression_failed[] = "Source/Sink compression failed";
+static const char __pyx_k_a_c__A_1_83a_HAXQ_HAXV7_S_aq_q[] = "\320\000.\250a\360\030\000\t!\240\001\330\010\036\230c\240\021\240!\360\014\000\005\016\210_\230A\230[\250\001\330\004\013\210>\230\021\230!\2301\340\004\005\330\010\013\2108\2203\220a\330\021\022\330\020$\240H\250A\250X\260Q\340\021\022\330\020$\240H\250A\250X\260V\2707\300!\340\010\013\320\013\035\230S\240\001\330\014\022\220,\230a\230q\340\010\017\210q\340\010\014\210A\330\010\014\210A";
+static const char __pyx_k_c_AQ_86_A_t1_k__A_E_aq_q_uBa_j[] = "\200\001\360\036\000\t!\240\001\330\010\036\230c\240\021\240!\340\010\031\230\023\230A\230Q\330\010\033\2308\2406\250\021\250.\270\002\270!\330\010\034\230A\360\n\000\005\010\200t\2101\330\010\016\210k\230\021\230!\340\004\r\210_\230A\230[\250\001\340\004\005\340\010\014\210E\220\025\220a\220q\330\014\023\220<\230q\240\001\330\014\017\210u\220B\220a\330\020\026\220j\240\001\240\022\320#3\2601\330\014\026\220g\230V\2401\240A\330\014\017\210t\2201\340\020\024\220E\230\025\230a\230q\330\024\030\230\001\230\031\240!\2402\240Q\330\020\026\220k\240\021\240\"\320$B\300!\330\014\025\220Q\220b\230\014\240G\2501\330\014\025\220Q\220b\230\013\2401\340\r\016\330\014\026\320\026*\250!\2508\260;\270a\340\010\013\2104\210q\340\014\020\220\005\220U\230!\2301\330\020\024\220A\220Y\230a\230r\240\021\330\014\022\220,\230a\230q\360\006\000\t\r\210E\220\025\220a\220q\330\014\030\230\007\230r\240\027\250\t\260\021\260\"\260J\270b\300\t\310\021\310\"\310A\330\014\020\220\001\220\031\230!\2302\230Q\340\010\017\210q\340\010\014\210A\330\010\014\210A\210Q";
+static const char __pyx_k_c__A_1HAQ_4q_aq_A__A_E_m1HA_4q[] = "\200\001\360\034\000\t!\240\001\330\010\036\230c\240\021\240!\360\020\000\005\016\210_\230A\230[\250\001\330\004\005\330\r\016\330\014\026\320\026+\2501\250H\260A\260Q\340\010\013\2104\210q\330\014\022\220,\230a\230q\340\010\014\210A\360\006\000\005\016\210_\230A\230[\250\001\330\004\024\220E\230\021\230!\330\004\021\220\021\340\004\005\330\r\016\330\014\026\220m\2401\240H\250A\340\010\013\2104\210q\330\014\022\220,\230a\230q\340\010\017\210q\340\010\014\210A";
+static const char __pyx_k_uncompress_as_much_as_possible[] = "uncompress_as_much_as_possible";
 static const char __pyx_k_1_c_6aq_e1A_1_1_xs_q_Qa_q_Q_QQX[] = "\320\000#\2401\360\030\000\t!\240\001\330\010\036\230c\240\021\240!\330\010#\320#6\260a\260q\330\010\036\230e\2401\240A\330\010\033\2301\330\010#\2401\340\004\007\200x\210s\220!\330\r\016\330\014\027\220q\230\013\240>\260\034\270Q\270a\340\r\016\330\014\027\220q\230\013\240>\260\034\270Q\320>Q\320QX\320XY\340\004\013\210=\230\002\230!";
+static const char __pyx_k_AQ_86_t1_k_E_aq_Kq_t_QgQ_iq_C4q[] = "\320\000*\250!\360\036\000\t\032\230\023\230A\230Q\330\010\033\2308\2406\250\021\250.\270\002\270!\360\n\000\005\010\200t\2101\330\010\016\210k\230\021\230!\340\004\005\340\010\014\210E\220\025\220a\220q\330\014\024\220K\230q\240\001\330\014\017\210t\220:\230Q\230g\240Q\330\020\026\220i\230q\240\002\240*\320,C\3004\300q\310\001\330\014\025\220Q\220b\230\014\240G\320+;\2701\270A\330\014\025\220Q\220b\230\013\2403\240a\240q\340\010\013\2108\2203\220a\330\021\022\330\020$\320$5\260Q\260k\300\031\310!\3101\340\021\022\330\020$\320$5\260Q\260k\300\031\310!\3108\320SZ\320Z[\340\010\013\320\013\035\230S\240\001\330\014\022\220,\230a\230q\340\010\017\210q\340\010\014\210A\210Q";
+static const char __pyx_k_IOVec_decompression_from_source[] = "IOVec decompression from source failed";
 static const char __pyx_k_PyCompressionOptions___setstate[] = "PyCompressionOptions.__setstate_cython__";
+static const char __pyx_k_a_AQ_86_a_t1_k_E_aq_Kq_t_QgQ_iq[] = "\320\000.\250a\360\030\000\t\032\230\023\230A\230Q\330\010\033\2308\2406\250\021\250.\270\002\270!\330\010\036\230a\360\016\000\005\010\200t\2101\330\010\016\210k\230\021\230!\340\004\005\340\010\014\210E\220\025\220a\220q\330\014\024\220K\230q\240\001\330\014\017\210t\220:\230Q\230g\240Q\330\020\026\220i\230q\240\002\240*\320,C\3004\300q\310\001\330\014\025\220Q\220b\230\014\240G\320+;\2701\270A\330\014\025\220Q\220b\230\013\2403\240a\240q\330\014\034\230C\230q\240\001\340\010\034\320\034/\250q\260\001\330\010\030\230\005\230Q\230a\330\010\025\220Q\330\010\034\230A\340\010\013\2108\2203\220a\330\021\022\330\020$\240A\240[\260\016\270l\310!\3101\340\021\022\330\020$\240A\240[\260\016\270l\310!\320K^\320^e\320ef\340\010\017\210}\230B\230a\340\010\014\210A\210Q";
+static const char __pyx_k_c_AQ_86_a_A_t1_k_E_aq_q_uBa_j_3[] = "\200\001\360\036\000\t!\240\001\330\010\036\230c\240\021\240!\330\010\031\230\023\230A\230Q\330\010\033\2308\2406\250\021\250.\270\002\270!\330\010\036\230a\330\010\034\230A\360\n\000\005\010\200t\2101\330\010\016\210k\230\021\230!\340\004\005\340\010\014\210E\220\025\220a\220q\330\014\023\220<\230q\240\001\330\014\017\210u\220B\220a\330\020\026\220j\240\001\240\022\320#3\2601\340\014\022\220%\220q\230\001\330\014\032\230'\240\021\240!\340\014\026\220g\230V\2401\240A\330\014\017\210t\2201\340\020\024\220E\230\025\230a\230q\330\024\030\230\001\230\031\240!\2402\240Q\330\020\026\220k\240\021\240\"\320$B\300!\330\014\025\220Q\220b\230\014\240G\2501\330\014\025\220Q\220b\230\013\2401\340\r\016\330\014\026\320\026*\250!\250;\260n\300K\310q\340\010\013\2104\210q\340\014\020\220\005\220U\230!\2301\330\020\024\220A\220Y\230a\230r\240\021\330\014\022\220,\230a\230q\360\006\000\t\r\210E\220\025\220a\220q\330\014\030\230\007\230r\240\027\250\t\260\021\260\"\260J\270b\300\t\310\021\310\"\310A\330\014\020\220\001\220\031\230!\2302\230Q\340\010\017\210q\340\010\014\210A\210Q";
 static const char __pyx_k_Compression_level_must_be_1_or_2[] = "Compression level must be 1 or 2";
 static const char __pyx_k_Note_that_Cython_is_deliberately[] = "Note that Cython is deliberately stricter than PEP-484 and rejects subclasses of builtin types. If you need to pass subclasses then set the 'annotation_typing' directive to False.";
 static const char __pyx_k_PyCompressionOptions___reduce_cy[] = "PyCompressionOptions.__reduce_cython__";
 static const char __pyx_k_PyCompressionOptions_default_lev[] = "PyCompressionOptions.default_level";
-static const char __pyx_k_Unable_to_get_uncompressed_lengt[] = "Unable to get uncompressed length";
+static const char __pyx_k_Raw_decompression_from_source_fa[] = "Raw decompression from source failed";
+static const char __pyx_k_Source_Sink_decompression_failed[] = "Source/Sink decompression failed";
+static const char __pyx_k_Unable_to_get_uncompressed_lengt[] = "Unable to get uncompressed length from source";
+static const char __pyx_k_get_uncompressed_length_from_sou[] = "get_uncompressed_length_from_source";
 static const char __pyx_k_no_default___reduce___due_to_non[] = "no default __reduce__ due to non-trivial __cinit__";
+static const char __pyx_k_raw_uncompress_to_iovec_from_sou[] = "raw_uncompress_to_iovec_from_source";
+static const char __pyx_k_Unable_to_get_uncompressed_lengt_2[] = "Unable to get uncompressed length";
 /* #### Code section: decls ### */
 static int __pyx_pf_14snappy_wrapper_20PyCompressionOptions___cinit__(struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_self, int __pyx_v_level); /* proto */
 static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_2get_level(struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_self); /* proto */
@@ -2383,13 +2660,24 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_6max_level(voi
 static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_8default_level(void); /* proto */
 static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_10__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_12__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
-static PyObject *__pyx_pf_14snappy_wrapper_max_compressed_length(CYTHON_UNUSED PyObject *__pyx_self, size_t __pyx_v_source_bytes); /* proto */
-static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options); /* proto */
-static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options); /* proto */
-static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
-static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
-static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
-static PyObject *__pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_get_constants(CYTHON_UNUSED PyObject *__pyx_self); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_2max_compressed_length(CYTHON_UNUSED PyObject *__pyx_self, size_t __pyx_v_source_bytes); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_4is_valid_compressed_source(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_6compress_source_to_sink(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_source_to_sink(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_10uncompress_as_much_as_possible(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_12get_uncompressed_length_from_source(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_14raw_uncompress_from_source(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_16raw_uncompress_to_iovec_from_source(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data, PyObject *__pyx_v_buffer_sizes); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_18compress_data(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_20compress_from_iovec(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_data_chunks, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_22compress_raw(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_24compress_raw_from_iovec(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_data_chunks, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_26uncompress_data(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_28uncompress_raw(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_30uncompress_to_iovec(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data, PyObject *__pyx_v_buffer_sizes); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_32get_uncompressed_length(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
+static PyObject *__pyx_pf_14snappy_wrapper_34is_valid_compressed_buffer(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data); /* proto */
 static PyObject *__pyx_tp_new_14snappy_wrapper_PyCompressionOptions(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 /* #### Code section: late_includes ### */
 /* #### Code section: module_state ### */
@@ -2429,12 +2717,14 @@ typedef struct {
   #ifdef __Pyx_Coroutine_USED
   PyTypeObject *__pyx_CoroutineType;
   #endif
+  PyTypeObject *__pyx_ptype_7cpython_4type_type;
   PyObject *__pyx_type_14snappy_wrapper_PyCompressionOptions;
   PyTypeObject *__pyx_ptype_14snappy_wrapper_PyCompressionOptions;
   __Pyx_CachedCFunction __pyx_umethod_PyDict_Type_pop;
   PyObject *__pyx_tuple[1];
-  PyObject *__pyx_codeobj_tab[13];
-  PyObject *__pyx_string_tab[73];
+  PyObject *__pyx_codeobj_tab[24];
+  PyObject *__pyx_string_tab[121];
+  PyObject *__pyx_int_0;
 /* #### Code section: module_state_contents ### */
 /* CachedMethodType.module_state_decls */
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -2470,78 +2760,126 @@ static __pyx_mstatetype * const __pyx_mstate_global = &__pyx_mstate_global_stati
 #endif
 /* #### Code section: constant_name_defines ### */
 #define __pyx_kp_u_ __pyx_string_tab[0]
-#define __pyx_kp_u_Compression_failed __pyx_string_tab[1]
-#define __pyx_kp_u_Compression_level_must_be_1_or_2 __pyx_string_tab[2]
-#define __pyx_kp_u_Decompression_failed __pyx_string_tab[3]
-#define __pyx_kp_u_Note_that_Cython_is_deliberately __pyx_string_tab[4]
-#define __pyx_n_u_PyCompressionOptions __pyx_string_tab[5]
-#define __pyx_n_u_PyCompressionOptions___reduce_cy __pyx_string_tab[6]
-#define __pyx_n_u_PyCompressionOptions___setstate __pyx_string_tab[7]
-#define __pyx_n_u_PyCompressionOptions_default_lev __pyx_string_tab[8]
-#define __pyx_n_u_PyCompressionOptions_get_level __pyx_string_tab[9]
-#define __pyx_n_u_PyCompressionOptions_max_level __pyx_string_tab[10]
-#define __pyx_n_u_PyCompressionOptions_min_level __pyx_string_tab[11]
-#define __pyx_kp_u_Raw_decompression_failed __pyx_string_tab[12]
-#define __pyx_n_u_RuntimeError __pyx_string_tab[13]
-#define __pyx_n_u_TypeError __pyx_string_tab[14]
-#define __pyx_kp_u_Unable_to_get_uncompressed_lengt __pyx_string_tab[15]
-#define __pyx_n_u_ValueError __pyx_string_tab[16]
-#define __pyx_kp_u_add_note __pyx_string_tab[17]
-#define __pyx_n_u_asyncio_coroutines __pyx_string_tab[18]
-#define __pyx_n_u_cline_in_traceback __pyx_string_tab[19]
-#define __pyx_n_u_compress_data __pyx_string_tab[20]
-#define __pyx_n_u_compress_raw __pyx_string_tab[21]
-#define __pyx_n_u_compressed_data __pyx_string_tab[22]
-#define __pyx_n_u_compressed_length __pyx_string_tab[23]
-#define __pyx_n_u_default_level __pyx_string_tab[24]
-#define __pyx_n_u_dict __pyx_string_tab[25]
-#define __pyx_kp_u_disable __pyx_string_tab[26]
-#define __pyx_kp_u_enable __pyx_string_tab[27]
-#define __pyx_n_u_func __pyx_string_tab[28]
-#define __pyx_kp_u_gc __pyx_string_tab[29]
-#define __pyx_n_u_get_level __pyx_string_tab[30]
-#define __pyx_n_u_get_uncompressed_length __pyx_string_tab[31]
-#define __pyx_n_u_getstate __pyx_string_tab[32]
-#define __pyx_n_u_input_data __pyx_string_tab[33]
-#define __pyx_n_u_input_length __pyx_string_tab[34]
-#define __pyx_n_u_input_ptr __pyx_string_tab[35]
-#define __pyx_n_u_is_coroutine __pyx_string_tab[36]
-#define __pyx_n_u_is_valid_compressed_buffer __pyx_string_tab[37]
-#define __pyx_kp_u_isenabled __pyx_string_tab[38]
-#define __pyx_n_u_level __pyx_string_tab[39]
-#define __pyx_n_u_main __pyx_string_tab[40]
-#define __pyx_n_u_max_compressed_length __pyx_string_tab[41]
-#define __pyx_n_u_max_level __pyx_string_tab[42]
-#define __pyx_n_u_max_output_length __pyx_string_tab[43]
-#define __pyx_n_u_min_level __pyx_string_tab[44]
-#define __pyx_n_u_module __pyx_string_tab[45]
-#define __pyx_n_u_name __pyx_string_tab[46]
-#define __pyx_kp_u_no_default___reduce___due_to_non __pyx_string_tab[47]
-#define __pyx_n_u_options __pyx_string_tab[48]
-#define __pyx_n_u_output __pyx_string_tab[49]
-#define __pyx_n_u_output_buffer __pyx_string_tab[50]
-#define __pyx_n_u_output_ptr __pyx_string_tab[51]
-#define __pyx_n_u_pop __pyx_string_tab[52]
-#define __pyx_n_u_pyx_state __pyx_string_tab[53]
-#define __pyx_n_u_qualname __pyx_string_tab[54]
-#define __pyx_n_u_reduce __pyx_string_tab[55]
-#define __pyx_n_u_reduce_cython __pyx_string_tab[56]
-#define __pyx_n_u_reduce_ex __pyx_string_tab[57]
-#define __pyx_n_u_result __pyx_string_tab[58]
-#define __pyx_n_u_self __pyx_string_tab[59]
-#define __pyx_n_u_set_name __pyx_string_tab[60]
-#define __pyx_n_u_setstate __pyx_string_tab[61]
-#define __pyx_n_u_setstate_cython __pyx_string_tab[62]
-#define __pyx_n_u_snappy_wrapper __pyx_string_tab[63]
-#define __pyx_kp_u_snappy_wrapper_pyx __pyx_string_tab[64]
-#define __pyx_n_u_source_bytes __pyx_string_tab[65]
-#define __pyx_n_u_staticmethod __pyx_string_tab[66]
-#define __pyx_kp_u_stringsource __pyx_string_tab[67]
-#define __pyx_n_u_success __pyx_string_tab[68]
-#define __pyx_n_u_test __pyx_string_tab[69]
-#define __pyx_n_u_uncompress_data __pyx_string_tab[70]
-#define __pyx_n_u_uncompress_raw __pyx_string_tab[71]
-#define __pyx_n_u_uncompressed_length __pyx_string_tab[72]
+#define __pyx_kp_u_Buffer_size __pyx_string_tab[1]
+#define __pyx_kp_u_Chunk __pyx_string_tab[2]
+#define __pyx_kp_u_Compression_failed __pyx_string_tab[3]
+#define __pyx_kp_u_Compression_level_must_be_1_or_2 __pyx_string_tab[4]
+#define __pyx_kp_u_Decompression_failed __pyx_string_tab[5]
+#define __pyx_kp_u_Failed_to_allocate_IOVec_array __pyx_string_tab[6]
+#define __pyx_kp_u_Failed_to_allocate_buffer __pyx_string_tab[7]
+#define __pyx_kp_u_IOVec_compression_failed __pyx_string_tab[8]
+#define __pyx_kp_u_IOVec_decompression_failed __pyx_string_tab[9]
+#define __pyx_kp_u_IOVec_decompression_from_source __pyx_string_tab[10]
+#define __pyx_n_u_MemoryError __pyx_string_tab[11]
+#define __pyx_kp_u_Note_that_Cython_is_deliberately __pyx_string_tab[12]
+#define __pyx_n_u_PyCompressionOptions __pyx_string_tab[13]
+#define __pyx_n_u_PyCompressionOptions___reduce_cy __pyx_string_tab[14]
+#define __pyx_n_u_PyCompressionOptions___setstate __pyx_string_tab[15]
+#define __pyx_n_u_PyCompressionOptions_default_lev __pyx_string_tab[16]
+#define __pyx_n_u_PyCompressionOptions_get_level __pyx_string_tab[17]
+#define __pyx_n_u_PyCompressionOptions_max_level __pyx_string_tab[18]
+#define __pyx_n_u_PyCompressionOptions_min_level __pyx_string_tab[19]
+#define __pyx_kp_u_Raw_decompression_failed __pyx_string_tab[20]
+#define __pyx_kp_u_Raw_decompression_from_source_fa __pyx_string_tab[21]
+#define __pyx_n_u_RuntimeError __pyx_string_tab[22]
+#define __pyx_kp_u_Source_Sink_compression_failed __pyx_string_tab[23]
+#define __pyx_kp_u_Source_Sink_decompression_failed __pyx_string_tab[24]
+#define __pyx_n_u_TypeError __pyx_string_tab[25]
+#define __pyx_kp_u_Unable_to_get_uncompressed_lengt __pyx_string_tab[26]
+#define __pyx_kp_u_Unable_to_get_uncompressed_lengt_2 __pyx_string_tab[27]
+#define __pyx_n_u_ValueError __pyx_string_tab[28]
+#define __pyx_kp_u_add_note __pyx_string_tab[29]
+#define __pyx_n_u_asyncio_coroutines __pyx_string_tab[30]
+#define __pyx_n_u_buf __pyx_string_tab[31]
+#define __pyx_n_u_buf_ptr __pyx_string_tab[32]
+#define __pyx_n_u_buffer_sizes __pyx_string_tab[33]
+#define __pyx_n_u_bytes_processed __pyx_string_tab[34]
+#define __pyx_n_u_chunk __pyx_string_tab[35]
+#define __pyx_n_u_cline_in_traceback __pyx_string_tab[36]
+#define __pyx_n_u_compress_data __pyx_string_tab[37]
+#define __pyx_n_u_compress_from_iovec __pyx_string_tab[38]
+#define __pyx_n_u_compress_raw __pyx_string_tab[39]
+#define __pyx_n_u_compress_raw_from_iovec __pyx_string_tab[40]
+#define __pyx_n_u_compress_source_to_sink __pyx_string_tab[41]
+#define __pyx_n_u_compressed_data __pyx_string_tab[42]
+#define __pyx_n_u_compressed_length __pyx_string_tab[43]
+#define __pyx_n_u_data_chunks __pyx_string_tab[44]
+#define __pyx_n_u_default_level __pyx_string_tab[45]
+#define __pyx_n_u_dict __pyx_string_tab[46]
+#define __pyx_kp_u_disable __pyx_string_tab[47]
+#define __pyx_kp_u_enable __pyx_string_tab[48]
+#define __pyx_n_u_func __pyx_string_tab[49]
+#define __pyx_kp_u_gc __pyx_string_tab[50]
+#define __pyx_n_u_get_constants __pyx_string_tab[51]
+#define __pyx_n_u_get_level __pyx_string_tab[52]
+#define __pyx_n_u_get_uncompressed_length __pyx_string_tab[53]
+#define __pyx_n_u_get_uncompressed_length_from_sou __pyx_string_tab[54]
+#define __pyx_n_u_getstate __pyx_string_tab[55]
+#define __pyx_n_u_i __pyx_string_tab[56]
+#define __pyx_n_u_input_data __pyx_string_tab[57]
+#define __pyx_n_u_input_length __pyx_string_tab[58]
+#define __pyx_n_u_input_ptr __pyx_string_tab[59]
+#define __pyx_n_u_iov_array __pyx_string_tab[60]
+#define __pyx_n_u_iov_cnt __pyx_string_tab[61]
+#define __pyx_n_u_is_coroutine __pyx_string_tab[62]
+#define __pyx_n_u_is_valid_compressed_buffer __pyx_string_tab[63]
+#define __pyx_n_u_is_valid_compressed_source __pyx_string_tab[64]
+#define __pyx_kp_u_isenabled __pyx_string_tab[65]
+#define __pyx_n_u_j __pyx_string_tab[66]
+#define __pyx_n_u_kBlockLog __pyx_string_tab[67]
+#define __pyx_n_u_kBlockSize __pyx_string_tab[68]
+#define __pyx_n_u_kMaxHashTableBits __pyx_string_tab[69]
+#define __pyx_n_u_kMaxHashTableSize __pyx_string_tab[70]
+#define __pyx_n_u_kMinHashTableBits __pyx_string_tab[71]
+#define __pyx_n_u_kMinHashTableSize __pyx_string_tab[72]
+#define __pyx_n_u_level __pyx_string_tab[73]
+#define __pyx_n_u_main __pyx_string_tab[74]
+#define __pyx_n_u_max_compressed_length __pyx_string_tab[75]
+#define __pyx_n_u_max_level __pyx_string_tab[76]
+#define __pyx_n_u_max_output_length __pyx_string_tab[77]
+#define __pyx_n_u_min_level __pyx_string_tab[78]
+#define __pyx_n_u_module __pyx_string_tab[79]
+#define __pyx_kp_u_must_be_bytes_got __pyx_string_tab[80]
+#define __pyx_kp_u_must_be_non_negative __pyx_string_tab[81]
+#define __pyx_n_u_name __pyx_string_tab[82]
+#define __pyx_kp_u_no_default___reduce___due_to_non __pyx_string_tab[83]
+#define __pyx_n_u_options __pyx_string_tab[84]
+#define __pyx_n_u_output __pyx_string_tab[85]
+#define __pyx_n_u_output_buffer __pyx_string_tab[86]
+#define __pyx_n_u_output_buffers __pyx_string_tab[87]
+#define __pyx_n_u_output_bytes __pyx_string_tab[88]
+#define __pyx_n_u_output_ptr __pyx_string_tab[89]
+#define __pyx_n_u_pop __pyx_string_tab[90]
+#define __pyx_n_u_pyx_state __pyx_string_tab[91]
+#define __pyx_n_u_qualname __pyx_string_tab[92]
+#define __pyx_n_u_range __pyx_string_tab[93]
+#define __pyx_n_u_raw_uncompress_from_source __pyx_string_tab[94]
+#define __pyx_n_u_raw_uncompress_to_iovec_from_sou __pyx_string_tab[95]
+#define __pyx_n_u_reduce __pyx_string_tab[96]
+#define __pyx_n_u_reduce_cython __pyx_string_tab[97]
+#define __pyx_n_u_reduce_ex __pyx_string_tab[98]
+#define __pyx_n_u_result __pyx_string_tab[99]
+#define __pyx_n_u_self __pyx_string_tab[100]
+#define __pyx_n_u_set_name __pyx_string_tab[101]
+#define __pyx_n_u_setstate __pyx_string_tab[102]
+#define __pyx_n_u_setstate_cython __pyx_string_tab[103]
+#define __pyx_n_u_sink __pyx_string_tab[104]
+#define __pyx_n_u_size __pyx_string_tab[105]
+#define __pyx_n_u_snappy_wrapper __pyx_string_tab[106]
+#define __pyx_kp_u_snappy_wrapper_pyx __pyx_string_tab[107]
+#define __pyx_n_u_source __pyx_string_tab[108]
+#define __pyx_n_u_source_bytes __pyx_string_tab[109]
+#define __pyx_n_u_staticmethod __pyx_string_tab[110]
+#define __pyx_kp_u_stringsource __pyx_string_tab[111]
+#define __pyx_n_u_success __pyx_string_tab[112]
+#define __pyx_n_u_test __pyx_string_tab[113]
+#define __pyx_n_u_total_length __pyx_string_tab[114]
+#define __pyx_n_u_uncompress_as_much_as_possible __pyx_string_tab[115]
+#define __pyx_n_u_uncompress_data __pyx_string_tab[116]
+#define __pyx_n_u_uncompress_raw __pyx_string_tab[117]
+#define __pyx_n_u_uncompress_source_to_sink __pyx_string_tab[118]
+#define __pyx_n_u_uncompress_to_iovec __pyx_string_tab[119]
+#define __pyx_n_u_uncompressed_length __pyx_string_tab[120]
 /* #### Code section: module_state_clear ### */
 #if CYTHON_USE_MODULE_STATE
 static CYTHON_SMALL_CODE int __pyx_m_clear(PyObject *m) {
@@ -2562,11 +2900,13 @@ static CYTHON_SMALL_CODE int __pyx_m_clear(PyObject *m) {
   #if CYTHON_PEP489_MULTI_PHASE_INIT
   __Pyx_State_RemoveModule(NULL);
   #endif
+  Py_CLEAR(clear_module_state->__pyx_ptype_7cpython_4type_type);
   Py_CLEAR(clear_module_state->__pyx_ptype_14snappy_wrapper_PyCompressionOptions);
   Py_CLEAR(clear_module_state->__pyx_type_14snappy_wrapper_PyCompressionOptions);
   for (int i=0; i<1; ++i) { Py_CLEAR(clear_module_state->__pyx_tuple[i]); }
-  for (int i=0; i<13; ++i) { Py_CLEAR(clear_module_state->__pyx_codeobj_tab[i]); }
-  for (int i=0; i<73; ++i) { Py_CLEAR(clear_module_state->__pyx_string_tab[i]); }
+  for (int i=0; i<24; ++i) { Py_CLEAR(clear_module_state->__pyx_codeobj_tab[i]); }
+  for (int i=0; i<121; ++i) { Py_CLEAR(clear_module_state->__pyx_string_tab[i]); }
+  Py_CLEAR(clear_module_state->__pyx_int_0);
   return 0;
 }
 #endif
@@ -2587,11 +2927,13 @@ static CYTHON_SMALL_CODE int __pyx_m_traverse(PyObject *m, visitproc visit, void
   #ifdef __Pyx_FusedFunction_USED
   Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
   #endif
+  Py_VISIT(traverse_module_state->__pyx_ptype_7cpython_4type_type);
   Py_VISIT(traverse_module_state->__pyx_ptype_14snappy_wrapper_PyCompressionOptions);
   Py_VISIT(traverse_module_state->__pyx_type_14snappy_wrapper_PyCompressionOptions);
   for (int i=0; i<1; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_tuple[i]); }
-  for (int i=0; i<13; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_codeobj_tab[i]); }
-  for (int i=0; i<73; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_string_tab[i]); }
+  for (int i=0; i<24; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_codeobj_tab[i]); }
+  for (int i=0; i<121; ++i) { __Pyx_VISIT_CONST(traverse_module_state->__pyx_string_tab[i]); }
+  __Pyx_VISIT_CONST(traverse_module_state->__pyx_int_0);
   return 0;
 }
 #endif
@@ -2796,7 +3138,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyByteArray_string_to_py_6libcpp_6s
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":38
+/* "snappy_wrapper.pyx":161
  *     cdef CompressionOptions opt
  * 
  *     def __cinit__(self, int level=1):             # <<<<<<<<<<<<<<
@@ -2826,37 +3168,37 @@ static int __pyx_pw_14snappy_wrapper_20PyCompressionOptions_1__cinit__(PyObject 
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_level,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_VARARGS(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 38, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 161, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  1:
         values[0] = __Pyx_ArgRef_VARARGS(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 38, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 161, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "__cinit__", 0) < 0) __PYX_ERR(0, 38, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "__cinit__", 0) < 0) __PYX_ERR(0, 161, __pyx_L3_error)
     } else {
       switch (__pyx_nargs) {
         case  1:
         values[0] = __Pyx_ArgRef_VARARGS(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 38, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 161, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
     }
     if (values[0]) {
-      __pyx_v_level = __Pyx_PyLong_As_int(values[0]); if (unlikely((__pyx_v_level == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 38, __pyx_L3_error)
+      __pyx_v_level = __Pyx_PyLong_As_int(values[0]); if (unlikely((__pyx_v_level == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 161, __pyx_L3_error)
     } else {
       __pyx_v_level = ((int)1);
     }
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 0, 1, __pyx_nargs); __PYX_ERR(0, 38, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 0, 1, __pyx_nargs); __PYX_ERR(0, 161, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -2891,7 +3233,7 @@ static int __pyx_pf_14snappy_wrapper_20PyCompressionOptions___cinit__(struct __p
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__cinit__", 0);
 
-  /* "snappy_wrapper.pyx":39
+  /* "snappy_wrapper.pyx":162
  * 
  *     def __cinit__(self, int level=1):
  *         if level < 1 or level > 2:             # <<<<<<<<<<<<<<
@@ -2909,7 +3251,7 @@ static int __pyx_pf_14snappy_wrapper_20PyCompressionOptions___cinit__(struct __p
   __pyx_L4_bool_binop_done:;
   if (unlikely(__pyx_t_1)) {
 
-    /* "snappy_wrapper.pyx":40
+    /* "snappy_wrapper.pyx":163
  *     def __cinit__(self, int level=1):
  *         if level < 1 or level > 2:
  *             raise ValueError("Compression level must be 1 or 2")             # <<<<<<<<<<<<<<
@@ -2925,14 +3267,14 @@ static int __pyx_pf_14snappy_wrapper_20PyCompressionOptions___cinit__(struct __p
       __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+__pyx_t_6, (2-__pyx_t_6) | (__pyx_t_6*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
       __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 40, __pyx_L1_error)
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 163, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
     }
     __Pyx_Raise(__pyx_t_3, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __PYX_ERR(0, 40, __pyx_L1_error)
+    __PYX_ERR(0, 163, __pyx_L1_error)
 
-    /* "snappy_wrapper.pyx":39
+    /* "snappy_wrapper.pyx":162
  * 
  *     def __cinit__(self, int level=1):
  *         if level < 1 or level > 2:             # <<<<<<<<<<<<<<
@@ -2941,7 +3283,7 @@ static int __pyx_pf_14snappy_wrapper_20PyCompressionOptions___cinit__(struct __p
 */
   }
 
-  /* "snappy_wrapper.pyx":41
+  /* "snappy_wrapper.pyx":164
  *         if level < 1 or level > 2:
  *             raise ValueError("Compression level must be 1 or 2")
  *         self.opt = CompressionOptions(level)             # <<<<<<<<<<<<<<
@@ -2950,7 +3292,7 @@ static int __pyx_pf_14snappy_wrapper_20PyCompressionOptions___cinit__(struct __p
 */
   __pyx_v_self->opt = snappy::CompressionOptions(__pyx_v_level);
 
-  /* "snappy_wrapper.pyx":38
+  /* "snappy_wrapper.pyx":161
  *     cdef CompressionOptions opt
  * 
  *     def __cinit__(self, int level=1):             # <<<<<<<<<<<<<<
@@ -2972,7 +3314,7 @@ static int __pyx_pf_14snappy_wrapper_20PyCompressionOptions___cinit__(struct __p
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":43
+/* "snappy_wrapper.pyx":166
  *         self.opt = CompressionOptions(level)
  * 
  *     def get_level(self):             # <<<<<<<<<<<<<<
@@ -3031,7 +3373,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_2get_level(str
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_level", 0);
 
-  /* "snappy_wrapper.pyx":44
+  /* "snappy_wrapper.pyx":167
  * 
  *     def get_level(self):
  *         return self.opt.level             # <<<<<<<<<<<<<<
@@ -3039,13 +3381,13 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_2get_level(str
  *     @staticmethod
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyLong_From_int(__pyx_v_self->opt.level); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 44, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyLong_From_int(__pyx_v_self->opt.level); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 167, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":43
+  /* "snappy_wrapper.pyx":166
  *         self.opt = CompressionOptions(level)
  * 
  *     def get_level(self):             # <<<<<<<<<<<<<<
@@ -3064,7 +3406,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_2get_level(str
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":46
+/* "snappy_wrapper.pyx":169
  *         return self.opt.level
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
@@ -3123,7 +3465,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_4min_level(voi
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("min_level", 0);
 
-  /* "snappy_wrapper.pyx":48
+  /* "snappy_wrapper.pyx":171
  *     @staticmethod
  *     def min_level():
  *         return CompressionOptions.MinCompressionLevel()             # <<<<<<<<<<<<<<
@@ -3131,13 +3473,13 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_4min_level(voi
  *     @staticmethod
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyLong_From_int(snappy::CompressionOptions::MinCompressionLevel()); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 48, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyLong_From_int(snappy::CompressionOptions::MinCompressionLevel()); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 171, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":46
+  /* "snappy_wrapper.pyx":169
  *         return self.opt.level
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
@@ -3156,7 +3498,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_4min_level(voi
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":50
+/* "snappy_wrapper.pyx":173
  *         return CompressionOptions.MinCompressionLevel()
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
@@ -3215,7 +3557,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_6max_level(voi
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("max_level", 0);
 
-  /* "snappy_wrapper.pyx":52
+  /* "snappy_wrapper.pyx":175
  *     @staticmethod
  *     def max_level():
  *         return CompressionOptions.MaxCompressionLevel()             # <<<<<<<<<<<<<<
@@ -3223,13 +3565,13 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_6max_level(voi
  *     @staticmethod
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyLong_From_int(snappy::CompressionOptions::MaxCompressionLevel()); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 52, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyLong_From_int(snappy::CompressionOptions::MaxCompressionLevel()); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 175, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":50
+  /* "snappy_wrapper.pyx":173
  *         return CompressionOptions.MinCompressionLevel()
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
@@ -3248,7 +3590,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_6max_level(voi
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":54
+/* "snappy_wrapper.pyx":177
  *         return CompressionOptions.MaxCompressionLevel()
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
@@ -3307,7 +3649,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_8default_level
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("default_level", 0);
 
-  /* "snappy_wrapper.pyx":56
+  /* "snappy_wrapper.pyx":179
  *     @staticmethod
  *     def default_level():
  *         return CompressionOptions.DefaultCompressionLevel()             # <<<<<<<<<<<<<<
@@ -3315,13 +3657,13 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_8default_level
  * # Python wrapper functions
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyLong_From_int(snappy::CompressionOptions::DefaultCompressionLevel()); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 56, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyLong_From_int(snappy::CompressionOptions::DefaultCompressionLevel()); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 179, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":54
+  /* "snappy_wrapper.pyx":177
  *         return CompressionOptions.MaxCompressionLevel()
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
@@ -3544,25 +3886,166 @@ static PyObject *__pyx_pf_14snappy_wrapper_20PyCompressionOptions_12__setstate_c
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":59
- * 
+/* "snappy_wrapper.pyx":183
  * # Python wrapper functions
+ * 
+ * def get_constants():             # <<<<<<<<<<<<<<
+ *     """Get Snappy constants."""
+ *     return {
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_1get_constants(PyObject *__pyx_self, CYTHON_UNUSED PyObject *unused); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_get_constants, "Get Snappy constants.");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_1get_constants = {"get_constants", (PyCFunction)__pyx_pw_14snappy_wrapper_1get_constants, METH_NOARGS, __pyx_doc_14snappy_wrapper_get_constants};
+static PyObject *__pyx_pw_14snappy_wrapper_1get_constants(PyObject *__pyx_self, CYTHON_UNUSED PyObject *unused) {
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("get_constants (wrapper)", 0);
+  __pyx_kwvalues = __Pyx_KwValues_VARARGS(__pyx_args, __pyx_nargs);
+  __pyx_r = __pyx_pf_14snappy_wrapper_get_constants(__pyx_self);
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_get_constants(CYTHON_UNUSED PyObject *__pyx_self) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  PyObject *__pyx_t_2 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("get_constants", 0);
+
+  /* "snappy_wrapper.pyx":185
+ * def get_constants():
+ *     """Get Snappy constants."""
+ *     return {             # <<<<<<<<<<<<<<
+ *         'kBlockLog': kBlockLog,
+ *         'kBlockSize': kBlockSize,
+*/
+  __Pyx_XDECREF(__pyx_r);
+
+  /* "snappy_wrapper.pyx":186
+ *     """Get Snappy constants."""
+ *     return {
+ *         'kBlockLog': kBlockLog,             # <<<<<<<<<<<<<<
+ *         'kBlockSize': kBlockSize,
+ *         'kMinHashTableBits': kMinHashTableBits,
+*/
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(6); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_2 = __Pyx_PyLong_From_int(snappy::kBlockLog); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_t_1, __pyx_mstate_global->__pyx_n_u_kBlockLog, __pyx_t_2) < 0) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":187
+ *     return {
+ *         'kBlockLog': kBlockLog,
+ *         'kBlockSize': kBlockSize,             # <<<<<<<<<<<<<<
+ *         'kMinHashTableBits': kMinHashTableBits,
+ *         'kMinHashTableSize': kMinHashTableSize,
+*/
+  __pyx_t_2 = __Pyx_PyLong_FromSize_t(snappy::kBlockSize); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 187, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_t_1, __pyx_mstate_global->__pyx_n_u_kBlockSize, __pyx_t_2) < 0) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":188
+ *         'kBlockLog': kBlockLog,
+ *         'kBlockSize': kBlockSize,
+ *         'kMinHashTableBits': kMinHashTableBits,             # <<<<<<<<<<<<<<
+ *         'kMinHashTableSize': kMinHashTableSize,
+ *         'kMaxHashTableBits': kMaxHashTableBits,
+*/
+  __pyx_t_2 = __Pyx_PyLong_From_int(snappy::kMinHashTableBits); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 188, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_t_1, __pyx_mstate_global->__pyx_n_u_kMinHashTableBits, __pyx_t_2) < 0) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":189
+ *         'kBlockSize': kBlockSize,
+ *         'kMinHashTableBits': kMinHashTableBits,
+ *         'kMinHashTableSize': kMinHashTableSize,             # <<<<<<<<<<<<<<
+ *         'kMaxHashTableBits': kMaxHashTableBits,
+ *         'kMaxHashTableSize': kMaxHashTableSize,
+*/
+  __pyx_t_2 = __Pyx_PyLong_FromSize_t(snappy::kMinHashTableSize); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 189, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_t_1, __pyx_mstate_global->__pyx_n_u_kMinHashTableSize, __pyx_t_2) < 0) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":190
+ *         'kMinHashTableBits': kMinHashTableBits,
+ *         'kMinHashTableSize': kMinHashTableSize,
+ *         'kMaxHashTableBits': kMaxHashTableBits,             # <<<<<<<<<<<<<<
+ *         'kMaxHashTableSize': kMaxHashTableSize,
+ *     }
+*/
+  __pyx_t_2 = __Pyx_PyLong_From_int(snappy::kMaxHashTableBits); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 190, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_t_1, __pyx_mstate_global->__pyx_n_u_kMaxHashTableBits, __pyx_t_2) < 0) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":191
+ *         'kMinHashTableSize': kMinHashTableSize,
+ *         'kMaxHashTableBits': kMaxHashTableBits,
+ *         'kMaxHashTableSize': kMaxHashTableSize,             # <<<<<<<<<<<<<<
+ *     }
+ * 
+*/
+  __pyx_t_2 = __Pyx_PyLong_FromSize_t(snappy::kMaxHashTableSize); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 191, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_t_1, __pyx_mstate_global->__pyx_n_u_kMaxHashTableSize, __pyx_t_2) < 0) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __pyx_r = __pyx_t_1;
+  __pyx_t_1 = 0;
+  goto __pyx_L0;
+
+  /* "snappy_wrapper.pyx":183
+ * # Python wrapper functions
+ * 
+ * def get_constants():             # <<<<<<<<<<<<<<
+ *     """Get Snappy constants."""
+ *     return {
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_2);
+  __Pyx_AddTraceback("snappy_wrapper.get_constants", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":194
+ *     }
+ * 
  * def max_compressed_length(size_t source_bytes):             # <<<<<<<<<<<<<<
  *     """
  *     Calculate the maximum possible compressed length for given input size.
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_14snappy_wrapper_1max_compressed_length(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_14snappy_wrapper_3max_compressed_length(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_max_compressed_length, "\n    Calculate the maximum possible compressed length for given input size.\n    \n    Args:\n        source_bytes (int): Size of the uncompressed data in bytes\n        \n    Returns:\n        int: Maximum possible size of compressed data\n    ");
-static PyMethodDef __pyx_mdef_14snappy_wrapper_1max_compressed_length = {"max_compressed_length", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_1max_compressed_length, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_max_compressed_length};
-static PyObject *__pyx_pw_14snappy_wrapper_1max_compressed_length(PyObject *__pyx_self, 
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_2max_compressed_length, "\n    Calculate the maximum possible compressed length for given input size.\n    \n    Args:\n        source_bytes (int): Size of the uncompressed data in bytes\n        \n    Returns:\n        int: Maximum possible size of compressed data\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_3max_compressed_length = {"max_compressed_length", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_3max_compressed_length, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_2max_compressed_length};
+static PyObject *__pyx_pw_14snappy_wrapper_3max_compressed_length(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -3592,32 +4075,32 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_source_bytes,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 59, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 194, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 59, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 194, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "max_compressed_length", 0) < 0) __PYX_ERR(0, 59, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "max_compressed_length", 0) < 0) __PYX_ERR(0, 194, __pyx_L3_error)
       for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
-        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("max_compressed_length", 1, 1, 1, i); __PYX_ERR(0, 59, __pyx_L3_error) }
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("max_compressed_length", 1, 1, 1, i); __PYX_ERR(0, 194, __pyx_L3_error) }
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 59, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 194, __pyx_L3_error)
     }
-    __pyx_v_source_bytes = __Pyx_PyLong_As_size_t(values[0]); if (unlikely((__pyx_v_source_bytes == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 59, __pyx_L3_error)
+    __pyx_v_source_bytes = __Pyx_PyLong_As_size_t(values[0]); if (unlikely((__pyx_v_source_bytes == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 194, __pyx_L3_error)
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("max_compressed_length", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 59, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("max_compressed_length", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 194, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -3628,7 +4111,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_14snappy_wrapper_max_compressed_length(__pyx_self, __pyx_v_source_bytes);
+  __pyx_r = __pyx_pf_14snappy_wrapper_2max_compressed_length(__pyx_self, __pyx_v_source_bytes);
 
   /* function exit code */
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
@@ -3638,7 +4121,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_14snappy_wrapper_max_compressed_length(CYTHON_UNUSED PyObject *__pyx_self, size_t __pyx_v_source_bytes) {
+static PyObject *__pyx_pf_14snappy_wrapper_2max_compressed_length(CYTHON_UNUSED PyObject *__pyx_self, size_t __pyx_v_source_bytes) {
   size_t __pyx_v_result;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
@@ -3648,7 +4131,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_max_compressed_length(CYTHON_UNUSED P
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("max_compressed_length", 0);
 
-  /* "snappy_wrapper.pyx":70
+  /* "snappy_wrapper.pyx":205
  *     """
  *     cdef size_t result
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -3662,7 +4145,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_max_compressed_length(CYTHON_UNUSED P
       __Pyx_FastGIL_Remember();
       /*try:*/ {
 
-        /* "snappy_wrapper.pyx":71
+        /* "snappy_wrapper.pyx":206
  *     cdef size_t result
  *     with nogil:
  *         result = MaxCompressedLength(source_bytes)             # <<<<<<<<<<<<<<
@@ -3672,7 +4155,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_max_compressed_length(CYTHON_UNUSED P
         __pyx_v_result = snappy::MaxCompressedLength(__pyx_v_source_bytes);
       }
 
-      /* "snappy_wrapper.pyx":70
+      /* "snappy_wrapper.pyx":205
  *     """
  *     cdef size_t result
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -3689,23 +4172,23 @@ static PyObject *__pyx_pf_14snappy_wrapper_max_compressed_length(CYTHON_UNUSED P
       }
   }
 
-  /* "snappy_wrapper.pyx":72
+  /* "snappy_wrapper.pyx":207
  *     with nogil:
  *         result = MaxCompressedLength(source_bytes)
  *     return result             # <<<<<<<<<<<<<<
  * 
- * def compress_data(bytes input_data, PyCompressionOptions options=None):
+ * def is_valid_compressed_source(bytes compressed_data):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyLong_FromSize_t(__pyx_v_result); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 72, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyLong_FromSize_t(__pyx_v_result); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 207, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":59
+  /* "snappy_wrapper.pyx":194
+ *     }
  * 
- * # Python wrapper functions
  * def max_compressed_length(size_t source_bytes):             # <<<<<<<<<<<<<<
  *     """
  *     Calculate the maximum possible compressed length for given input size.
@@ -3722,8 +4205,3106 @@ static PyObject *__pyx_pf_14snappy_wrapper_max_compressed_length(CYTHON_UNUSED P
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":74
+/* "snappy_wrapper.pyx":209
  *     return result
+ * 
+ * def is_valid_compressed_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Check if the given data is valid Snappy compressed data using Source interface.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_5is_valid_compressed_source(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_4is_valid_compressed_source, "\n    Check if the given data is valid Snappy compressed data using Source interface.\n    \n    Args:\n        compressed_data (bytes): Data to check\n        \n    Returns:\n        bool: True if valid Snappy compressed data, False otherwise\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_5is_valid_compressed_source = {"is_valid_compressed_source", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_5is_valid_compressed_source, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_4is_valid_compressed_source};
+static PyObject *__pyx_pw_14snappy_wrapper_5is_valid_compressed_source(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_compressed_data = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[1] = {0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("is_valid_compressed_source (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 209, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 209, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "is_valid_compressed_source", 0) < 0) __PYX_ERR(0, 209, __pyx_L3_error)
+      for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("is_valid_compressed_source", 1, 1, 1, i); __PYX_ERR(0, 209, __pyx_L3_error) }
+      }
+    } else if (unlikely(__pyx_nargs != 1)) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 209, __pyx_L3_error)
+    }
+    __pyx_v_compressed_data = ((PyObject*)values[0]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("is_valid_compressed_source", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 209, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.is_valid_compressed_source", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 209, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_4is_valid_compressed_source(__pyx_self, __pyx_v_compressed_data);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_4is_valid_compressed_source(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+  char const *__pyx_v_input_ptr;
+  size_t __pyx_v_input_length;
+  BytesSource *__pyx_v_source;
+  bool __pyx_v_result;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  char const *__pyx_t_1;
+  Py_ssize_t __pyx_t_2;
+  PyObject *__pyx_t_3 = NULL;
+  int __pyx_t_4;
+  int __pyx_t_5;
+  char const *__pyx_t_6;
+  PyObject *__pyx_t_7 = NULL;
+  PyObject *__pyx_t_8 = NULL;
+  PyObject *__pyx_t_9 = NULL;
+  PyObject *__pyx_t_10 = NULL;
+  PyObject *__pyx_t_11 = NULL;
+  PyObject *__pyx_t_12 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("is_valid_compressed_source", 0);
+
+  /* "snappy_wrapper.pyx":220
+ *     """
+ *     cdef:
+ *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
+ *         size_t input_length = len(compressed_data)
+ *         BytesSource* source
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(0, 220, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 220, __pyx_L1_error)
+  __pyx_v_input_ptr = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":221
+ *     cdef:
+ *         const char* input_ptr = compressed_data
+ *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
+ *         BytesSource* source
+ *         bool result
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 221, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 221, __pyx_L1_error)
+  __pyx_v_input_length = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":225
+ *         bool result
+ * 
+ *     source = new BytesSource(input_ptr, input_length)             # <<<<<<<<<<<<<<
+ *     try:
+ *         with nogil:
+*/
+  __pyx_v_source = new BytesSource(__pyx_v_input_ptr, __pyx_v_input_length);
+
+  /* "snappy_wrapper.pyx":226
+ * 
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:             # <<<<<<<<<<<<<<
+ *         with nogil:
+ *             result = IsValidCompressed(source)
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":227
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             result = IsValidCompressed(source)
+ *         return result
+*/
+    {
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        /*try:*/ {
+
+          /* "snappy_wrapper.pyx":228
+ *     try:
+ *         with nogil:
+ *             result = IsValidCompressed(source)             # <<<<<<<<<<<<<<
+ *         return result
+ *     finally:
+*/
+          __pyx_v_result = snappy::IsValidCompressed(__pyx_v_source);
+        }
+
+        /* "snappy_wrapper.pyx":227
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             result = IsValidCompressed(source)
+ *         return result
+*/
+        /*finally:*/ {
+          /*normal exit:*/{
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            goto __pyx_L8;
+          }
+          __pyx_L8:;
+        }
+    }
+
+    /* "snappy_wrapper.pyx":229
+ *         with nogil:
+ *             result = IsValidCompressed(source)
+ *         return result             # <<<<<<<<<<<<<<
+ *     finally:
+ *         del source
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_result); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 229, __pyx_L4_error)
+    __Pyx_GOTREF(__pyx_t_3);
+    __pyx_r = __pyx_t_3;
+    __pyx_t_3 = 0;
+    goto __pyx_L3_return;
+  }
+
+  /* "snappy_wrapper.pyx":231
+ *         return result
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ * 
+ * def compress_source_to_sink(bytes input_data, PyCompressionOptions options=None):
+*/
+  /*finally:*/ {
+    __pyx_L4_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_7 = 0; __pyx_t_8 = 0; __pyx_t_9 = 0; __pyx_t_10 = 0; __pyx_t_11 = 0; __pyx_t_12 = 0;
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_10, &__pyx_t_11, &__pyx_t_12);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_7, &__pyx_t_8, &__pyx_t_9) < 0)) __Pyx_ErrFetch(&__pyx_t_7, &__pyx_t_8, &__pyx_t_9);
+      __Pyx_XGOTREF(__pyx_t_7);
+      __Pyx_XGOTREF(__pyx_t_8);
+      __Pyx_XGOTREF(__pyx_t_9);
+      __Pyx_XGOTREF(__pyx_t_10);
+      __Pyx_XGOTREF(__pyx_t_11);
+      __Pyx_XGOTREF(__pyx_t_12);
+      __pyx_t_4 = __pyx_lineno; __pyx_t_5 = __pyx_clineno; __pyx_t_6 = __pyx_filename;
+      {
+        delete __pyx_v_source;
+      }
+      __Pyx_XGIVEREF(__pyx_t_10);
+      __Pyx_XGIVEREF(__pyx_t_11);
+      __Pyx_XGIVEREF(__pyx_t_12);
+      __Pyx_ExceptionReset(__pyx_t_10, __pyx_t_11, __pyx_t_12);
+      __Pyx_XGIVEREF(__pyx_t_7);
+      __Pyx_XGIVEREF(__pyx_t_8);
+      __Pyx_XGIVEREF(__pyx_t_9);
+      __Pyx_ErrRestore(__pyx_t_7, __pyx_t_8, __pyx_t_9);
+      __pyx_t_7 = 0; __pyx_t_8 = 0; __pyx_t_9 = 0; __pyx_t_10 = 0; __pyx_t_11 = 0; __pyx_t_12 = 0;
+      __pyx_lineno = __pyx_t_4; __pyx_clineno = __pyx_t_5; __pyx_filename = __pyx_t_6;
+      goto __pyx_L1_error;
+    }
+    __pyx_L3_return: {
+      __pyx_t_12 = __pyx_r;
+      __pyx_r = 0;
+      delete __pyx_v_source;
+      __pyx_r = __pyx_t_12;
+      __pyx_t_12 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":209
+ *     return result
+ * 
+ * def is_valid_compressed_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Check if the given data is valid Snappy compressed data using Source interface.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_AddTraceback("snappy_wrapper.is_valid_compressed_source", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":233
+ *         del source
+ * 
+ * def compress_source_to_sink(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data using Source/Sink interfaces.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_7compress_source_to_sink(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_6compress_source_to_sink, "\n    Compress data using Source/Sink interfaces.\n    \n    Args:\n        input_data (bytes): Data to compress\n        options (PyCompressionOptions, optional): Compression options\n        \n    Returns:\n        bytes: Compressed data\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_7compress_source_to_sink = {"compress_source_to_sink", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_7compress_source_to_sink, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_6compress_source_to_sink};
+static PyObject *__pyx_pw_14snappy_wrapper_7compress_source_to_sink(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_input_data = 0;
+  struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[2] = {0,0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("compress_source_to_sink (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_input_data,&__pyx_mstate_global->__pyx_n_u_options,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 233, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  2:
+        values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 233, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 233, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "compress_source_to_sink", 0) < 0) __PYX_ERR(0, 233, __pyx_L3_error)
+      if (!values[1]) values[1] = __Pyx_NewRef((PyObject *)((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)Py_None));
+      for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("compress_source_to_sink", 0, 1, 2, i); __PYX_ERR(0, 233, __pyx_L3_error) }
+      }
+    } else {
+      switch (__pyx_nargs) {
+        case  2:
+        values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 233, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 233, __pyx_L3_error)
+        break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      if (!values[1]) values[1] = __Pyx_NewRef((PyObject *)((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)Py_None));
+    }
+    __pyx_v_input_data = ((PyObject*)values[0]);
+    __pyx_v_options = ((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)values[1]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("compress_source_to_sink", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 233, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.compress_source_to_sink", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_input_data), (&PyBytes_Type), 1, "input_data", 1))) __PYX_ERR(0, 233, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_options), __pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, 1, "options", 0))) __PYX_ERR(0, 233, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_6compress_source_to_sink(__pyx_self, __pyx_v_input_data, __pyx_v_options);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_6compress_source_to_sink(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options) {
+  char const *__pyx_v_input_ptr;
+  size_t __pyx_v_input_length;
+  BytesSource *__pyx_v_source;
+  std::string __pyx_v_output;
+  StringSink *__pyx_v_sink;
+  size_t __pyx_v_compressed_length;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  char const *__pyx_t_1;
+  Py_ssize_t __pyx_t_2;
+  int __pyx_t_3;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  size_t __pyx_t_7;
+  int __pyx_t_8;
+  int __pyx_t_9;
+  char const *__pyx_t_10;
+  PyObject *__pyx_t_11 = NULL;
+  PyObject *__pyx_t_12 = NULL;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
+  PyObject *__pyx_t_16 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("compress_source_to_sink", 0);
+
+  /* "snappy_wrapper.pyx":245
+ *     """
+ *     cdef:
+ *         const char* input_ptr = input_data             # <<<<<<<<<<<<<<
+ *         size_t input_length = len(input_data)
+ *         BytesSource* source
+*/
+  if (unlikely(__pyx_v_input_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(0, 245, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_input_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 245, __pyx_L1_error)
+  __pyx_v_input_ptr = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":246
+ *     cdef:
+ *         const char* input_ptr = input_data
+ *         size_t input_length = len(input_data)             # <<<<<<<<<<<<<<
+ *         BytesSource* source
+ *         string output
+*/
+  if (unlikely(__pyx_v_input_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 246, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_input_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 246, __pyx_L1_error)
+  __pyx_v_input_length = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":252
+ *         size_t compressed_length
+ * 
+ *     source = new BytesSource(input_ptr, input_length)             # <<<<<<<<<<<<<<
+ *     sink = new StringSink(&output)
+ * 
+*/
+  __pyx_v_source = new BytesSource(__pyx_v_input_ptr, __pyx_v_input_length);
+
+  /* "snappy_wrapper.pyx":253
+ * 
+ *     source = new BytesSource(input_ptr, input_length)
+ *     sink = new StringSink(&output)             # <<<<<<<<<<<<<<
+ * 
+ *     try:
+*/
+  __pyx_v_sink = new StringSink((&__pyx_v_output));
+
+  /* "snappy_wrapper.pyx":255
+ *     sink = new StringSink(&output)
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         if options is None:
+ *             with nogil:
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":256
+ * 
+ *     try:
+ *         if options is None:             # <<<<<<<<<<<<<<
+ *             with nogil:
+ *                 compressed_length = Compress(source, sink)
+*/
+    __pyx_t_3 = (((PyObject *)__pyx_v_options) == Py_None);
+    if (__pyx_t_3) {
+
+      /* "snappy_wrapper.pyx":257
+ *     try:
+ *         if options is None:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 compressed_length = Compress(source, sink)
+ *         else:
+*/
+      {
+          PyThreadState *_save;
+          _save = NULL;
+          Py_UNBLOCK_THREADS
+          __Pyx_FastGIL_Remember();
+          /*try:*/ {
+
+            /* "snappy_wrapper.pyx":258
+ *         if options is None:
+ *             with nogil:
+ *                 compressed_length = Compress(source, sink)             # <<<<<<<<<<<<<<
+ *         else:
+ *             with nogil:
+*/
+            __pyx_v_compressed_length = snappy::Compress(__pyx_v_source, __pyx_v_sink);
+          }
+
+          /* "snappy_wrapper.pyx":257
+ *     try:
+ *         if options is None:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 compressed_length = Compress(source, sink)
+ *         else:
+*/
+          /*finally:*/ {
+            /*normal exit:*/{
+              __Pyx_FastGIL_Forget();
+              Py_BLOCK_THREADS
+              goto __pyx_L9;
+            }
+            __pyx_L9:;
+          }
+      }
+
+      /* "snappy_wrapper.pyx":256
+ * 
+ *     try:
+ *         if options is None:             # <<<<<<<<<<<<<<
+ *             with nogil:
+ *                 compressed_length = Compress(source, sink)
+*/
+      goto __pyx_L6;
+    }
+
+    /* "snappy_wrapper.pyx":260
+ *                 compressed_length = Compress(source, sink)
+ *         else:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 compressed_length = Compress(source, sink, options.opt)
+ * 
+*/
+    /*else*/ {
+      {
+          PyThreadState *_save;
+          _save = NULL;
+          Py_UNBLOCK_THREADS
+          __Pyx_FastGIL_Remember();
+          /*try:*/ {
+
+            /* "snappy_wrapper.pyx":261
+ *         else:
+ *             with nogil:
+ *                 compressed_length = Compress(source, sink, options.opt)             # <<<<<<<<<<<<<<
+ * 
+ *         if compressed_length == 0:
+*/
+            __pyx_v_compressed_length = snappy::Compress(__pyx_v_source, __pyx_v_sink, __pyx_v_options->opt);
+          }
+
+          /* "snappy_wrapper.pyx":260
+ *                 compressed_length = Compress(source, sink)
+ *         else:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 compressed_length = Compress(source, sink, options.opt)
+ * 
+*/
+          /*finally:*/ {
+            /*normal exit:*/{
+              __Pyx_FastGIL_Forget();
+              Py_BLOCK_THREADS
+              goto __pyx_L12;
+            }
+            __pyx_L12:;
+          }
+      }
+    }
+    __pyx_L6:;
+
+    /* "snappy_wrapper.pyx":263
+ *                 compressed_length = Compress(source, sink, options.opt)
+ * 
+ *         if compressed_length == 0:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Source/Sink compression failed")
+ * 
+*/
+    __pyx_t_3 = (__pyx_v_compressed_length == 0);
+    if (unlikely(__pyx_t_3)) {
+
+      /* "snappy_wrapper.pyx":264
+ * 
+ *         if compressed_length == 0:
+ *             raise RuntimeError("Source/Sink compression failed")             # <<<<<<<<<<<<<<
+ * 
+ *         return output
+*/
+      __pyx_t_5 = NULL;
+      __Pyx_INCREF(__pyx_builtin_RuntimeError);
+      __pyx_t_6 = __pyx_builtin_RuntimeError; 
+      __pyx_t_7 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Source_Sink_compression_failed};
+        __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 264, __pyx_L4_error)
+        __Pyx_GOTREF(__pyx_t_4);
+      }
+      __Pyx_Raise(__pyx_t_4, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __PYX_ERR(0, 264, __pyx_L4_error)
+
+      /* "snappy_wrapper.pyx":263
+ *                 compressed_length = Compress(source, sink, options.opt)
+ * 
+ *         if compressed_length == 0:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Source/Sink compression failed")
+ * 
+*/
+    }
+
+    /* "snappy_wrapper.pyx":266
+ *             raise RuntimeError("Source/Sink compression failed")
+ * 
+ *         return output             # <<<<<<<<<<<<<<
+ *     finally:
+ *         del source
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_4 = __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(__pyx_v_output); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 266, __pyx_L4_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __pyx_r = __pyx_t_4;
+    __pyx_t_4 = 0;
+    goto __pyx_L3_return;
+  }
+
+  /* "snappy_wrapper.pyx":268
+ *         return output
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ *         del sink
+ * 
+*/
+  /*finally:*/ {
+    __pyx_L4_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_14, &__pyx_t_15, &__pyx_t_16);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_11, &__pyx_t_12, &__pyx_t_13) < 0)) __Pyx_ErrFetch(&__pyx_t_11, &__pyx_t_12, &__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_11);
+      __Pyx_XGOTREF(__pyx_t_12);
+      __Pyx_XGOTREF(__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_14);
+      __Pyx_XGOTREF(__pyx_t_15);
+      __Pyx_XGOTREF(__pyx_t_16);
+      __pyx_t_8 = __pyx_lineno; __pyx_t_9 = __pyx_clineno; __pyx_t_10 = __pyx_filename;
+      {
+        delete __pyx_v_source;
+
+        /* "snappy_wrapper.pyx":269
+ *     finally:
+ *         del source
+ *         del sink             # <<<<<<<<<<<<<<
+ * 
+ * def uncompress_source_to_sink(bytes compressed_data):
+*/
+        delete __pyx_v_sink;
+      }
+      __Pyx_XGIVEREF(__pyx_t_14);
+      __Pyx_XGIVEREF(__pyx_t_15);
+      __Pyx_XGIVEREF(__pyx_t_16);
+      __Pyx_ExceptionReset(__pyx_t_14, __pyx_t_15, __pyx_t_16);
+      __Pyx_XGIVEREF(__pyx_t_11);
+      __Pyx_XGIVEREF(__pyx_t_12);
+      __Pyx_XGIVEREF(__pyx_t_13);
+      __Pyx_ErrRestore(__pyx_t_11, __pyx_t_12, __pyx_t_13);
+      __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0;
+      __pyx_lineno = __pyx_t_8; __pyx_clineno = __pyx_t_9; __pyx_filename = __pyx_t_10;
+      goto __pyx_L1_error;
+    }
+    __pyx_L3_return: {
+      __pyx_t_16 = __pyx_r;
+      __pyx_r = 0;
+
+      /* "snappy_wrapper.pyx":268
+ *         return output
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ *         del sink
+ * 
+*/
+      delete __pyx_v_source;
+
+      /* "snappy_wrapper.pyx":269
+ *     finally:
+ *         del source
+ *         del sink             # <<<<<<<<<<<<<<
+ * 
+ * def uncompress_source_to_sink(bytes compressed_data):
+*/
+      delete __pyx_v_sink;
+      __pyx_r = __pyx_t_16;
+      __pyx_t_16 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":233
+ *         del source
+ * 
+ * def compress_source_to_sink(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data using Source/Sink interfaces.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_AddTraceback("snappy_wrapper.compress_source_to_sink", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":271
+ *         del sink
+ * 
+ * def uncompress_source_to_sink(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress data using Source/Sink interfaces.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_9uncompress_source_to_sink(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_8uncompress_source_to_sink, "\n    Decompress data using Source/Sink interfaces.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        bytes: Uncompressed data\n        \n    Raises:\n        RuntimeError: If decompression fails\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_9uncompress_source_to_sink = {"uncompress_source_to_sink", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_9uncompress_source_to_sink, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_8uncompress_source_to_sink};
+static PyObject *__pyx_pw_14snappy_wrapper_9uncompress_source_to_sink(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_compressed_data = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[1] = {0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("uncompress_source_to_sink (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 271, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 271, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "uncompress_source_to_sink", 0) < 0) __PYX_ERR(0, 271, __pyx_L3_error)
+      for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("uncompress_source_to_sink", 1, 1, 1, i); __PYX_ERR(0, 271, __pyx_L3_error) }
+      }
+    } else if (unlikely(__pyx_nargs != 1)) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 271, __pyx_L3_error)
+    }
+    __pyx_v_compressed_data = ((PyObject*)values[0]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("uncompress_source_to_sink", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 271, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.uncompress_source_to_sink", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 271, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_8uncompress_source_to_sink(__pyx_self, __pyx_v_compressed_data);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_source_to_sink(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+  char const *__pyx_v_input_ptr;
+  size_t __pyx_v_input_length;
+  BytesSource *__pyx_v_source;
+  std::string __pyx_v_output;
+  StringSink *__pyx_v_sink;
+  bool __pyx_v_success;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  char const *__pyx_t_1;
+  Py_ssize_t __pyx_t_2;
+  int __pyx_t_3;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  size_t __pyx_t_7;
+  int __pyx_t_8;
+  int __pyx_t_9;
+  char const *__pyx_t_10;
+  PyObject *__pyx_t_11 = NULL;
+  PyObject *__pyx_t_12 = NULL;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
+  PyObject *__pyx_t_16 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("uncompress_source_to_sink", 0);
+
+  /* "snappy_wrapper.pyx":285
+ *     """
+ *     cdef:
+ *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
+ *         size_t input_length = len(compressed_data)
+ *         BytesSource* source
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(0, 285, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 285, __pyx_L1_error)
+  __pyx_v_input_ptr = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":286
+ *     cdef:
+ *         const char* input_ptr = compressed_data
+ *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
+ *         BytesSource* source
+ *         string output
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 286, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 286, __pyx_L1_error)
+  __pyx_v_input_length = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":292
+ *         bool success
+ * 
+ *     source = new BytesSource(input_ptr, input_length)             # <<<<<<<<<<<<<<
+ *     sink = new StringSink(&output)
+ * 
+*/
+  __pyx_v_source = new BytesSource(__pyx_v_input_ptr, __pyx_v_input_length);
+
+  /* "snappy_wrapper.pyx":293
+ * 
+ *     source = new BytesSource(input_ptr, input_length)
+ *     sink = new StringSink(&output)             # <<<<<<<<<<<<<<
+ * 
+ *     try:
+*/
+  __pyx_v_sink = new StringSink((&__pyx_v_output));
+
+  /* "snappy_wrapper.pyx":295
+ *     sink = new StringSink(&output)
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         with nogil:
+ *             success = Uncompress(source, sink)
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":296
+ * 
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = Uncompress(source, sink)
+ * 
+*/
+    {
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        /*try:*/ {
+
+          /* "snappy_wrapper.pyx":297
+ *     try:
+ *         with nogil:
+ *             success = Uncompress(source, sink)             # <<<<<<<<<<<<<<
+ * 
+ *         if not success:
+*/
+          __pyx_v_success = snappy::Uncompress(__pyx_v_source, __pyx_v_sink);
+        }
+
+        /* "snappy_wrapper.pyx":296
+ * 
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = Uncompress(source, sink)
+ * 
+*/
+        /*finally:*/ {
+          /*normal exit:*/{
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            goto __pyx_L8;
+          }
+          __pyx_L8:;
+        }
+    }
+
+    /* "snappy_wrapper.pyx":299
+ *             success = Uncompress(source, sink)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Source/Sink decompression failed")
+ * 
+*/
+    __pyx_t_3 = (!(__pyx_v_success != 0));
+    if (unlikely(__pyx_t_3)) {
+
+      /* "snappy_wrapper.pyx":300
+ * 
+ *         if not success:
+ *             raise RuntimeError("Source/Sink decompression failed")             # <<<<<<<<<<<<<<
+ * 
+ *         return success
+*/
+      __pyx_t_5 = NULL;
+      __Pyx_INCREF(__pyx_builtin_RuntimeError);
+      __pyx_t_6 = __pyx_builtin_RuntimeError; 
+      __pyx_t_7 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Source_Sink_decompression_failed};
+        __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 300, __pyx_L4_error)
+        __Pyx_GOTREF(__pyx_t_4);
+      }
+      __Pyx_Raise(__pyx_t_4, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __PYX_ERR(0, 300, __pyx_L4_error)
+
+      /* "snappy_wrapper.pyx":299
+ *             success = Uncompress(source, sink)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Source/Sink decompression failed")
+ * 
+*/
+    }
+
+    /* "snappy_wrapper.pyx":302
+ *             raise RuntimeError("Source/Sink decompression failed")
+ * 
+ *         return success             # <<<<<<<<<<<<<<
+ *     finally:
+ *         del source
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_4 = __Pyx_PyBool_FromLong(__pyx_v_success); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 302, __pyx_L4_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __pyx_r = __pyx_t_4;
+    __pyx_t_4 = 0;
+    goto __pyx_L3_return;
+  }
+
+  /* "snappy_wrapper.pyx":304
+ *         return success
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ *         del sink
+ * 
+*/
+  /*finally:*/ {
+    __pyx_L4_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_14, &__pyx_t_15, &__pyx_t_16);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_11, &__pyx_t_12, &__pyx_t_13) < 0)) __Pyx_ErrFetch(&__pyx_t_11, &__pyx_t_12, &__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_11);
+      __Pyx_XGOTREF(__pyx_t_12);
+      __Pyx_XGOTREF(__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_14);
+      __Pyx_XGOTREF(__pyx_t_15);
+      __Pyx_XGOTREF(__pyx_t_16);
+      __pyx_t_8 = __pyx_lineno; __pyx_t_9 = __pyx_clineno; __pyx_t_10 = __pyx_filename;
+      {
+        delete __pyx_v_source;
+
+        /* "snappy_wrapper.pyx":305
+ *     finally:
+ *         del source
+ *         del sink             # <<<<<<<<<<<<<<
+ * 
+ * def uncompress_as_much_as_possible(bytes compressed_data):
+*/
+        delete __pyx_v_sink;
+      }
+      __Pyx_XGIVEREF(__pyx_t_14);
+      __Pyx_XGIVEREF(__pyx_t_15);
+      __Pyx_XGIVEREF(__pyx_t_16);
+      __Pyx_ExceptionReset(__pyx_t_14, __pyx_t_15, __pyx_t_16);
+      __Pyx_XGIVEREF(__pyx_t_11);
+      __Pyx_XGIVEREF(__pyx_t_12);
+      __Pyx_XGIVEREF(__pyx_t_13);
+      __Pyx_ErrRestore(__pyx_t_11, __pyx_t_12, __pyx_t_13);
+      __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0;
+      __pyx_lineno = __pyx_t_8; __pyx_clineno = __pyx_t_9; __pyx_filename = __pyx_t_10;
+      goto __pyx_L1_error;
+    }
+    __pyx_L3_return: {
+      __pyx_t_16 = __pyx_r;
+      __pyx_r = 0;
+
+      /* "snappy_wrapper.pyx":304
+ *         return success
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ *         del sink
+ * 
+*/
+      delete __pyx_v_source;
+
+      /* "snappy_wrapper.pyx":305
+ *     finally:
+ *         del source
+ *         del sink             # <<<<<<<<<<<<<<
+ * 
+ * def uncompress_as_much_as_possible(bytes compressed_data):
+*/
+      delete __pyx_v_sink;
+      __pyx_r = __pyx_t_16;
+      __pyx_t_16 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":271
+ *         del sink
+ * 
+ * def uncompress_source_to_sink(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress data using Source/Sink interfaces.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_AddTraceback("snappy_wrapper.uncompress_source_to_sink", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":307
+ *         del sink
+ * 
+ * def uncompress_as_much_as_possible(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress as much data as possible from potentially corrupted compressed data.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_11uncompress_as_much_as_possible(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_10uncompress_as_much_as_possible, "\n    Decompress as much data as possible from potentially corrupted compressed data.\n    \n    Args:\n        compressed_data (bytes): Compressed data (possibly corrupted)\n        \n    Returns:\n        tuple: (decompressed_bytes, bytes_processed)\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_11uncompress_as_much_as_possible = {"uncompress_as_much_as_possible", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_11uncompress_as_much_as_possible, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_10uncompress_as_much_as_possible};
+static PyObject *__pyx_pw_14snappy_wrapper_11uncompress_as_much_as_possible(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_compressed_data = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[1] = {0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("uncompress_as_much_as_possible (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 307, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 307, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "uncompress_as_much_as_possible", 0) < 0) __PYX_ERR(0, 307, __pyx_L3_error)
+      for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("uncompress_as_much_as_possible", 1, 1, 1, i); __PYX_ERR(0, 307, __pyx_L3_error) }
+      }
+    } else if (unlikely(__pyx_nargs != 1)) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 307, __pyx_L3_error)
+    }
+    __pyx_v_compressed_data = ((PyObject*)values[0]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("uncompress_as_much_as_possible", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 307, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.uncompress_as_much_as_possible", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 307, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_10uncompress_as_much_as_possible(__pyx_self, __pyx_v_compressed_data);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_10uncompress_as_much_as_possible(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+  char const *__pyx_v_input_ptr;
+  size_t __pyx_v_input_length;
+  BytesSource *__pyx_v_source;
+  std::string __pyx_v_output;
+  StringSink *__pyx_v_sink;
+  size_t __pyx_v_bytes_processed;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  char const *__pyx_t_1;
+  Py_ssize_t __pyx_t_2;
+  PyObject *__pyx_t_3 = NULL;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  int __pyx_t_6;
+  int __pyx_t_7;
+  char const *__pyx_t_8;
+  PyObject *__pyx_t_9 = NULL;
+  PyObject *__pyx_t_10 = NULL;
+  PyObject *__pyx_t_11 = NULL;
+  PyObject *__pyx_t_12 = NULL;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("uncompress_as_much_as_possible", 0);
+
+  /* "snappy_wrapper.pyx":318
+ *     """
+ *     cdef:
+ *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
+ *         size_t input_length = len(compressed_data)
+ *         BytesSource* source
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(0, 318, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 318, __pyx_L1_error)
+  __pyx_v_input_ptr = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":319
+ *     cdef:
+ *         const char* input_ptr = compressed_data
+ *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
+ *         BytesSource* source
+ *         string output
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 319, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 319, __pyx_L1_error)
+  __pyx_v_input_length = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":325
+ *         size_t bytes_processed
+ * 
+ *     source = new BytesSource(input_ptr, input_length)             # <<<<<<<<<<<<<<
+ *     sink = new StringSink(&output)
+ * 
+*/
+  __pyx_v_source = new BytesSource(__pyx_v_input_ptr, __pyx_v_input_length);
+
+  /* "snappy_wrapper.pyx":326
+ * 
+ *     source = new BytesSource(input_ptr, input_length)
+ *     sink = new StringSink(&output)             # <<<<<<<<<<<<<<
+ * 
+ *     try:
+*/
+  __pyx_v_sink = new StringSink((&__pyx_v_output));
+
+  /* "snappy_wrapper.pyx":328
+ *     sink = new StringSink(&output)
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         with nogil:
+ *             bytes_processed = UncompressAsMuchAsPossible(source, sink)
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":329
+ * 
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             bytes_processed = UncompressAsMuchAsPossible(source, sink)
+ * 
+*/
+    {
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        /*try:*/ {
+
+          /* "snappy_wrapper.pyx":330
+ *     try:
+ *         with nogil:
+ *             bytes_processed = UncompressAsMuchAsPossible(source, sink)             # <<<<<<<<<<<<<<
+ * 
+ *         return (output, bytes_processed)
+*/
+          __pyx_v_bytes_processed = snappy::UncompressAsMuchAsPossible(__pyx_v_source, __pyx_v_sink);
+        }
+
+        /* "snappy_wrapper.pyx":329
+ * 
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             bytes_processed = UncompressAsMuchAsPossible(source, sink)
+ * 
+*/
+        /*finally:*/ {
+          /*normal exit:*/{
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            goto __pyx_L8;
+          }
+          __pyx_L8:;
+        }
+    }
+
+    /* "snappy_wrapper.pyx":332
+ *             bytes_processed = UncompressAsMuchAsPossible(source, sink)
+ * 
+ *         return (output, bytes_processed)             # <<<<<<<<<<<<<<
+ *     finally:
+ *         del source
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_3 = __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(__pyx_v_output); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 332, __pyx_L4_error)
+    __Pyx_GOTREF(__pyx_t_3);
+    __pyx_t_4 = __Pyx_PyLong_FromSize_t(__pyx_v_bytes_processed); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 332, __pyx_L4_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 332, __pyx_L4_error)
+    __Pyx_GOTREF(__pyx_t_5);
+    __Pyx_GIVEREF(__pyx_t_3);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_3) != (0)) __PYX_ERR(0, 332, __pyx_L4_error);
+    __Pyx_GIVEREF(__pyx_t_4);
+    if (__Pyx_PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_4) != (0)) __PYX_ERR(0, 332, __pyx_L4_error);
+    __pyx_t_3 = 0;
+    __pyx_t_4 = 0;
+    __pyx_r = __pyx_t_5;
+    __pyx_t_5 = 0;
+    goto __pyx_L3_return;
+  }
+
+  /* "snappy_wrapper.pyx":334
+ *         return (output, bytes_processed)
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ *         del sink
+ * 
+*/
+  /*finally:*/ {
+    __pyx_L4_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_9 = 0; __pyx_t_10 = 0; __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0;
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_12, &__pyx_t_13, &__pyx_t_14);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_9, &__pyx_t_10, &__pyx_t_11) < 0)) __Pyx_ErrFetch(&__pyx_t_9, &__pyx_t_10, &__pyx_t_11);
+      __Pyx_XGOTREF(__pyx_t_9);
+      __Pyx_XGOTREF(__pyx_t_10);
+      __Pyx_XGOTREF(__pyx_t_11);
+      __Pyx_XGOTREF(__pyx_t_12);
+      __Pyx_XGOTREF(__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_14);
+      __pyx_t_6 = __pyx_lineno; __pyx_t_7 = __pyx_clineno; __pyx_t_8 = __pyx_filename;
+      {
+        delete __pyx_v_source;
+
+        /* "snappy_wrapper.pyx":335
+ *     finally:
+ *         del source
+ *         del sink             # <<<<<<<<<<<<<<
+ * 
+ * def get_uncompressed_length_from_source(bytes compressed_data):
+*/
+        delete __pyx_v_sink;
+      }
+      __Pyx_XGIVEREF(__pyx_t_12);
+      __Pyx_XGIVEREF(__pyx_t_13);
+      __Pyx_XGIVEREF(__pyx_t_14);
+      __Pyx_ExceptionReset(__pyx_t_12, __pyx_t_13, __pyx_t_14);
+      __Pyx_XGIVEREF(__pyx_t_9);
+      __Pyx_XGIVEREF(__pyx_t_10);
+      __Pyx_XGIVEREF(__pyx_t_11);
+      __Pyx_ErrRestore(__pyx_t_9, __pyx_t_10, __pyx_t_11);
+      __pyx_t_9 = 0; __pyx_t_10 = 0; __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0;
+      __pyx_lineno = __pyx_t_6; __pyx_clineno = __pyx_t_7; __pyx_filename = __pyx_t_8;
+      goto __pyx_L1_error;
+    }
+    __pyx_L3_return: {
+      __pyx_t_14 = __pyx_r;
+      __pyx_r = 0;
+
+      /* "snappy_wrapper.pyx":334
+ *         return (output, bytes_processed)
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ *         del sink
+ * 
+*/
+      delete __pyx_v_source;
+
+      /* "snappy_wrapper.pyx":335
+ *     finally:
+ *         del source
+ *         del sink             # <<<<<<<<<<<<<<
+ * 
+ * def get_uncompressed_length_from_source(bytes compressed_data):
+*/
+      delete __pyx_v_sink;
+      __pyx_r = __pyx_t_14;
+      __pyx_t_14 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":307
+ *         del sink
+ * 
+ * def uncompress_as_much_as_possible(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress as much data as possible from potentially corrupted compressed data.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_AddTraceback("snappy_wrapper.uncompress_as_much_as_possible", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":337
+ *         del sink
+ * 
+ * def get_uncompressed_length_from_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Get uncompressed length using Source interface.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_13get_uncompressed_length_from_source(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_12get_uncompressed_length_from_source, "\n    Get uncompressed length using Source interface.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        int: Uncompressed length\n        \n    Raises:\n        RuntimeError: If unable to get length\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_13get_uncompressed_length_from_source = {"get_uncompressed_length_from_source", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_13get_uncompressed_length_from_source, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_12get_uncompressed_length_from_source};
+static PyObject *__pyx_pw_14snappy_wrapper_13get_uncompressed_length_from_source(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_compressed_data = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[1] = {0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("get_uncompressed_length_from_source (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 337, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 337, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "get_uncompressed_length_from_source", 0) < 0) __PYX_ERR(0, 337, __pyx_L3_error)
+      for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("get_uncompressed_length_from_source", 1, 1, 1, i); __PYX_ERR(0, 337, __pyx_L3_error) }
+      }
+    } else if (unlikely(__pyx_nargs != 1)) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 337, __pyx_L3_error)
+    }
+    __pyx_v_compressed_data = ((PyObject*)values[0]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("get_uncompressed_length_from_source", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 337, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.get_uncompressed_length_from_source", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 337, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_12get_uncompressed_length_from_source(__pyx_self, __pyx_v_compressed_data);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_12get_uncompressed_length_from_source(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+  char const *__pyx_v_input_ptr;
+  size_t __pyx_v_input_length;
+  BytesSource *__pyx_v_source;
+  uint32_t __pyx_v_result;
+  bool __pyx_v_success;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  char const *__pyx_t_1;
+  Py_ssize_t __pyx_t_2;
+  int __pyx_t_3;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  size_t __pyx_t_7;
+  int __pyx_t_8;
+  int __pyx_t_9;
+  char const *__pyx_t_10;
+  PyObject *__pyx_t_11 = NULL;
+  PyObject *__pyx_t_12 = NULL;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
+  PyObject *__pyx_t_16 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("get_uncompressed_length_from_source", 0);
+
+  /* "snappy_wrapper.pyx":351
+ *     """
+ *     cdef:
+ *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
+ *         size_t input_length = len(compressed_data)
+ *         BytesSource* source
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(0, 351, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 351, __pyx_L1_error)
+  __pyx_v_input_ptr = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":352
+ *     cdef:
+ *         const char* input_ptr = compressed_data
+ *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
+ *         BytesSource* source
+ *         uint32_t result
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 352, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 352, __pyx_L1_error)
+  __pyx_v_input_length = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":357
+ *         bool success
+ * 
+ *     source = new BytesSource(input_ptr, input_length)             # <<<<<<<<<<<<<<
+ *     try:
+ *         with nogil:
+*/
+  __pyx_v_source = new BytesSource(__pyx_v_input_ptr, __pyx_v_input_length);
+
+  /* "snappy_wrapper.pyx":358
+ * 
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:             # <<<<<<<<<<<<<<
+ *         with nogil:
+ *             success = GetUncompressedLength(source, &result)
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":359
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = GetUncompressedLength(source, &result)
+ * 
+*/
+    {
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        /*try:*/ {
+
+          /* "snappy_wrapper.pyx":360
+ *     try:
+ *         with nogil:
+ *             success = GetUncompressedLength(source, &result)             # <<<<<<<<<<<<<<
+ * 
+ *         if not success:
+*/
+          __pyx_v_success = snappy::GetUncompressedLength(__pyx_v_source, (&__pyx_v_result));
+        }
+
+        /* "snappy_wrapper.pyx":359
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = GetUncompressedLength(source, &result)
+ * 
+*/
+        /*finally:*/ {
+          /*normal exit:*/{
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            goto __pyx_L8;
+          }
+          __pyx_L8:;
+        }
+    }
+
+    /* "snappy_wrapper.pyx":362
+ *             success = GetUncompressedLength(source, &result)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Unable to get uncompressed length from source")
+ * 
+*/
+    __pyx_t_3 = (!(__pyx_v_success != 0));
+    if (unlikely(__pyx_t_3)) {
+
+      /* "snappy_wrapper.pyx":363
+ * 
+ *         if not success:
+ *             raise RuntimeError("Unable to get uncompressed length from source")             # <<<<<<<<<<<<<<
+ * 
+ *         return result
+*/
+      __pyx_t_5 = NULL;
+      __Pyx_INCREF(__pyx_builtin_RuntimeError);
+      __pyx_t_6 = __pyx_builtin_RuntimeError; 
+      __pyx_t_7 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Unable_to_get_uncompressed_lengt};
+        __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 363, __pyx_L4_error)
+        __Pyx_GOTREF(__pyx_t_4);
+      }
+      __Pyx_Raise(__pyx_t_4, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __PYX_ERR(0, 363, __pyx_L4_error)
+
+      /* "snappy_wrapper.pyx":362
+ *             success = GetUncompressedLength(source, &result)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Unable to get uncompressed length from source")
+ * 
+*/
+    }
+
+    /* "snappy_wrapper.pyx":365
+ *             raise RuntimeError("Unable to get uncompressed length from source")
+ * 
+ *         return result             # <<<<<<<<<<<<<<
+ *     finally:
+ *         del source
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_4 = __Pyx_PyLong_From_uint32_t(__pyx_v_result); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 365, __pyx_L4_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __pyx_r = __pyx_t_4;
+    __pyx_t_4 = 0;
+    goto __pyx_L3_return;
+  }
+
+  /* "snappy_wrapper.pyx":367
+ *         return result
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ * 
+ * def raw_uncompress_from_source(bytes compressed_data):
+*/
+  /*finally:*/ {
+    __pyx_L4_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_14, &__pyx_t_15, &__pyx_t_16);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_11, &__pyx_t_12, &__pyx_t_13) < 0)) __Pyx_ErrFetch(&__pyx_t_11, &__pyx_t_12, &__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_11);
+      __Pyx_XGOTREF(__pyx_t_12);
+      __Pyx_XGOTREF(__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_14);
+      __Pyx_XGOTREF(__pyx_t_15);
+      __Pyx_XGOTREF(__pyx_t_16);
+      __pyx_t_8 = __pyx_lineno; __pyx_t_9 = __pyx_clineno; __pyx_t_10 = __pyx_filename;
+      {
+        delete __pyx_v_source;
+      }
+      __Pyx_XGIVEREF(__pyx_t_14);
+      __Pyx_XGIVEREF(__pyx_t_15);
+      __Pyx_XGIVEREF(__pyx_t_16);
+      __Pyx_ExceptionReset(__pyx_t_14, __pyx_t_15, __pyx_t_16);
+      __Pyx_XGIVEREF(__pyx_t_11);
+      __Pyx_XGIVEREF(__pyx_t_12);
+      __Pyx_XGIVEREF(__pyx_t_13);
+      __Pyx_ErrRestore(__pyx_t_11, __pyx_t_12, __pyx_t_13);
+      __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0;
+      __pyx_lineno = __pyx_t_8; __pyx_clineno = __pyx_t_9; __pyx_filename = __pyx_t_10;
+      goto __pyx_L1_error;
+    }
+    __pyx_L3_return: {
+      __pyx_t_16 = __pyx_r;
+      __pyx_r = 0;
+      delete __pyx_v_source;
+      __pyx_r = __pyx_t_16;
+      __pyx_t_16 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":337
+ *         del sink
+ * 
+ * def get_uncompressed_length_from_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Get uncompressed length using Source interface.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_AddTraceback("snappy_wrapper.get_uncompressed_length_from_source", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":369
+ *         del source
+ * 
+ * def raw_uncompress_from_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Raw decompress using Source interface.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_15raw_uncompress_from_source(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_14raw_uncompress_from_source, "\n    Raw decompress using Source interface.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        bytes: Uncompressed data\n        \n    Raises:\n        RuntimeError: If decompression fails\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_15raw_uncompress_from_source = {"raw_uncompress_from_source", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_15raw_uncompress_from_source, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_14raw_uncompress_from_source};
+static PyObject *__pyx_pw_14snappy_wrapper_15raw_uncompress_from_source(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_compressed_data = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[1] = {0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("raw_uncompress_from_source (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 369, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 369, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "raw_uncompress_from_source", 0) < 0) __PYX_ERR(0, 369, __pyx_L3_error)
+      for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("raw_uncompress_from_source", 1, 1, 1, i); __PYX_ERR(0, 369, __pyx_L3_error) }
+      }
+    } else if (unlikely(__pyx_nargs != 1)) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 369, __pyx_L3_error)
+    }
+    __pyx_v_compressed_data = ((PyObject*)values[0]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("raw_uncompress_from_source", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 369, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.raw_uncompress_from_source", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 369, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_14raw_uncompress_from_source(__pyx_self, __pyx_v_compressed_data);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_14raw_uncompress_from_source(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+  char const *__pyx_v_input_ptr;
+  size_t __pyx_v_input_length;
+  BytesSource *__pyx_v_source;
+  uint32_t __pyx_v_uncompressed_length;
+  PyObject *__pyx_v_output_buffer = 0;
+  char *__pyx_v_output_ptr;
+  bool __pyx_v_success;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  char const *__pyx_t_1;
+  Py_ssize_t __pyx_t_2;
+  int __pyx_t_3;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  size_t __pyx_t_7;
+  int __pyx_t_8;
+  int __pyx_t_9;
+  char const *__pyx_t_10;
+  PyObject *__pyx_t_11 = NULL;
+  PyObject *__pyx_t_12 = NULL;
+  PyObject *__pyx_t_13 = NULL;
+  PyObject *__pyx_t_14 = NULL;
+  PyObject *__pyx_t_15 = NULL;
+  PyObject *__pyx_t_16 = NULL;
+  PyObject *__pyx_t_17 = NULL;
+  char *__pyx_t_18;
+  char const *__pyx_t_19;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("raw_uncompress_from_source", 0);
+
+  /* "snappy_wrapper.pyx":383
+ *     """
+ *     cdef:
+ *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
+ *         size_t input_length = len(compressed_data)
+ *         BytesSource* source
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(0, 383, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 383, __pyx_L1_error)
+  __pyx_v_input_ptr = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":384
+ *     cdef:
+ *         const char* input_ptr = compressed_data
+ *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
+ *         BytesSource* source
+ *         uint32_t uncompressed_length
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 384, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 384, __pyx_L1_error)
+  __pyx_v_input_length = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":392
+ * 
+ *     # First get the uncompressed length
+ *     source = new BytesSource(input_ptr, input_length)             # <<<<<<<<<<<<<<
+ *     try:
+ *         with nogil:
+*/
+  __pyx_v_source = new BytesSource(__pyx_v_input_ptr, __pyx_v_input_length);
+
+  /* "snappy_wrapper.pyx":393
+ *     # First get the uncompressed length
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:             # <<<<<<<<<<<<<<
+ *         with nogil:
+ *             success = GetUncompressedLength(source, &uncompressed_length)
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":394
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = GetUncompressedLength(source, &uncompressed_length)
+ * 
+*/
+    {
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        /*try:*/ {
+
+          /* "snappy_wrapper.pyx":395
+ *     try:
+ *         with nogil:
+ *             success = GetUncompressedLength(source, &uncompressed_length)             # <<<<<<<<<<<<<<
+ * 
+ *         if not success:
+*/
+          __pyx_v_success = snappy::GetUncompressedLength(__pyx_v_source, (&__pyx_v_uncompressed_length));
+        }
+
+        /* "snappy_wrapper.pyx":394
+ *     source = new BytesSource(input_ptr, input_length)
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = GetUncompressedLength(source, &uncompressed_length)
+ * 
+*/
+        /*finally:*/ {
+          /*normal exit:*/{
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            goto __pyx_L8;
+          }
+          __pyx_L8:;
+        }
+    }
+
+    /* "snappy_wrapper.pyx":397
+ *             success = GetUncompressedLength(source, &uncompressed_length)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Unable to get uncompressed length")
+ *     finally:
+*/
+    __pyx_t_3 = (!(__pyx_v_success != 0));
+    if (unlikely(__pyx_t_3)) {
+
+      /* "snappy_wrapper.pyx":398
+ * 
+ *         if not success:
+ *             raise RuntimeError("Unable to get uncompressed length")             # <<<<<<<<<<<<<<
+ *     finally:
+ *         del source
+*/
+      __pyx_t_5 = NULL;
+      __Pyx_INCREF(__pyx_builtin_RuntimeError);
+      __pyx_t_6 = __pyx_builtin_RuntimeError; 
+      __pyx_t_7 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Unable_to_get_uncompressed_lengt_2};
+        __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 398, __pyx_L4_error)
+        __Pyx_GOTREF(__pyx_t_4);
+      }
+      __Pyx_Raise(__pyx_t_4, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __PYX_ERR(0, 398, __pyx_L4_error)
+
+      /* "snappy_wrapper.pyx":397
+ *             success = GetUncompressedLength(source, &uncompressed_length)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Unable to get uncompressed length")
+ *     finally:
+*/
+    }
+  }
+
+  /* "snappy_wrapper.pyx":400
+ *             raise RuntimeError("Unable to get uncompressed length")
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ * 
+ *     # Now decompress
+*/
+  /*finally:*/ {
+    /*normal exit:*/{
+      delete __pyx_v_source;
+      goto __pyx_L5;
+    }
+    __pyx_L4_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_14, &__pyx_t_15, &__pyx_t_16);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_11, &__pyx_t_12, &__pyx_t_13) < 0)) __Pyx_ErrFetch(&__pyx_t_11, &__pyx_t_12, &__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_11);
+      __Pyx_XGOTREF(__pyx_t_12);
+      __Pyx_XGOTREF(__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_14);
+      __Pyx_XGOTREF(__pyx_t_15);
+      __Pyx_XGOTREF(__pyx_t_16);
+      __pyx_t_8 = __pyx_lineno; __pyx_t_9 = __pyx_clineno; __pyx_t_10 = __pyx_filename;
+      {
+        delete __pyx_v_source;
+      }
+      __Pyx_XGIVEREF(__pyx_t_14);
+      __Pyx_XGIVEREF(__pyx_t_15);
+      __Pyx_XGIVEREF(__pyx_t_16);
+      __Pyx_ExceptionReset(__pyx_t_14, __pyx_t_15, __pyx_t_16);
+      __Pyx_XGIVEREF(__pyx_t_11);
+      __Pyx_XGIVEREF(__pyx_t_12);
+      __Pyx_XGIVEREF(__pyx_t_13);
+      __Pyx_ErrRestore(__pyx_t_11, __pyx_t_12, __pyx_t_13);
+      __pyx_t_11 = 0; __pyx_t_12 = 0; __pyx_t_13 = 0; __pyx_t_14 = 0; __pyx_t_15 = 0; __pyx_t_16 = 0;
+      __pyx_lineno = __pyx_t_8; __pyx_clineno = __pyx_t_9; __pyx_filename = __pyx_t_10;
+      goto __pyx_L1_error;
+    }
+    __pyx_L5:;
+  }
+
+  /* "snappy_wrapper.pyx":403
+ * 
+ *     # Now decompress
+ *     source = new BytesSource(input_ptr, input_length)             # <<<<<<<<<<<<<<
+ *     output_buffer = bytes(uncompressed_length)
+ *     output_ptr = output_buffer
+*/
+  __pyx_v_source = new BytesSource(__pyx_v_input_ptr, __pyx_v_input_length);
+
+  /* "snappy_wrapper.pyx":404
+ *     # Now decompress
+ *     source = new BytesSource(input_ptr, input_length)
+ *     output_buffer = bytes(uncompressed_length)             # <<<<<<<<<<<<<<
+ *     output_ptr = output_buffer
+ * 
+*/
+  __pyx_t_6 = NULL;
+  __Pyx_INCREF((PyObject *)(&PyBytes_Type));
+  __pyx_t_5 = ((PyObject *)(&PyBytes_Type)); 
+  __pyx_t_17 = __Pyx_PyLong_From_uint32_t(__pyx_v_uncompressed_length); if (unlikely(!__pyx_t_17)) __PYX_ERR(0, 404, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_17);
+  __pyx_t_7 = 1;
+  {
+    PyObject *__pyx_callargs[2] = {__pyx_t_6, __pyx_t_17};
+    __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+    __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+    __Pyx_DECREF(__pyx_t_17); __pyx_t_17 = 0;
+    __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+    if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 404, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+  }
+  __pyx_v_output_buffer = ((PyObject*)__pyx_t_4);
+  __pyx_t_4 = 0;
+
+  /* "snappy_wrapper.pyx":405
+ *     source = new BytesSource(input_ptr, input_length)
+ *     output_buffer = bytes(uncompressed_length)
+ *     output_ptr = output_buffer             # <<<<<<<<<<<<<<
+ * 
+ *     try:
+*/
+  __pyx_t_18 = __Pyx_PyBytes_AsWritableString(__pyx_v_output_buffer); if (unlikely((!__pyx_t_18) && PyErr_Occurred())) __PYX_ERR(0, 405, __pyx_L1_error)
+  __pyx_v_output_ptr = __pyx_t_18;
+
+  /* "snappy_wrapper.pyx":407
+ *     output_ptr = output_buffer
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         with nogil:
+ *             success = RawUncompress(source, output_ptr)
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":408
+ * 
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = RawUncompress(source, output_ptr)
+ * 
+*/
+    {
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        /*try:*/ {
+
+          /* "snappy_wrapper.pyx":409
+ *     try:
+ *         with nogil:
+ *             success = RawUncompress(source, output_ptr)             # <<<<<<<<<<<<<<
+ * 
+ *         if not success:
+*/
+          __pyx_v_success = snappy::RawUncompress(__pyx_v_source, __pyx_v_output_ptr);
+        }
+
+        /* "snappy_wrapper.pyx":408
+ * 
+ *     try:
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = RawUncompress(source, output_ptr)
+ * 
+*/
+        /*finally:*/ {
+          /*normal exit:*/{
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            goto __pyx_L17;
+          }
+          __pyx_L17:;
+        }
+    }
+
+    /* "snappy_wrapper.pyx":411
+ *             success = RawUncompress(source, output_ptr)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Raw decompression from source failed")
+ * 
+*/
+    __pyx_t_3 = (!(__pyx_v_success != 0));
+    if (unlikely(__pyx_t_3)) {
+
+      /* "snappy_wrapper.pyx":412
+ * 
+ *         if not success:
+ *             raise RuntimeError("Raw decompression from source failed")             # <<<<<<<<<<<<<<
+ * 
+ *         return output_buffer
+*/
+      __pyx_t_5 = NULL;
+      __Pyx_INCREF(__pyx_builtin_RuntimeError);
+      __pyx_t_17 = __pyx_builtin_RuntimeError; 
+      __pyx_t_7 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Raw_decompression_from_source_fa};
+        __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_17, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __Pyx_DECREF(__pyx_t_17); __pyx_t_17 = 0;
+        if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 412, __pyx_L13_error)
+        __Pyx_GOTREF(__pyx_t_4);
+      }
+      __Pyx_Raise(__pyx_t_4, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __PYX_ERR(0, 412, __pyx_L13_error)
+
+      /* "snappy_wrapper.pyx":411
+ *             success = RawUncompress(source, output_ptr)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("Raw decompression from source failed")
+ * 
+*/
+    }
+
+    /* "snappy_wrapper.pyx":414
+ *             raise RuntimeError("Raw decompression from source failed")
+ * 
+ *         return output_buffer             # <<<<<<<<<<<<<<
+ *     finally:
+ *         del source
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __Pyx_INCREF(__pyx_v_output_buffer);
+    __pyx_r = __pyx_v_output_buffer;
+    goto __pyx_L12_return;
+  }
+
+  /* "snappy_wrapper.pyx":416
+ *         return output_buffer
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ * 
+ * def raw_uncompress_to_iovec_from_source(bytes compressed_data, list buffer_sizes):
+*/
+  /*finally:*/ {
+    __pyx_L13_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_16 = 0; __pyx_t_15 = 0; __pyx_t_14 = 0; __pyx_t_13 = 0; __pyx_t_12 = 0; __pyx_t_11 = 0;
+      __Pyx_XDECREF(__pyx_t_17); __pyx_t_17 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_13, &__pyx_t_12, &__pyx_t_11);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_16, &__pyx_t_15, &__pyx_t_14) < 0)) __Pyx_ErrFetch(&__pyx_t_16, &__pyx_t_15, &__pyx_t_14);
+      __Pyx_XGOTREF(__pyx_t_16);
+      __Pyx_XGOTREF(__pyx_t_15);
+      __Pyx_XGOTREF(__pyx_t_14);
+      __Pyx_XGOTREF(__pyx_t_13);
+      __Pyx_XGOTREF(__pyx_t_12);
+      __Pyx_XGOTREF(__pyx_t_11);
+      __pyx_t_9 = __pyx_lineno; __pyx_t_8 = __pyx_clineno; __pyx_t_19 = __pyx_filename;
+      {
+        delete __pyx_v_source;
+      }
+      __Pyx_XGIVEREF(__pyx_t_13);
+      __Pyx_XGIVEREF(__pyx_t_12);
+      __Pyx_XGIVEREF(__pyx_t_11);
+      __Pyx_ExceptionReset(__pyx_t_13, __pyx_t_12, __pyx_t_11);
+      __Pyx_XGIVEREF(__pyx_t_16);
+      __Pyx_XGIVEREF(__pyx_t_15);
+      __Pyx_XGIVEREF(__pyx_t_14);
+      __Pyx_ErrRestore(__pyx_t_16, __pyx_t_15, __pyx_t_14);
+      __pyx_t_16 = 0; __pyx_t_15 = 0; __pyx_t_14 = 0; __pyx_t_13 = 0; __pyx_t_12 = 0; __pyx_t_11 = 0;
+      __pyx_lineno = __pyx_t_9; __pyx_clineno = __pyx_t_8; __pyx_filename = __pyx_t_19;
+      goto __pyx_L1_error;
+    }
+    __pyx_L12_return: {
+      __pyx_t_11 = __pyx_r;
+      __pyx_r = 0;
+      delete __pyx_v_source;
+      __pyx_r = __pyx_t_11;
+      __pyx_t_11 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":369
+ *         del source
+ * 
+ * def raw_uncompress_from_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Raw decompress using Source interface.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_17);
+  __Pyx_AddTraceback("snappy_wrapper.raw_uncompress_from_source", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_output_buffer);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":418
+ *         del source
+ * 
+ * def raw_uncompress_to_iovec_from_source(bytes compressed_data, list buffer_sizes):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress to IOVec using Source interface.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_17raw_uncompress_to_iovec_from_source(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_16raw_uncompress_to_iovec_from_source, "\n    Decompress to IOVec using Source interface.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        buffer_sizes (list of int): Buffer sizes for output\n        \n    Returns:\n        list of bytes: Decompressed chunks\n        \n    Raises:\n        RuntimeError: If decompression fails\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_17raw_uncompress_to_iovec_from_source = {"raw_uncompress_to_iovec_from_source", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_17raw_uncompress_to_iovec_from_source, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_16raw_uncompress_to_iovec_from_source};
+static PyObject *__pyx_pw_14snappy_wrapper_17raw_uncompress_to_iovec_from_source(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_compressed_data = 0;
+  PyObject *__pyx_v_buffer_sizes = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[2] = {0,0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("raw_uncompress_to_iovec_from_source (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,&__pyx_mstate_global->__pyx_n_u_buffer_sizes,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 418, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  2:
+        values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 418, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 418, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "raw_uncompress_to_iovec_from_source", 0) < 0) __PYX_ERR(0, 418, __pyx_L3_error)
+      for (Py_ssize_t i = __pyx_nargs; i < 2; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("raw_uncompress_to_iovec_from_source", 1, 2, 2, i); __PYX_ERR(0, 418, __pyx_L3_error) }
+      }
+    } else if (unlikely(__pyx_nargs != 2)) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 418, __pyx_L3_error)
+      values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 418, __pyx_L3_error)
+    }
+    __pyx_v_compressed_data = ((PyObject*)values[0]);
+    __pyx_v_buffer_sizes = ((PyObject*)values[1]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("raw_uncompress_to_iovec_from_source", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 418, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.raw_uncompress_to_iovec_from_source", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 418, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_buffer_sizes), (&PyList_Type), 1, "buffer_sizes", 1))) __PYX_ERR(0, 418, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_16raw_uncompress_to_iovec_from_source(__pyx_self, __pyx_v_compressed_data, __pyx_v_buffer_sizes);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_16raw_uncompress_to_iovec_from_source(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data, PyObject *__pyx_v_buffer_sizes) {
+  char const *__pyx_v_input_ptr;
+  size_t __pyx_v_input_length;
+  BytesSource *__pyx_v_source;
+  size_t __pyx_v_iov_cnt;
+  struct iovec *__pyx_v_iov_array;
+  PyObject *__pyx_v_output_bytes = 0;
+  bool __pyx_v_success;
+  size_t __pyx_v_i;
+  char *__pyx_v_buf_ptr;
+  PyObject *__pyx_v_size = NULL;
+  size_t __pyx_v_j;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  char const *__pyx_t_1;
+  Py_ssize_t __pyx_t_2;
+  PyObject *__pyx_t_3 = NULL;
+  int __pyx_t_4;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  size_t __pyx_t_7;
+  size_t __pyx_t_8;
+  size_t __pyx_t_9;
+  PyObject *__pyx_t_10 = NULL;
+  PyObject *__pyx_t_11[3];
+  PyObject *__pyx_t_12 = NULL;
+  size_t __pyx_t_13;
+  size_t __pyx_t_14;
+  size_t __pyx_t_15;
+  int __pyx_t_16;
+  int __pyx_t_17;
+  int __pyx_t_18;
+  char const *__pyx_t_19;
+  PyObject *__pyx_t_20 = NULL;
+  PyObject *__pyx_t_21 = NULL;
+  PyObject *__pyx_t_22 = NULL;
+  PyObject *__pyx_t_23 = NULL;
+  PyObject *__pyx_t_24 = NULL;
+  PyObject *__pyx_t_25 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("raw_uncompress_to_iovec_from_source", 0);
+
+  /* "snappy_wrapper.pyx":433
+ *     """
+ *     cdef:
+ *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
+ *         size_t input_length = len(compressed_data)
+ *         BytesSource* source
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(0, 433, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 433, __pyx_L1_error)
+  __pyx_v_input_ptr = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":434
+ *     cdef:
+ *         const char* input_ptr = compressed_data
+ *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
+ *         BytesSource* source
+ *         size_t iov_cnt = len(buffer_sizes)
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 434, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 434, __pyx_L1_error)
+  __pyx_v_input_length = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":436
+ *         size_t input_length = len(compressed_data)
+ *         BytesSource* source
+ *         size_t iov_cnt = len(buffer_sizes)             # <<<<<<<<<<<<<<
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+ *         list output_bytes = []
+*/
+  if (unlikely(__pyx_v_buffer_sizes == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 436, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyList_GET_SIZE(__pyx_v_buffer_sizes); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 436, __pyx_L1_error)
+  __pyx_v_iov_cnt = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":437
+ *         BytesSource* source
+ *         size_t iov_cnt = len(buffer_sizes)
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)             # <<<<<<<<<<<<<<
+ *         list output_bytes = []
+ *         bool success
+*/
+  __pyx_v_iov_array = ((struct iovec *)malloc(((sizeof(struct iovec)) * __pyx_v_iov_cnt)));
+
+  /* "snappy_wrapper.pyx":438
+ *         size_t iov_cnt = len(buffer_sizes)
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+ *         list output_bytes = []             # <<<<<<<<<<<<<<
+ *         bool success
+ *         size_t i
+*/
+  __pyx_t_3 = PyList_New(0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 438, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_v_output_bytes = ((PyObject*)__pyx_t_3);
+  __pyx_t_3 = 0;
+
+  /* "snappy_wrapper.pyx":443
+ *         char* buf_ptr
+ * 
+ *     if not iov_array:             # <<<<<<<<<<<<<<
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+*/
+  __pyx_t_4 = (!(__pyx_v_iov_array != 0));
+  if (unlikely(__pyx_t_4)) {
+
+    /* "snappy_wrapper.pyx":444
+ * 
+ *     if not iov_array:
+ *         raise MemoryError("Failed to allocate IOVec array")             # <<<<<<<<<<<<<<
+ * 
+ *     source = new BytesSource(input_ptr, input_length)
+*/
+    __pyx_t_5 = NULL;
+    __Pyx_INCREF(__pyx_builtin_MemoryError);
+    __pyx_t_6 = __pyx_builtin_MemoryError; 
+    __pyx_t_7 = 1;
+    {
+      PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Failed_to_allocate_IOVec_array};
+      __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 444, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+    }
+    __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+    __PYX_ERR(0, 444, __pyx_L1_error)
+
+    /* "snappy_wrapper.pyx":443
+ *         char* buf_ptr
+ * 
+ *     if not iov_array:             # <<<<<<<<<<<<<<
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+*/
+  }
+
+  /* "snappy_wrapper.pyx":446
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+ *     source = new BytesSource(input_ptr, input_length)             # <<<<<<<<<<<<<<
+ * 
+ *     try:
+*/
+  __pyx_v_source = new BytesSource(__pyx_v_input_ptr, __pyx_v_input_length);
+
+  /* "snappy_wrapper.pyx":448
+ *     source = new BytesSource(input_ptr, input_length)
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         # Allocate buffers
+ *         for i in range(iov_cnt):
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":450
+ *     try:
+ *         # Allocate buffers
+ *         for i in range(iov_cnt):             # <<<<<<<<<<<<<<
+ *             size = buffer_sizes[i]
+ *             if size < 0:
+*/
+    __pyx_t_7 = __pyx_v_iov_cnt;
+    __pyx_t_8 = __pyx_t_7;
+    for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_8; __pyx_t_9+=1) {
+      __pyx_v_i = __pyx_t_9;
+
+      /* "snappy_wrapper.pyx":451
+ *         # Allocate buffers
+ *         for i in range(iov_cnt):
+ *             size = buffer_sizes[i]             # <<<<<<<<<<<<<<
+ *             if size < 0:
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+*/
+      if (unlikely(__pyx_v_buffer_sizes == Py_None)) {
+        PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
+        __PYX_ERR(0, 451, __pyx_L5_error)
+      }
+      __pyx_t_3 = __Pyx_GetItemInt_List(__pyx_v_buffer_sizes, __pyx_v_i, size_t, 0, __Pyx_PyLong_FromSize_t, 1, 0, 1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 451, __pyx_L5_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __Pyx_XDECREF_SET(__pyx_v_size, __pyx_t_3);
+      __pyx_t_3 = 0;
+
+      /* "snappy_wrapper.pyx":452
+ *         for i in range(iov_cnt):
+ *             size = buffer_sizes[i]
+ *             if size < 0:             # <<<<<<<<<<<<<<
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+ *             buf_ptr = <char*>malloc(size)
+*/
+      __pyx_t_3 = PyObject_RichCompare(__pyx_v_size, __pyx_mstate_global->__pyx_int_0, Py_LT); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 452, __pyx_L5_error)
+      __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_4 < 0))) __PYX_ERR(0, 452, __pyx_L5_error)
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      if (unlikely(__pyx_t_4)) {
+
+        /* "snappy_wrapper.pyx":453
+ *             size = buffer_sizes[i]
+ *             if size < 0:
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")             # <<<<<<<<<<<<<<
+ *             buf_ptr = <char*>malloc(size)
+ *             if not buf_ptr:
+*/
+        __pyx_t_6 = NULL;
+        __Pyx_INCREF(__pyx_builtin_ValueError);
+        __pyx_t_5 = __pyx_builtin_ValueError; 
+        __pyx_t_10 = __Pyx_PyUnicode_From_size_t(__pyx_v_i, 0, ' ', 'd'); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 453, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __pyx_t_11[0] = __pyx_mstate_global->__pyx_kp_u_Buffer_size;
+        __pyx_t_11[1] = __pyx_t_10;
+        __pyx_t_11[2] = __pyx_mstate_global->__pyx_kp_u_must_be_non_negative;
+        __pyx_t_12 = __Pyx_PyUnicode_Join(__pyx_t_11, 3, 12 + __Pyx_PyUnicode_GET_LENGTH(__pyx_t_10) + 21, 127);
+        if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 453, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_12);
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        __pyx_t_13 = 1;
+        {
+          PyObject *__pyx_callargs[2] = {__pyx_t_6, __pyx_t_12};
+          __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+__pyx_t_13, (2-__pyx_t_13) | (__pyx_t_13*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+          __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+          __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+          __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+          if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 453, __pyx_L5_error)
+          __Pyx_GOTREF(__pyx_t_3);
+        }
+        __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+        __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+        __PYX_ERR(0, 453, __pyx_L5_error)
+
+        /* "snappy_wrapper.pyx":452
+ *         for i in range(iov_cnt):
+ *             size = buffer_sizes[i]
+ *             if size < 0:             # <<<<<<<<<<<<<<
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+ *             buf_ptr = <char*>malloc(size)
+*/
+      }
+
+      /* "snappy_wrapper.pyx":454
+ *             if size < 0:
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+ *             buf_ptr = <char*>malloc(size)             # <<<<<<<<<<<<<<
+ *             if not buf_ptr:
+ *                 # Clean up previously allocated buffers
+*/
+      __pyx_t_13 = __Pyx_PyLong_As_size_t(__pyx_v_size); if (unlikely((__pyx_t_13 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 454, __pyx_L5_error)
+      __pyx_v_buf_ptr = ((char *)malloc(__pyx_t_13));
+
+      /* "snappy_wrapper.pyx":455
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+ *             buf_ptr = <char*>malloc(size)
+ *             if not buf_ptr:             # <<<<<<<<<<<<<<
+ *                 # Clean up previously allocated buffers
+ *                 for j in range(i):
+*/
+      __pyx_t_4 = (!(__pyx_v_buf_ptr != 0));
+      if (__pyx_t_4) {
+
+        /* "snappy_wrapper.pyx":457
+ *             if not buf_ptr:
+ *                 # Clean up previously allocated buffers
+ *                 for j in range(i):             # <<<<<<<<<<<<<<
+ *                     free(iov_array[j].iov_base)
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")
+*/
+        __pyx_t_13 = __pyx_v_i;
+        __pyx_t_14 = __pyx_t_13;
+        for (__pyx_t_15 = 0; __pyx_t_15 < __pyx_t_14; __pyx_t_15+=1) {
+          __pyx_v_j = __pyx_t_15;
+
+          /* "snappy_wrapper.pyx":458
+ *                 # Clean up previously allocated buffers
+ *                 for j in range(i):
+ *                     free(iov_array[j].iov_base)             # <<<<<<<<<<<<<<
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")
+ *             iov_array[i].iov_base = <void*>buf_ptr
+*/
+          free((__pyx_v_iov_array[__pyx_v_j]).iov_base);
+        }
+
+        /* "snappy_wrapper.pyx":459
+ *                 for j in range(i):
+ *                     free(iov_array[j].iov_base)
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")             # <<<<<<<<<<<<<<
+ *             iov_array[i].iov_base = <void*>buf_ptr
+ *             iov_array[i].iov_len = size
+*/
+        __pyx_t_5 = NULL;
+        __Pyx_INCREF(__pyx_builtin_MemoryError);
+        __pyx_t_12 = __pyx_builtin_MemoryError; 
+        __pyx_t_6 = __Pyx_PyUnicode_From_size_t(__pyx_v_i, 0, ' ', 'd'); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 459, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_6);
+        __pyx_t_10 = __Pyx_PyUnicode_Concat(__pyx_mstate_global->__pyx_kp_u_Failed_to_allocate_buffer, __pyx_t_6); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 459, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        __pyx_t_13 = 1;
+        {
+          PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_t_10};
+          __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_12, __pyx_callargs+__pyx_t_13, (2-__pyx_t_13) | (__pyx_t_13*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+          __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+          __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+          __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+          if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 459, __pyx_L5_error)
+          __Pyx_GOTREF(__pyx_t_3);
+        }
+        __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+        __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+        __PYX_ERR(0, 459, __pyx_L5_error)
+
+        /* "snappy_wrapper.pyx":455
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+ *             buf_ptr = <char*>malloc(size)
+ *             if not buf_ptr:             # <<<<<<<<<<<<<<
+ *                 # Clean up previously allocated buffers
+ *                 for j in range(i):
+*/
+      }
+
+      /* "snappy_wrapper.pyx":460
+ *                     free(iov_array[j].iov_base)
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")
+ *             iov_array[i].iov_base = <void*>buf_ptr             # <<<<<<<<<<<<<<
+ *             iov_array[i].iov_len = size
+ * 
+*/
+      (__pyx_v_iov_array[__pyx_v_i]).iov_base = ((void *)__pyx_v_buf_ptr);
+
+      /* "snappy_wrapper.pyx":461
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")
+ *             iov_array[i].iov_base = <void*>buf_ptr
+ *             iov_array[i].iov_len = size             # <<<<<<<<<<<<<<
+ * 
+ *         with nogil:
+*/
+      __pyx_t_13 = __Pyx_PyLong_As_size_t(__pyx_v_size); if (unlikely((__pyx_t_13 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 461, __pyx_L5_error)
+      (__pyx_v_iov_array[__pyx_v_i]).iov_len = __pyx_t_13;
+    }
+
+    /* "snappy_wrapper.pyx":463
+ *             iov_array[i].iov_len = size
+ * 
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = RawUncompressToIOVec(source, iov_array, iov_cnt)
+ * 
+*/
+    {
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        /*try:*/ {
+
+          /* "snappy_wrapper.pyx":464
+ * 
+ *         with nogil:
+ *             success = RawUncompressToIOVec(source, iov_array, iov_cnt)             # <<<<<<<<<<<<<<
+ * 
+ *         if not success:
+*/
+          __pyx_v_success = snappy::RawUncompressToIOVec(__pyx_v_source, __pyx_v_iov_array, __pyx_v_iov_cnt);
+        }
+
+        /* "snappy_wrapper.pyx":463
+ *             iov_array[i].iov_len = size
+ * 
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = RawUncompressToIOVec(source, iov_array, iov_cnt)
+ * 
+*/
+        /*finally:*/ {
+          /*normal exit:*/{
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            goto __pyx_L15;
+          }
+          __pyx_L15:;
+        }
+    }
+
+    /* "snappy_wrapper.pyx":466
+ *             success = RawUncompressToIOVec(source, iov_array, iov_cnt)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             # Clean up allocated buffers
+ *             for i in range(iov_cnt):
+*/
+    __pyx_t_4 = (!(__pyx_v_success != 0));
+    if (__pyx_t_4) {
+
+      /* "snappy_wrapper.pyx":468
+ *         if not success:
+ *             # Clean up allocated buffers
+ *             for i in range(iov_cnt):             # <<<<<<<<<<<<<<
+ *                 free(iov_array[i].iov_base)
+ *             raise RuntimeError("IOVec decompression from source failed")
+*/
+      __pyx_t_7 = __pyx_v_iov_cnt;
+      __pyx_t_8 = __pyx_t_7;
+      for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_8; __pyx_t_9+=1) {
+        __pyx_v_i = __pyx_t_9;
+
+        /* "snappy_wrapper.pyx":469
+ *             # Clean up allocated buffers
+ *             for i in range(iov_cnt):
+ *                 free(iov_array[i].iov_base)             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("IOVec decompression from source failed")
+ * 
+*/
+        free((__pyx_v_iov_array[__pyx_v_i]).iov_base);
+      }
+
+      /* "snappy_wrapper.pyx":470
+ *             for i in range(iov_cnt):
+ *                 free(iov_array[i].iov_base)
+ *             raise RuntimeError("IOVec decompression from source failed")             # <<<<<<<<<<<<<<
+ * 
+ *         # Copy data to Python bytes objects
+*/
+      __pyx_t_12 = NULL;
+      __Pyx_INCREF(__pyx_builtin_RuntimeError);
+      __pyx_t_10 = __pyx_builtin_RuntimeError; 
+      __pyx_t_7 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_12, __pyx_mstate_global->__pyx_kp_u_IOVec_decompression_from_source};
+        __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_10, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_12); __pyx_t_12 = 0;
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 470, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_3);
+      }
+      __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __PYX_ERR(0, 470, __pyx_L5_error)
+
+      /* "snappy_wrapper.pyx":466
+ *             success = RawUncompressToIOVec(source, iov_array, iov_cnt)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             # Clean up allocated buffers
+ *             for i in range(iov_cnt):
+*/
+    }
+
+    /* "snappy_wrapper.pyx":473
+ * 
+ *         # Copy data to Python bytes objects
+ *         for i in range(iov_cnt):             # <<<<<<<<<<<<<<
+ *             output_bytes.append((<char*>iov_array[i].iov_base)[:iov_array[i].iov_len])
+ *             free(iov_array[i].iov_base)
+*/
+    __pyx_t_7 = __pyx_v_iov_cnt;
+    __pyx_t_8 = __pyx_t_7;
+    for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_8; __pyx_t_9+=1) {
+      __pyx_v_i = __pyx_t_9;
+
+      /* "snappy_wrapper.pyx":474
+ *         # Copy data to Python bytes objects
+ *         for i in range(iov_cnt):
+ *             output_bytes.append((<char*>iov_array[i].iov_base)[:iov_array[i].iov_len])             # <<<<<<<<<<<<<<
+ *             free(iov_array[i].iov_base)
+ * 
+*/
+      __pyx_t_3 = __Pyx_PyBytes_FromStringAndSize(((char *)(__pyx_v_iov_array[__pyx_v_i]).iov_base) + 0, (__pyx_v_iov_array[__pyx_v_i]).iov_len - 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 474, __pyx_L5_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __pyx_t_16 = __Pyx_PyList_Append(__pyx_v_output_bytes, __pyx_t_3); if (unlikely(__pyx_t_16 == ((int)-1))) __PYX_ERR(0, 474, __pyx_L5_error)
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+
+      /* "snappy_wrapper.pyx":475
+ *         for i in range(iov_cnt):
+ *             output_bytes.append((<char*>iov_array[i].iov_base)[:iov_array[i].iov_len])
+ *             free(iov_array[i].iov_base)             # <<<<<<<<<<<<<<
+ * 
+ *         return output_bytes
+*/
+      free((__pyx_v_iov_array[__pyx_v_i]).iov_base);
+    }
+
+    /* "snappy_wrapper.pyx":477
+ *             free(iov_array[i].iov_base)
+ * 
+ *         return output_bytes             # <<<<<<<<<<<<<<
+ *     finally:
+ *         del source
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __Pyx_INCREF(__pyx_v_output_bytes);
+    __pyx_r = __pyx_v_output_bytes;
+    goto __pyx_L4_return;
+  }
+
+  /* "snappy_wrapper.pyx":479
+ *         return output_bytes
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ *         free(iov_array)
+ * 
+*/
+  /*finally:*/ {
+    __pyx_L5_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_20 = 0; __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0; __pyx_t_25 = 0;
+      __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+      __Pyx_XDECREF(__pyx_t_12); __pyx_t_12 = 0;
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_23, &__pyx_t_24, &__pyx_t_25);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_20, &__pyx_t_21, &__pyx_t_22) < 0)) __Pyx_ErrFetch(&__pyx_t_20, &__pyx_t_21, &__pyx_t_22);
+      __Pyx_XGOTREF(__pyx_t_20);
+      __Pyx_XGOTREF(__pyx_t_21);
+      __Pyx_XGOTREF(__pyx_t_22);
+      __Pyx_XGOTREF(__pyx_t_23);
+      __Pyx_XGOTREF(__pyx_t_24);
+      __Pyx_XGOTREF(__pyx_t_25);
+      __pyx_t_17 = __pyx_lineno; __pyx_t_18 = __pyx_clineno; __pyx_t_19 = __pyx_filename;
+      {
+        delete __pyx_v_source;
+
+        /* "snappy_wrapper.pyx":480
+ *     finally:
+ *         del source
+ *         free(iov_array)             # <<<<<<<<<<<<<<
+ * 
+ * def compress_data(bytes input_data, PyCompressionOptions options=None):
+*/
+        free(__pyx_v_iov_array);
+      }
+      __Pyx_XGIVEREF(__pyx_t_23);
+      __Pyx_XGIVEREF(__pyx_t_24);
+      __Pyx_XGIVEREF(__pyx_t_25);
+      __Pyx_ExceptionReset(__pyx_t_23, __pyx_t_24, __pyx_t_25);
+      __Pyx_XGIVEREF(__pyx_t_20);
+      __Pyx_XGIVEREF(__pyx_t_21);
+      __Pyx_XGIVEREF(__pyx_t_22);
+      __Pyx_ErrRestore(__pyx_t_20, __pyx_t_21, __pyx_t_22);
+      __pyx_t_20 = 0; __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0; __pyx_t_25 = 0;
+      __pyx_lineno = __pyx_t_17; __pyx_clineno = __pyx_t_18; __pyx_filename = __pyx_t_19;
+      goto __pyx_L1_error;
+    }
+    __pyx_L4_return: {
+      __pyx_t_25 = __pyx_r;
+      __pyx_r = 0;
+
+      /* "snappy_wrapper.pyx":479
+ *         return output_bytes
+ *     finally:
+ *         del source             # <<<<<<<<<<<<<<
+ *         free(iov_array)
+ * 
+*/
+      delete __pyx_v_source;
+
+      /* "snappy_wrapper.pyx":480
+ *     finally:
+ *         del source
+ *         free(iov_array)             # <<<<<<<<<<<<<<
+ * 
+ * def compress_data(bytes input_data, PyCompressionOptions options=None):
+*/
+      free(__pyx_v_iov_array);
+      __pyx_r = __pyx_t_25;
+      __pyx_t_25 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":418
+ *         del source
+ * 
+ * def raw_uncompress_to_iovec_from_source(bytes compressed_data, list buffer_sizes):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress to IOVec using Source interface.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_10);
+  __Pyx_XDECREF(__pyx_t_12);
+  __Pyx_AddTraceback("snappy_wrapper.raw_uncompress_to_iovec_from_source", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_output_bytes);
+  __Pyx_XDECREF(__pyx_v_size);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":482
+ *         free(iov_array)
  * 
  * def compress_data(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
  *     """
@@ -3731,16 +7312,16 @@ static PyObject *__pyx_pf_14snappy_wrapper_max_compressed_length(CYTHON_UNUSED P
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_14snappy_wrapper_3compress_data(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_14snappy_wrapper_19compress_data(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_2compress_data, "\n    Compress data using Snappy compression.\n    \n    Args:\n        input_data (bytes): Data to compress\n        options (PyCompressionOptions, optional): Compression options\n        \n    Returns:\n        bytes: Compressed data\n        \n    Raises:\n        RuntimeError: If compression fails\n    ");
-static PyMethodDef __pyx_mdef_14snappy_wrapper_3compress_data = {"compress_data", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_3compress_data, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_2compress_data};
-static PyObject *__pyx_pw_14snappy_wrapper_3compress_data(PyObject *__pyx_self, 
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_18compress_data, "\n    Compress data using Snappy compression.\n    \n    Args:\n        input_data (bytes): Data to compress\n        options (PyCompressionOptions, optional): Compression options\n        \n    Returns:\n        bytes: Compressed data\n        \n    Raises:\n        RuntimeError: If compression fails\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_19compress_data = {"compress_data", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_19compress_data, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_18compress_data};
+static PyObject *__pyx_pw_14snappy_wrapper_19compress_data(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -3771,35 +7352,35 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_input_data,&__pyx_mstate_global->__pyx_n_u_options,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 74, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 482, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  2:
         values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 74, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 482, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 74, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 482, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "compress_data", 0) < 0) __PYX_ERR(0, 74, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "compress_data", 0) < 0) __PYX_ERR(0, 482, __pyx_L3_error)
       if (!values[1]) values[1] = __Pyx_NewRef((PyObject *)((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)Py_None));
       for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
-        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("compress_data", 0, 1, 2, i); __PYX_ERR(0, 74, __pyx_L3_error) }
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("compress_data", 0, 1, 2, i); __PYX_ERR(0, 482, __pyx_L3_error) }
       }
     } else {
       switch (__pyx_nargs) {
         case  2:
         values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 74, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 482, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 74, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 482, __pyx_L3_error)
         break;
         default: goto __pyx_L5_argtuple_error;
       }
@@ -3810,7 +7391,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("compress_data", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 74, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("compress_data", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 482, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -3821,9 +7402,9 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_input_data), (&PyBytes_Type), 1, "input_data", 1))) __PYX_ERR(0, 74, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_options), __pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, 1, "options", 0))) __PYX_ERR(0, 74, __pyx_L1_error)
-  __pyx_r = __pyx_pf_14snappy_wrapper_2compress_data(__pyx_self, __pyx_v_input_data, __pyx_v_options);
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_input_data), (&PyBytes_Type), 1, "input_data", 1))) __PYX_ERR(0, 482, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_options), __pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, 1, "options", 0))) __PYX_ERR(0, 482, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_18compress_data(__pyx_self, __pyx_v_input_data, __pyx_v_options);
 
   /* function exit code */
   goto __pyx_L0;
@@ -3842,7 +7423,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options) {
+static PyObject *__pyx_pf_14snappy_wrapper_18compress_data(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options) {
   char const *__pyx_v_input_ptr;
   size_t __pyx_v_input_length;
   std::string __pyx_v_output;
@@ -3861,7 +7442,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("compress_data", 0);
 
-  /* "snappy_wrapper.pyx":89
+  /* "snappy_wrapper.pyx":497
  *     """
  *     cdef:
  *         const char* input_ptr = input_data             # <<<<<<<<<<<<<<
@@ -3870,12 +7451,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
 */
   if (unlikely(__pyx_v_input_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
-    __PYX_ERR(0, 89, __pyx_L1_error)
+    __PYX_ERR(0, 497, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_input_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 89, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_input_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 497, __pyx_L1_error)
   __pyx_v_input_ptr = __pyx_t_1;
 
-  /* "snappy_wrapper.pyx":90
+  /* "snappy_wrapper.pyx":498
  *     cdef:
  *         const char* input_ptr = input_data
  *         size_t input_length = len(input_data)             # <<<<<<<<<<<<<<
@@ -3884,12 +7465,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
 */
   if (unlikely(__pyx_v_input_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-    __PYX_ERR(0, 90, __pyx_L1_error)
+    __PYX_ERR(0, 498, __pyx_L1_error)
   }
-  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_input_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 90, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_input_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 498, __pyx_L1_error)
   __pyx_v_input_length = __pyx_t_2;
 
-  /* "snappy_wrapper.pyx":94
+  /* "snappy_wrapper.pyx":502
  *         size_t compressed_length
  * 
  *     if options is None:             # <<<<<<<<<<<<<<
@@ -3899,7 +7480,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
   __pyx_t_3 = (((PyObject *)__pyx_v_options) == Py_None);
   if (__pyx_t_3) {
 
-    /* "snappy_wrapper.pyx":95
+    /* "snappy_wrapper.pyx":503
  * 
  *     if options is None:
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -3913,7 +7494,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
         __Pyx_FastGIL_Remember();
         /*try:*/ {
 
-          /* "snappy_wrapper.pyx":96
+          /* "snappy_wrapper.pyx":504
  *     if options is None:
  *         with nogil:
  *             compressed_length = Compress(input_ptr, input_length, &output)             # <<<<<<<<<<<<<<
@@ -3923,7 +7504,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
           __pyx_v_compressed_length = snappy::Compress(__pyx_v_input_ptr, __pyx_v_input_length, (&__pyx_v_output));
         }
 
-        /* "snappy_wrapper.pyx":95
+        /* "snappy_wrapper.pyx":503
  * 
  *     if options is None:
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -3940,7 +7521,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
         }
     }
 
-    /* "snappy_wrapper.pyx":94
+    /* "snappy_wrapper.pyx":502
  *         size_t compressed_length
  * 
  *     if options is None:             # <<<<<<<<<<<<<<
@@ -3950,7 +7531,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
     goto __pyx_L3;
   }
 
-  /* "snappy_wrapper.pyx":98
+  /* "snappy_wrapper.pyx":506
  *             compressed_length = Compress(input_ptr, input_length, &output)
  *     else:
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -3965,7 +7546,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
         __Pyx_FastGIL_Remember();
         /*try:*/ {
 
-          /* "snappy_wrapper.pyx":99
+          /* "snappy_wrapper.pyx":507
  *     else:
  *         with nogil:
  *             compressed_length = Compress(input_ptr, input_length, &output, options.opt)             # <<<<<<<<<<<<<<
@@ -3975,7 +7556,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
           __pyx_v_compressed_length = snappy::Compress(__pyx_v_input_ptr, __pyx_v_input_length, (&__pyx_v_output), __pyx_v_options->opt);
         }
 
-        /* "snappy_wrapper.pyx":98
+        /* "snappy_wrapper.pyx":506
  *             compressed_length = Compress(input_ptr, input_length, &output)
  *     else:
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -3994,7 +7575,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
   }
   __pyx_L3:;
 
-  /* "snappy_wrapper.pyx":101
+  /* "snappy_wrapper.pyx":509
  *             compressed_length = Compress(input_ptr, input_length, &output, options.opt)
  * 
  *     if compressed_length == 0:             # <<<<<<<<<<<<<<
@@ -4004,7 +7585,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
   __pyx_t_3 = (__pyx_v_compressed_length == 0);
   if (unlikely(__pyx_t_3)) {
 
-    /* "snappy_wrapper.pyx":102
+    /* "snappy_wrapper.pyx":510
  * 
  *     if compressed_length == 0:
  *         raise RuntimeError("Compression failed")             # <<<<<<<<<<<<<<
@@ -4020,14 +7601,14 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
       __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
       __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 102, __pyx_L1_error)
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 510, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
     }
     __Pyx_Raise(__pyx_t_4, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __PYX_ERR(0, 102, __pyx_L1_error)
+    __PYX_ERR(0, 510, __pyx_L1_error)
 
-    /* "snappy_wrapper.pyx":101
+    /* "snappy_wrapper.pyx":509
  *             compressed_length = Compress(input_ptr, input_length, &output, options.opt)
  * 
  *     if compressed_length == 0:             # <<<<<<<<<<<<<<
@@ -4036,22 +7617,22 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
 */
   }
 
-  /* "snappy_wrapper.pyx":104
+  /* "snappy_wrapper.pyx":512
  *         raise RuntimeError("Compression failed")
  * 
  *     return output             # <<<<<<<<<<<<<<
  * 
- * def compress_raw(bytes input_data, PyCompressionOptions options=None):
+ * def compress_from_iovec(list data_chunks, PyCompressionOptions options=None):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_4 = __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(__pyx_v_output); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 104, __pyx_L1_error)
+  __pyx_t_4 = __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(__pyx_v_output); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 512, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_r = __pyx_t_4;
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":74
- *     return result
+  /* "snappy_wrapper.pyx":482
+ *         free(iov_array)
  * 
  * def compress_data(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
  *     """
@@ -4071,8 +7652,586 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":106
+/* "snappy_wrapper.pyx":514
  *     return output
+ * 
+ * def compress_from_iovec(list data_chunks, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data from multiple chunks using IOVec.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_21compress_from_iovec(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_20compress_from_iovec, "\n    Compress data from multiple chunks using IOVec.\n    \n    Args:\n        data_chunks (list of bytes): List of data chunks to compress\n        options (PyCompressionOptions, optional): Compression options\n        \n    Returns:\n        bytes: Compressed data\n        \n    Raises:\n        RuntimeError: If compression fails\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_21compress_from_iovec = {"compress_from_iovec", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_21compress_from_iovec, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_20compress_from_iovec};
+static PyObject *__pyx_pw_14snappy_wrapper_21compress_from_iovec(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_data_chunks = 0;
+  struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[2] = {0,0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("compress_from_iovec (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_data_chunks,&__pyx_mstate_global->__pyx_n_u_options,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 514, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  2:
+        values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 514, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 514, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "compress_from_iovec", 0) < 0) __PYX_ERR(0, 514, __pyx_L3_error)
+      if (!values[1]) values[1] = __Pyx_NewRef((PyObject *)((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)Py_None));
+      for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("compress_from_iovec", 0, 1, 2, i); __PYX_ERR(0, 514, __pyx_L3_error) }
+      }
+    } else {
+      switch (__pyx_nargs) {
+        case  2:
+        values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 514, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 514, __pyx_L3_error)
+        break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      if (!values[1]) values[1] = __Pyx_NewRef((PyObject *)((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)Py_None));
+    }
+    __pyx_v_data_chunks = ((PyObject*)values[0]);
+    __pyx_v_options = ((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)values[1]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("compress_from_iovec", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 514, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.compress_from_iovec", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_data_chunks), (&PyList_Type), 1, "data_chunks", 1))) __PYX_ERR(0, 514, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_options), __pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, 1, "options", 0))) __PYX_ERR(0, 514, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_20compress_from_iovec(__pyx_self, __pyx_v_data_chunks, __pyx_v_options);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_20compress_from_iovec(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_data_chunks, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options) {
+  size_t __pyx_v_iov_cnt;
+  struct iovec *__pyx_v_iov_array;
+  std::string __pyx_v_output;
+  size_t __pyx_v_compressed_length;
+  size_t __pyx_v_i;
+  PyObject *__pyx_v_chunk = NULL;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  Py_ssize_t __pyx_t_1;
+  int __pyx_t_2;
+  PyObject *__pyx_t_3 = NULL;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  size_t __pyx_t_6;
+  size_t __pyx_t_7;
+  size_t __pyx_t_8;
+  int __pyx_t_9;
+  PyObject *__pyx_t_10 = NULL;
+  PyObject *__pyx_t_11 = NULL;
+  PyObject *__pyx_t_12[4];
+  PyObject *__pyx_t_13 = NULL;
+  size_t __pyx_t_14;
+  char *__pyx_t_15;
+  int __pyx_t_16;
+  int __pyx_t_17;
+  char const *__pyx_t_18;
+  PyObject *__pyx_t_19 = NULL;
+  PyObject *__pyx_t_20 = NULL;
+  PyObject *__pyx_t_21 = NULL;
+  PyObject *__pyx_t_22 = NULL;
+  PyObject *__pyx_t_23 = NULL;
+  PyObject *__pyx_t_24 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("compress_from_iovec", 0);
+
+  /* "snappy_wrapper.pyx":529
+ *     """
+ *     cdef:
+ *         size_t iov_cnt = len(data_chunks)             # <<<<<<<<<<<<<<
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+ *         string output
+*/
+  if (unlikely(__pyx_v_data_chunks == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 529, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyList_GET_SIZE(__pyx_v_data_chunks); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 529, __pyx_L1_error)
+  __pyx_v_iov_cnt = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":530
+ *     cdef:
+ *         size_t iov_cnt = len(data_chunks)
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)             # <<<<<<<<<<<<<<
+ *         string output
+ *         size_t compressed_length
+*/
+  __pyx_v_iov_array = ((struct iovec *)malloc(((sizeof(struct iovec)) * __pyx_v_iov_cnt)));
+
+  /* "snappy_wrapper.pyx":535
+ *         size_t i
+ * 
+ *     if not iov_array:             # <<<<<<<<<<<<<<
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+*/
+  __pyx_t_2 = (!(__pyx_v_iov_array != 0));
+  if (unlikely(__pyx_t_2)) {
+
+    /* "snappy_wrapper.pyx":536
+ * 
+ *     if not iov_array:
+ *         raise MemoryError("Failed to allocate IOVec array")             # <<<<<<<<<<<<<<
+ * 
+ *     try:
+*/
+    __pyx_t_4 = NULL;
+    __Pyx_INCREF(__pyx_builtin_MemoryError);
+    __pyx_t_5 = __pyx_builtin_MemoryError; 
+    __pyx_t_6 = 1;
+    {
+      PyObject *__pyx_callargs[2] = {__pyx_t_4, __pyx_mstate_global->__pyx_kp_u_Failed_to_allocate_IOVec_array};
+      __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+__pyx_t_6, (2-__pyx_t_6) | (__pyx_t_6*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 536, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+    }
+    __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+    __PYX_ERR(0, 536, __pyx_L1_error)
+
+    /* "snappy_wrapper.pyx":535
+ *         size_t i
+ * 
+ *     if not iov_array:             # <<<<<<<<<<<<<<
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+*/
+  }
+
+  /* "snappy_wrapper.pyx":538
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         # Populate IOVec array
+ *         for i in range(iov_cnt):
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":540
+ *     try:
+ *         # Populate IOVec array
+ *         for i in range(iov_cnt):             # <<<<<<<<<<<<<<
+ *             chunk = data_chunks[i]
+ *             if not isinstance(chunk, bytes):
+*/
+    __pyx_t_6 = __pyx_v_iov_cnt;
+    __pyx_t_7 = __pyx_t_6;
+    for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
+      __pyx_v_i = __pyx_t_8;
+
+      /* "snappy_wrapper.pyx":541
+ *         # Populate IOVec array
+ *         for i in range(iov_cnt):
+ *             chunk = data_chunks[i]             # <<<<<<<<<<<<<<
+ *             if not isinstance(chunk, bytes):
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+*/
+      if (unlikely(__pyx_v_data_chunks == Py_None)) {
+        PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
+        __PYX_ERR(0, 541, __pyx_L5_error)
+      }
+      __pyx_t_3 = __Pyx_GetItemInt_List(__pyx_v_data_chunks, __pyx_v_i, size_t, 0, __Pyx_PyLong_FromSize_t, 1, 0, 1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 541, __pyx_L5_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __Pyx_XDECREF_SET(__pyx_v_chunk, __pyx_t_3);
+      __pyx_t_3 = 0;
+
+      /* "snappy_wrapper.pyx":542
+ *         for i in range(iov_cnt):
+ *             chunk = data_chunks[i]
+ *             if not isinstance(chunk, bytes):             # <<<<<<<<<<<<<<
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+*/
+      __pyx_t_2 = PyBytes_Check(__pyx_v_chunk); 
+      __pyx_t_9 = (!__pyx_t_2);
+      if (unlikely(__pyx_t_9)) {
+
+        /* "snappy_wrapper.pyx":543
+ *             chunk = data_chunks[i]
+ *             if not isinstance(chunk, bytes):
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")             # <<<<<<<<<<<<<<
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+ *             iov_array[i].iov_len = len(chunk)
+*/
+        __pyx_t_5 = NULL;
+        __Pyx_INCREF(__pyx_builtin_TypeError);
+        __pyx_t_4 = __pyx_builtin_TypeError; 
+        __pyx_t_10 = __Pyx_PyUnicode_From_size_t(__pyx_v_i, 0, ' ', 'd'); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 543, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __pyx_t_11 = __Pyx_PyObject_FormatSimple(((PyObject *)Py_TYPE(__pyx_v_chunk)), __pyx_mstate_global->__pyx_empty_unicode); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 543, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_11);
+        __pyx_t_12[0] = __pyx_mstate_global->__pyx_kp_u_Chunk;
+        __pyx_t_12[1] = __pyx_t_10;
+        __pyx_t_12[2] = __pyx_mstate_global->__pyx_kp_u_must_be_bytes_got;
+        __pyx_t_12[3] = __pyx_t_11;
+        __pyx_t_13 = __Pyx_PyUnicode_Join(__pyx_t_12, 4, 6 + __Pyx_PyUnicode_GET_LENGTH(__pyx_t_10) + 20 + __Pyx_PyUnicode_GET_LENGTH(__pyx_t_11), 127 | __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_11));
+        if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 543, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_13);
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+        __pyx_t_14 = 1;
+        {
+          PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_t_13};
+          __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+__pyx_t_14, (2-__pyx_t_14) | (__pyx_t_14*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+          __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+          __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
+          __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+          if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 543, __pyx_L5_error)
+          __Pyx_GOTREF(__pyx_t_3);
+        }
+        __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+        __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+        __PYX_ERR(0, 543, __pyx_L5_error)
+
+        /* "snappy_wrapper.pyx":542
+ *         for i in range(iov_cnt):
+ *             chunk = data_chunks[i]
+ *             if not isinstance(chunk, bytes):             # <<<<<<<<<<<<<<
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+*/
+      }
+
+      /* "snappy_wrapper.pyx":544
+ *             if not isinstance(chunk, bytes):
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)             # <<<<<<<<<<<<<<
+ *             iov_array[i].iov_len = len(chunk)
+ * 
+*/
+      __pyx_t_15 = PyBytes_AsString(__pyx_v_chunk); if (unlikely(__pyx_t_15 == ((char *)0))) __PYX_ERR(0, 544, __pyx_L5_error)
+      (__pyx_v_iov_array[__pyx_v_i]).iov_base = ((void *)__pyx_t_15);
+
+      /* "snappy_wrapper.pyx":545
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+ *             iov_array[i].iov_len = len(chunk)             # <<<<<<<<<<<<<<
+ * 
+ *         if options is None:
+*/
+      __pyx_t_1 = PyObject_Length(__pyx_v_chunk); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 545, __pyx_L5_error)
+      (__pyx_v_iov_array[__pyx_v_i]).iov_len = __pyx_t_1;
+    }
+
+    /* "snappy_wrapper.pyx":547
+ *             iov_array[i].iov_len = len(chunk)
+ * 
+ *         if options is None:             # <<<<<<<<<<<<<<
+ *             with nogil:
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output)
+*/
+    __pyx_t_9 = (((PyObject *)__pyx_v_options) == Py_None);
+    if (__pyx_t_9) {
+
+      /* "snappy_wrapper.pyx":548
+ * 
+ *         if options is None:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output)
+ *         else:
+*/
+      {
+          PyThreadState *_save;
+          _save = NULL;
+          Py_UNBLOCK_THREADS
+          __Pyx_FastGIL_Remember();
+          /*try:*/ {
+
+            /* "snappy_wrapper.pyx":549
+ *         if options is None:
+ *             with nogil:
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output)             # <<<<<<<<<<<<<<
+ *         else:
+ *             with nogil:
+*/
+            __pyx_v_compressed_length = snappy::CompressFromIOVec(__pyx_v_iov_array, __pyx_v_iov_cnt, (&__pyx_v_output));
+          }
+
+          /* "snappy_wrapper.pyx":548
+ * 
+ *         if options is None:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output)
+ *         else:
+*/
+          /*finally:*/ {
+            /*normal exit:*/{
+              __Pyx_FastGIL_Forget();
+              Py_BLOCK_THREADS
+              goto __pyx_L13;
+            }
+            __pyx_L13:;
+          }
+      }
+
+      /* "snappy_wrapper.pyx":547
+ *             iov_array[i].iov_len = len(chunk)
+ * 
+ *         if options is None:             # <<<<<<<<<<<<<<
+ *             with nogil:
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output)
+*/
+      goto __pyx_L10;
+    }
+
+    /* "snappy_wrapper.pyx":551
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output)
+ *         else:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output, options.opt)
+ * 
+*/
+    /*else*/ {
+      {
+          PyThreadState *_save;
+          _save = NULL;
+          Py_UNBLOCK_THREADS
+          __Pyx_FastGIL_Remember();
+          /*try:*/ {
+
+            /* "snappy_wrapper.pyx":552
+ *         else:
+ *             with nogil:
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output, options.opt)             # <<<<<<<<<<<<<<
+ * 
+ *         if compressed_length == 0:
+*/
+            __pyx_v_compressed_length = snappy::CompressFromIOVec(__pyx_v_iov_array, __pyx_v_iov_cnt, (&__pyx_v_output), __pyx_v_options->opt);
+          }
+
+          /* "snappy_wrapper.pyx":551
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output)
+ *         else:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output, options.opt)
+ * 
+*/
+          /*finally:*/ {
+            /*normal exit:*/{
+              __Pyx_FastGIL_Forget();
+              Py_BLOCK_THREADS
+              goto __pyx_L16;
+            }
+            __pyx_L16:;
+          }
+      }
+    }
+    __pyx_L10:;
+
+    /* "snappy_wrapper.pyx":554
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output, options.opt)
+ * 
+ *         if compressed_length == 0:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("IOVec compression failed")
+ * 
+*/
+    __pyx_t_9 = (__pyx_v_compressed_length == 0);
+    if (unlikely(__pyx_t_9)) {
+
+      /* "snappy_wrapper.pyx":555
+ * 
+ *         if compressed_length == 0:
+ *             raise RuntimeError("IOVec compression failed")             # <<<<<<<<<<<<<<
+ * 
+ *         return output
+*/
+      __pyx_t_4 = NULL;
+      __Pyx_INCREF(__pyx_builtin_RuntimeError);
+      __pyx_t_13 = __pyx_builtin_RuntimeError; 
+      __pyx_t_6 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_4, __pyx_mstate_global->__pyx_kp_u_IOVec_compression_failed};
+        __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_13, __pyx_callargs+__pyx_t_6, (2-__pyx_t_6) | (__pyx_t_6*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+        __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
+        if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 555, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_3);
+      }
+      __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __PYX_ERR(0, 555, __pyx_L5_error)
+
+      /* "snappy_wrapper.pyx":554
+ *                 compressed_length = CompressFromIOVec(iov_array, iov_cnt, &output, options.opt)
+ * 
+ *         if compressed_length == 0:             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("IOVec compression failed")
+ * 
+*/
+    }
+
+    /* "snappy_wrapper.pyx":557
+ *             raise RuntimeError("IOVec compression failed")
+ * 
+ *         return output             # <<<<<<<<<<<<<<
+ *     finally:
+ *         free(iov_array)
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_3 = __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(__pyx_v_output); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 557, __pyx_L5_error)
+    __Pyx_GOTREF(__pyx_t_3);
+    __pyx_r = __pyx_t_3;
+    __pyx_t_3 = 0;
+    goto __pyx_L4_return;
+  }
+
+  /* "snappy_wrapper.pyx":559
+ *         return output
+ *     finally:
+ *         free(iov_array)             # <<<<<<<<<<<<<<
+ * 
+ * def compress_raw(bytes input_data, PyCompressionOptions options=None):
+*/
+  /*finally:*/ {
+    __pyx_L5_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_19 = 0; __pyx_t_20 = 0; __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0;
+      __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+      __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __Pyx_XDECREF(__pyx_t_13); __pyx_t_13 = 0;
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_22, &__pyx_t_23, &__pyx_t_24);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_19, &__pyx_t_20, &__pyx_t_21) < 0)) __Pyx_ErrFetch(&__pyx_t_19, &__pyx_t_20, &__pyx_t_21);
+      __Pyx_XGOTREF(__pyx_t_19);
+      __Pyx_XGOTREF(__pyx_t_20);
+      __Pyx_XGOTREF(__pyx_t_21);
+      __Pyx_XGOTREF(__pyx_t_22);
+      __Pyx_XGOTREF(__pyx_t_23);
+      __Pyx_XGOTREF(__pyx_t_24);
+      __pyx_t_16 = __pyx_lineno; __pyx_t_17 = __pyx_clineno; __pyx_t_18 = __pyx_filename;
+      {
+        free(__pyx_v_iov_array);
+      }
+      __Pyx_XGIVEREF(__pyx_t_22);
+      __Pyx_XGIVEREF(__pyx_t_23);
+      __Pyx_XGIVEREF(__pyx_t_24);
+      __Pyx_ExceptionReset(__pyx_t_22, __pyx_t_23, __pyx_t_24);
+      __Pyx_XGIVEREF(__pyx_t_19);
+      __Pyx_XGIVEREF(__pyx_t_20);
+      __Pyx_XGIVEREF(__pyx_t_21);
+      __Pyx_ErrRestore(__pyx_t_19, __pyx_t_20, __pyx_t_21);
+      __pyx_t_19 = 0; __pyx_t_20 = 0; __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0;
+      __pyx_lineno = __pyx_t_16; __pyx_clineno = __pyx_t_17; __pyx_filename = __pyx_t_18;
+      goto __pyx_L1_error;
+    }
+    __pyx_L4_return: {
+      __pyx_t_24 = __pyx_r;
+      __pyx_r = 0;
+      free(__pyx_v_iov_array);
+      __pyx_r = __pyx_t_24;
+      __pyx_t_24 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":514
+ *     return output
+ * 
+ * def compress_from_iovec(list data_chunks, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data from multiple chunks using IOVec.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_10);
+  __Pyx_XDECREF(__pyx_t_11);
+  __Pyx_XDECREF(__pyx_t_13);
+  __Pyx_AddTraceback("snappy_wrapper.compress_from_iovec", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_chunk);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":561
+ *         free(iov_array)
  * 
  * def compress_raw(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
  *     """
@@ -4080,16 +8239,16 @@ static PyObject *__pyx_pf_14snappy_wrapper_2compress_data(CYTHON_UNUSED PyObject
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_14snappy_wrapper_5compress_raw(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_14snappy_wrapper_23compress_raw(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_4compress_raw, "\n    Compress data using Snappy raw compression.\n    \n    Args:\n        input_data (bytes): Data to compress\n        options (PyCompressionOptions, optional): Compression options\n        \n    Returns:\n        bytes: Compressed data\n    ");
-static PyMethodDef __pyx_mdef_14snappy_wrapper_5compress_raw = {"compress_raw", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_5compress_raw, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_4compress_raw};
-static PyObject *__pyx_pw_14snappy_wrapper_5compress_raw(PyObject *__pyx_self, 
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_22compress_raw, "\n    Compress data using Snappy raw compression.\n    \n    Args:\n        input_data (bytes): Data to compress\n        options (PyCompressionOptions, optional): Compression options\n        \n    Returns:\n        bytes: Compressed data\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_23compress_raw = {"compress_raw", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_23compress_raw, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_22compress_raw};
+static PyObject *__pyx_pw_14snappy_wrapper_23compress_raw(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -4120,35 +8279,35 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_input_data,&__pyx_mstate_global->__pyx_n_u_options,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 106, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 561, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  2:
         values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 106, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 561, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 106, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 561, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "compress_raw", 0) < 0) __PYX_ERR(0, 106, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "compress_raw", 0) < 0) __PYX_ERR(0, 561, __pyx_L3_error)
       if (!values[1]) values[1] = __Pyx_NewRef((PyObject *)((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)Py_None));
       for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
-        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("compress_raw", 0, 1, 2, i); __PYX_ERR(0, 106, __pyx_L3_error) }
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("compress_raw", 0, 1, 2, i); __PYX_ERR(0, 561, __pyx_L3_error) }
       }
     } else {
       switch (__pyx_nargs) {
         case  2:
         values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 106, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 561, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 106, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 561, __pyx_L3_error)
         break;
         default: goto __pyx_L5_argtuple_error;
       }
@@ -4159,7 +8318,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("compress_raw", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 106, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("compress_raw", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 561, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4170,9 +8329,9 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_input_data), (&PyBytes_Type), 1, "input_data", 1))) __PYX_ERR(0, 106, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_options), __pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, 1, "options", 0))) __PYX_ERR(0, 106, __pyx_L1_error)
-  __pyx_r = __pyx_pf_14snappy_wrapper_4compress_raw(__pyx_self, __pyx_v_input_data, __pyx_v_options);
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_input_data), (&PyBytes_Type), 1, "input_data", 1))) __PYX_ERR(0, 561, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_options), __pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, 1, "options", 0))) __PYX_ERR(0, 561, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_22compress_raw(__pyx_self, __pyx_v_input_data, __pyx_v_options);
 
   /* function exit code */
   goto __pyx_L0;
@@ -4191,7 +8350,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options) {
+static PyObject *__pyx_pf_14snappy_wrapper_22compress_raw(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_input_data, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options) {
   char const *__pyx_v_input_ptr;
   size_t __pyx_v_input_length;
   size_t __pyx_v_max_output_length;
@@ -4214,7 +8373,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("compress_raw", 0);
 
-  /* "snappy_wrapper.pyx":118
+  /* "snappy_wrapper.pyx":573
  *     """
  *     cdef:
  *         const char* input_ptr = input_data             # <<<<<<<<<<<<<<
@@ -4223,12 +8382,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
 */
   if (unlikely(__pyx_v_input_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
-    __PYX_ERR(0, 118, __pyx_L1_error)
+    __PYX_ERR(0, 573, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_input_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_input_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 573, __pyx_L1_error)
   __pyx_v_input_ptr = __pyx_t_1;
 
-  /* "snappy_wrapper.pyx":119
+  /* "snappy_wrapper.pyx":574
  *     cdef:
  *         const char* input_ptr = input_data
  *         size_t input_length = len(input_data)             # <<<<<<<<<<<<<<
@@ -4237,12 +8396,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
 */
   if (unlikely(__pyx_v_input_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-    __PYX_ERR(0, 119, __pyx_L1_error)
+    __PYX_ERR(0, 574, __pyx_L1_error)
   }
-  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_input_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_input_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 574, __pyx_L1_error)
   __pyx_v_input_length = __pyx_t_2;
 
-  /* "snappy_wrapper.pyx":120
+  /* "snappy_wrapper.pyx":575
  *         const char* input_ptr = input_data
  *         size_t input_length = len(input_data)
  *         size_t max_output_length = MaxCompressedLength(input_length)             # <<<<<<<<<<<<<<
@@ -4251,7 +8410,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
 */
   __pyx_v_max_output_length = snappy::MaxCompressedLength(__pyx_v_input_length);
 
-  /* "snappy_wrapper.pyx":121
+  /* "snappy_wrapper.pyx":576
  *         size_t input_length = len(input_data)
  *         size_t max_output_length = MaxCompressedLength(input_length)
  *         bytes output_buffer = bytes(max_output_length)             # <<<<<<<<<<<<<<
@@ -4261,7 +8420,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
   __pyx_t_4 = NULL;
   __Pyx_INCREF((PyObject *)(&PyBytes_Type));
   __pyx_t_5 = ((PyObject *)(&PyBytes_Type)); 
-  __pyx_t_6 = __Pyx_PyLong_FromSize_t(__pyx_v_max_output_length); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyLong_FromSize_t(__pyx_v_max_output_length); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 576, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __pyx_t_7 = 1;
   {
@@ -4270,23 +8429,23 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
     __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
     __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 121, __pyx_L1_error)
+    if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 576, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
   }
   __pyx_v_output_buffer = ((PyObject*)__pyx_t_3);
   __pyx_t_3 = 0;
 
-  /* "snappy_wrapper.pyx":122
+  /* "snappy_wrapper.pyx":577
  *         size_t max_output_length = MaxCompressedLength(input_length)
  *         bytes output_buffer = bytes(max_output_length)
  *         char* output_ptr = output_buffer             # <<<<<<<<<<<<<<
  *         size_t compressed_length = max_output_length
  * 
 */
-  __pyx_t_8 = __Pyx_PyBytes_AsWritableString(__pyx_v_output_buffer); if (unlikely((!__pyx_t_8) && PyErr_Occurred())) __PYX_ERR(0, 122, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyBytes_AsWritableString(__pyx_v_output_buffer); if (unlikely((!__pyx_t_8) && PyErr_Occurred())) __PYX_ERR(0, 577, __pyx_L1_error)
   __pyx_v_output_ptr = __pyx_t_8;
 
-  /* "snappy_wrapper.pyx":123
+  /* "snappy_wrapper.pyx":578
  *         bytes output_buffer = bytes(max_output_length)
  *         char* output_ptr = output_buffer
  *         size_t compressed_length = max_output_length             # <<<<<<<<<<<<<<
@@ -4295,7 +8454,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
 */
   __pyx_v_compressed_length = __pyx_v_max_output_length;
 
-  /* "snappy_wrapper.pyx":125
+  /* "snappy_wrapper.pyx":580
  *         size_t compressed_length = max_output_length
  * 
  *     if options is None:             # <<<<<<<<<<<<<<
@@ -4305,7 +8464,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
   __pyx_t_9 = (((PyObject *)__pyx_v_options) == Py_None);
   if (__pyx_t_9) {
 
-    /* "snappy_wrapper.pyx":126
+    /* "snappy_wrapper.pyx":581
  * 
  *     if options is None:
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -4319,7 +8478,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
         __Pyx_FastGIL_Remember();
         /*try:*/ {
 
-          /* "snappy_wrapper.pyx":127
+          /* "snappy_wrapper.pyx":582
  *     if options is None:
  *         with nogil:
  *             RawCompress(input_ptr, input_length, output_ptr, &compressed_length)             # <<<<<<<<<<<<<<
@@ -4329,7 +8488,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
           snappy::RawCompress(__pyx_v_input_ptr, __pyx_v_input_length, __pyx_v_output_ptr, (&__pyx_v_compressed_length));
         }
 
-        /* "snappy_wrapper.pyx":126
+        /* "snappy_wrapper.pyx":581
  * 
  *     if options is None:
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -4346,7 +8505,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
         }
     }
 
-    /* "snappy_wrapper.pyx":125
+    /* "snappy_wrapper.pyx":580
  *         size_t compressed_length = max_output_length
  * 
  *     if options is None:             # <<<<<<<<<<<<<<
@@ -4356,7 +8515,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
     goto __pyx_L3;
   }
 
-  /* "snappy_wrapper.pyx":129
+  /* "snappy_wrapper.pyx":584
  *             RawCompress(input_ptr, input_length, output_ptr, &compressed_length)
  *     else:
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -4371,7 +8530,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
         __Pyx_FastGIL_Remember();
         /*try:*/ {
 
-          /* "snappy_wrapper.pyx":130
+          /* "snappy_wrapper.pyx":585
  *     else:
  *         with nogil:
  *             RawCompress(input_ptr, input_length, output_ptr, &compressed_length, options.opt)             # <<<<<<<<<<<<<<
@@ -4381,7 +8540,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
           snappy::RawCompress(__pyx_v_input_ptr, __pyx_v_input_length, __pyx_v_output_ptr, (&__pyx_v_compressed_length), __pyx_v_options->opt);
         }
 
-        /* "snappy_wrapper.pyx":129
+        /* "snappy_wrapper.pyx":584
  *             RawCompress(input_ptr, input_length, output_ptr, &compressed_length)
  *     else:
  *         with nogil:             # <<<<<<<<<<<<<<
@@ -4400,22 +8559,22 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
   }
   __pyx_L3:;
 
-  /* "snappy_wrapper.pyx":132
+  /* "snappy_wrapper.pyx":587
  *             RawCompress(input_ptr, input_length, output_ptr, &compressed_length, options.opt)
  * 
  *     return output_buffer[:compressed_length]             # <<<<<<<<<<<<<<
  * 
- * def uncompress_data(bytes compressed_data):
+ * def compress_raw_from_iovec(list data_chunks, PyCompressionOptions options=None):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_3 = PySequence_GetSlice(__pyx_v_output_buffer, 0, __pyx_v_compressed_length); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 132, __pyx_L1_error)
+  __pyx_t_3 = PySequence_GetSlice(__pyx_v_output_buffer, 0, __pyx_v_compressed_length); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 587, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __pyx_r = __pyx_t_3;
   __pyx_t_3 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":106
- *     return output
+  /* "snappy_wrapper.pyx":561
+ *         free(iov_array)
  * 
  * def compress_raw(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
  *     """
@@ -4437,8 +8596,620 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":134
+/* "snappy_wrapper.pyx":589
  *     return output_buffer[:compressed_length]
+ * 
+ * def compress_raw_from_iovec(list data_chunks, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data from multiple chunks using raw IOVec compression.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_25compress_raw_from_iovec(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_24compress_raw_from_iovec, "\n    Compress data from multiple chunks using raw IOVec compression.\n    \n    Args:\n        data_chunks (list of bytes): List of data chunks to compress\n        options (PyCompressionOptions, optional): Compression options\n        \n    Returns:\n        bytes: Compressed data\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_25compress_raw_from_iovec = {"compress_raw_from_iovec", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_25compress_raw_from_iovec, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_24compress_raw_from_iovec};
+static PyObject *__pyx_pw_14snappy_wrapper_25compress_raw_from_iovec(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_data_chunks = 0;
+  struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[2] = {0,0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("compress_raw_from_iovec (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_data_chunks,&__pyx_mstate_global->__pyx_n_u_options,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 589, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  2:
+        values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 589, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 589, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "compress_raw_from_iovec", 0) < 0) __PYX_ERR(0, 589, __pyx_L3_error)
+      if (!values[1]) values[1] = __Pyx_NewRef((PyObject *)((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)Py_None));
+      for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("compress_raw_from_iovec", 0, 1, 2, i); __PYX_ERR(0, 589, __pyx_L3_error) }
+      }
+    } else {
+      switch (__pyx_nargs) {
+        case  2:
+        values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 589, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 589, __pyx_L3_error)
+        break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      if (!values[1]) values[1] = __Pyx_NewRef((PyObject *)((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)Py_None));
+    }
+    __pyx_v_data_chunks = ((PyObject*)values[0]);
+    __pyx_v_options = ((struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *)values[1]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("compress_raw_from_iovec", 0, 1, 2, __pyx_nargs); __PYX_ERR(0, 589, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.compress_raw_from_iovec", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_data_chunks), (&PyList_Type), 1, "data_chunks", 1))) __PYX_ERR(0, 589, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_options), __pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, 1, "options", 0))) __PYX_ERR(0, 589, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_24compress_raw_from_iovec(__pyx_self, __pyx_v_data_chunks, __pyx_v_options);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_24compress_raw_from_iovec(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_data_chunks, struct __pyx_obj_14snappy_wrapper_PyCompressionOptions *__pyx_v_options) {
+  size_t __pyx_v_iov_cnt;
+  struct iovec *__pyx_v_iov_array;
+  size_t __pyx_v_total_length;
+  size_t __pyx_v_max_output_length;
+  PyObject *__pyx_v_output_buffer = 0;
+  char *__pyx_v_output_ptr;
+  size_t __pyx_v_compressed_length;
+  size_t __pyx_v_i;
+  PyObject *__pyx_v_chunk = NULL;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  Py_ssize_t __pyx_t_1;
+  int __pyx_t_2;
+  PyObject *__pyx_t_3 = NULL;
+  PyObject *__pyx_t_4 = NULL;
+  PyObject *__pyx_t_5 = NULL;
+  size_t __pyx_t_6;
+  size_t __pyx_t_7;
+  size_t __pyx_t_8;
+  int __pyx_t_9;
+  PyObject *__pyx_t_10 = NULL;
+  PyObject *__pyx_t_11 = NULL;
+  PyObject *__pyx_t_12[4];
+  PyObject *__pyx_t_13 = NULL;
+  size_t __pyx_t_14;
+  char *__pyx_t_15;
+  int __pyx_t_16;
+  int __pyx_t_17;
+  char const *__pyx_t_18;
+  PyObject *__pyx_t_19 = NULL;
+  PyObject *__pyx_t_20 = NULL;
+  PyObject *__pyx_t_21 = NULL;
+  PyObject *__pyx_t_22 = NULL;
+  PyObject *__pyx_t_23 = NULL;
+  PyObject *__pyx_t_24 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("compress_raw_from_iovec", 0);
+
+  /* "snappy_wrapper.pyx":601
+ *     """
+ *     cdef:
+ *         size_t iov_cnt = len(data_chunks)             # <<<<<<<<<<<<<<
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+ *         size_t total_length = 0
+*/
+  if (unlikely(__pyx_v_data_chunks == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 601, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyList_GET_SIZE(__pyx_v_data_chunks); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 601, __pyx_L1_error)
+  __pyx_v_iov_cnt = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":602
+ *     cdef:
+ *         size_t iov_cnt = len(data_chunks)
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)             # <<<<<<<<<<<<<<
+ *         size_t total_length = 0
+ *         size_t max_output_length
+*/
+  __pyx_v_iov_array = ((struct iovec *)malloc(((sizeof(struct iovec)) * __pyx_v_iov_cnt)));
+
+  /* "snappy_wrapper.pyx":603
+ *         size_t iov_cnt = len(data_chunks)
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+ *         size_t total_length = 0             # <<<<<<<<<<<<<<
+ *         size_t max_output_length
+ *         bytes output_buffer
+*/
+  __pyx_v_total_length = 0;
+
+  /* "snappy_wrapper.pyx":610
+ *         size_t i
+ * 
+ *     if not iov_array:             # <<<<<<<<<<<<<<
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+*/
+  __pyx_t_2 = (!(__pyx_v_iov_array != 0));
+  if (unlikely(__pyx_t_2)) {
+
+    /* "snappy_wrapper.pyx":611
+ * 
+ *     if not iov_array:
+ *         raise MemoryError("Failed to allocate IOVec array")             # <<<<<<<<<<<<<<
+ * 
+ *     try:
+*/
+    __pyx_t_4 = NULL;
+    __Pyx_INCREF(__pyx_builtin_MemoryError);
+    __pyx_t_5 = __pyx_builtin_MemoryError; 
+    __pyx_t_6 = 1;
+    {
+      PyObject *__pyx_callargs[2] = {__pyx_t_4, __pyx_mstate_global->__pyx_kp_u_Failed_to_allocate_IOVec_array};
+      __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+__pyx_t_6, (2-__pyx_t_6) | (__pyx_t_6*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 611, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+    }
+    __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+    __PYX_ERR(0, 611, __pyx_L1_error)
+
+    /* "snappy_wrapper.pyx":610
+ *         size_t i
+ * 
+ *     if not iov_array:             # <<<<<<<<<<<<<<
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+*/
+  }
+
+  /* "snappy_wrapper.pyx":613
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         # Populate IOVec array and calculate total length
+ *         for i in range(iov_cnt):
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":615
+ *     try:
+ *         # Populate IOVec array and calculate total length
+ *         for i in range(iov_cnt):             # <<<<<<<<<<<<<<
+ *             chunk = data_chunks[i]
+ *             if not isinstance(chunk, bytes):
+*/
+    __pyx_t_6 = __pyx_v_iov_cnt;
+    __pyx_t_7 = __pyx_t_6;
+    for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
+      __pyx_v_i = __pyx_t_8;
+
+      /* "snappy_wrapper.pyx":616
+ *         # Populate IOVec array and calculate total length
+ *         for i in range(iov_cnt):
+ *             chunk = data_chunks[i]             # <<<<<<<<<<<<<<
+ *             if not isinstance(chunk, bytes):
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+*/
+      if (unlikely(__pyx_v_data_chunks == Py_None)) {
+        PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
+        __PYX_ERR(0, 616, __pyx_L5_error)
+      }
+      __pyx_t_3 = __Pyx_GetItemInt_List(__pyx_v_data_chunks, __pyx_v_i, size_t, 0, __Pyx_PyLong_FromSize_t, 1, 0, 1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 616, __pyx_L5_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __Pyx_XDECREF_SET(__pyx_v_chunk, __pyx_t_3);
+      __pyx_t_3 = 0;
+
+      /* "snappy_wrapper.pyx":617
+ *         for i in range(iov_cnt):
+ *             chunk = data_chunks[i]
+ *             if not isinstance(chunk, bytes):             # <<<<<<<<<<<<<<
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+*/
+      __pyx_t_2 = PyBytes_Check(__pyx_v_chunk); 
+      __pyx_t_9 = (!__pyx_t_2);
+      if (unlikely(__pyx_t_9)) {
+
+        /* "snappy_wrapper.pyx":618
+ *             chunk = data_chunks[i]
+ *             if not isinstance(chunk, bytes):
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")             # <<<<<<<<<<<<<<
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+ *             iov_array[i].iov_len = len(chunk)
+*/
+        __pyx_t_5 = NULL;
+        __Pyx_INCREF(__pyx_builtin_TypeError);
+        __pyx_t_4 = __pyx_builtin_TypeError; 
+        __pyx_t_10 = __Pyx_PyUnicode_From_size_t(__pyx_v_i, 0, ' ', 'd'); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 618, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __pyx_t_11 = __Pyx_PyObject_FormatSimple(((PyObject *)Py_TYPE(__pyx_v_chunk)), __pyx_mstate_global->__pyx_empty_unicode); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 618, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_11);
+        __pyx_t_12[0] = __pyx_mstate_global->__pyx_kp_u_Chunk;
+        __pyx_t_12[1] = __pyx_t_10;
+        __pyx_t_12[2] = __pyx_mstate_global->__pyx_kp_u_must_be_bytes_got;
+        __pyx_t_12[3] = __pyx_t_11;
+        __pyx_t_13 = __Pyx_PyUnicode_Join(__pyx_t_12, 4, 6 + __Pyx_PyUnicode_GET_LENGTH(__pyx_t_10) + 20 + __Pyx_PyUnicode_GET_LENGTH(__pyx_t_11), 127 | __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_11));
+        if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 618, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_13);
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+        __pyx_t_14 = 1;
+        {
+          PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_t_13};
+          __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_4, __pyx_callargs+__pyx_t_14, (2-__pyx_t_14) | (__pyx_t_14*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+          __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+          __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
+          __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+          if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 618, __pyx_L5_error)
+          __Pyx_GOTREF(__pyx_t_3);
+        }
+        __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+        __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+        __PYX_ERR(0, 618, __pyx_L5_error)
+
+        /* "snappy_wrapper.pyx":617
+ *         for i in range(iov_cnt):
+ *             chunk = data_chunks[i]
+ *             if not isinstance(chunk, bytes):             # <<<<<<<<<<<<<<
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+*/
+      }
+
+      /* "snappy_wrapper.pyx":619
+ *             if not isinstance(chunk, bytes):
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)             # <<<<<<<<<<<<<<
+ *             iov_array[i].iov_len = len(chunk)
+ *             total_length += len(chunk)
+*/
+      __pyx_t_15 = PyBytes_AsString(__pyx_v_chunk); if (unlikely(__pyx_t_15 == ((char *)0))) __PYX_ERR(0, 619, __pyx_L5_error)
+      (__pyx_v_iov_array[__pyx_v_i]).iov_base = ((void *)__pyx_t_15);
+
+      /* "snappy_wrapper.pyx":620
+ *                 raise TypeError(f"Chunk {i} must be bytes, got {type(chunk)}")
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+ *             iov_array[i].iov_len = len(chunk)             # <<<<<<<<<<<<<<
+ *             total_length += len(chunk)
+ * 
+*/
+      __pyx_t_1 = PyObject_Length(__pyx_v_chunk); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 620, __pyx_L5_error)
+      (__pyx_v_iov_array[__pyx_v_i]).iov_len = __pyx_t_1;
+
+      /* "snappy_wrapper.pyx":621
+ *             iov_array[i].iov_base = <void*>PyBytes_AsString(chunk)
+ *             iov_array[i].iov_len = len(chunk)
+ *             total_length += len(chunk)             # <<<<<<<<<<<<<<
+ * 
+ *         max_output_length = MaxCompressedLength(total_length)
+*/
+      __pyx_t_1 = PyObject_Length(__pyx_v_chunk); if (unlikely(__pyx_t_1 == ((Py_ssize_t)-1))) __PYX_ERR(0, 621, __pyx_L5_error)
+      __pyx_v_total_length = (__pyx_v_total_length + __pyx_t_1);
+    }
+
+    /* "snappy_wrapper.pyx":623
+ *             total_length += len(chunk)
+ * 
+ *         max_output_length = MaxCompressedLength(total_length)             # <<<<<<<<<<<<<<
+ *         output_buffer = bytes(max_output_length)
+ *         output_ptr = output_buffer
+*/
+    __pyx_v_max_output_length = snappy::MaxCompressedLength(__pyx_v_total_length);
+
+    /* "snappy_wrapper.pyx":624
+ * 
+ *         max_output_length = MaxCompressedLength(total_length)
+ *         output_buffer = bytes(max_output_length)             # <<<<<<<<<<<<<<
+ *         output_ptr = output_buffer
+ *         compressed_length = max_output_length
+*/
+    __pyx_t_4 = NULL;
+    __Pyx_INCREF((PyObject *)(&PyBytes_Type));
+    __pyx_t_13 = ((PyObject *)(&PyBytes_Type)); 
+    __pyx_t_5 = __Pyx_PyLong_FromSize_t(__pyx_v_max_output_length); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 624, __pyx_L5_error)
+    __Pyx_GOTREF(__pyx_t_5);
+    __pyx_t_6 = 1;
+    {
+      PyObject *__pyx_callargs[2] = {__pyx_t_4, __pyx_t_5};
+      __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_13, __pyx_callargs+__pyx_t_6, (2-__pyx_t_6) | (__pyx_t_6*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 624, __pyx_L5_error)
+      __Pyx_GOTREF(__pyx_t_3);
+    }
+    __pyx_v_output_buffer = ((PyObject*)__pyx_t_3);
+    __pyx_t_3 = 0;
+
+    /* "snappy_wrapper.pyx":625
+ *         max_output_length = MaxCompressedLength(total_length)
+ *         output_buffer = bytes(max_output_length)
+ *         output_ptr = output_buffer             # <<<<<<<<<<<<<<
+ *         compressed_length = max_output_length
+ * 
+*/
+    __pyx_t_15 = __Pyx_PyBytes_AsWritableString(__pyx_v_output_buffer); if (unlikely((!__pyx_t_15) && PyErr_Occurred())) __PYX_ERR(0, 625, __pyx_L5_error)
+    __pyx_v_output_ptr = __pyx_t_15;
+
+    /* "snappy_wrapper.pyx":626
+ *         output_buffer = bytes(max_output_length)
+ *         output_ptr = output_buffer
+ *         compressed_length = max_output_length             # <<<<<<<<<<<<<<
+ * 
+ *         if options is None:
+*/
+    __pyx_v_compressed_length = __pyx_v_max_output_length;
+
+    /* "snappy_wrapper.pyx":628
+ *         compressed_length = max_output_length
+ * 
+ *         if options is None:             # <<<<<<<<<<<<<<
+ *             with nogil:
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length)
+*/
+    __pyx_t_9 = (((PyObject *)__pyx_v_options) == Py_None);
+    if (__pyx_t_9) {
+
+      /* "snappy_wrapper.pyx":629
+ * 
+ *         if options is None:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length)
+ *         else:
+*/
+      {
+          PyThreadState *_save;
+          _save = NULL;
+          Py_UNBLOCK_THREADS
+          __Pyx_FastGIL_Remember();
+          /*try:*/ {
+
+            /* "snappy_wrapper.pyx":630
+ *         if options is None:
+ *             with nogil:
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length)             # <<<<<<<<<<<<<<
+ *         else:
+ *             with nogil:
+*/
+            snappy::RawCompressFromIOVec(__pyx_v_iov_array, __pyx_v_total_length, __pyx_v_output_ptr, (&__pyx_v_compressed_length));
+          }
+
+          /* "snappy_wrapper.pyx":629
+ * 
+ *         if options is None:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length)
+ *         else:
+*/
+          /*finally:*/ {
+            /*normal exit:*/{
+              __Pyx_FastGIL_Forget();
+              Py_BLOCK_THREADS
+              goto __pyx_L13;
+            }
+            __pyx_L13:;
+          }
+      }
+
+      /* "snappy_wrapper.pyx":628
+ *         compressed_length = max_output_length
+ * 
+ *         if options is None:             # <<<<<<<<<<<<<<
+ *             with nogil:
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length)
+*/
+      goto __pyx_L10;
+    }
+
+    /* "snappy_wrapper.pyx":632
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length)
+ *         else:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length, options.opt)
+ * 
+*/
+    /*else*/ {
+      {
+          PyThreadState *_save;
+          _save = NULL;
+          Py_UNBLOCK_THREADS
+          __Pyx_FastGIL_Remember();
+          /*try:*/ {
+
+            /* "snappy_wrapper.pyx":633
+ *         else:
+ *             with nogil:
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length, options.opt)             # <<<<<<<<<<<<<<
+ * 
+ *         return output_buffer[:compressed_length]
+*/
+            snappy::RawCompressFromIOVec(__pyx_v_iov_array, __pyx_v_total_length, __pyx_v_output_ptr, (&__pyx_v_compressed_length), __pyx_v_options->opt);
+          }
+
+          /* "snappy_wrapper.pyx":632
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length)
+ *         else:
+ *             with nogil:             # <<<<<<<<<<<<<<
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length, options.opt)
+ * 
+*/
+          /*finally:*/ {
+            /*normal exit:*/{
+              __Pyx_FastGIL_Forget();
+              Py_BLOCK_THREADS
+              goto __pyx_L16;
+            }
+            __pyx_L16:;
+          }
+      }
+    }
+    __pyx_L10:;
+
+    /* "snappy_wrapper.pyx":635
+ *                 RawCompressFromIOVec(iov_array, total_length, output_ptr, &compressed_length, options.opt)
+ * 
+ *         return output_buffer[:compressed_length]             # <<<<<<<<<<<<<<
+ *     finally:
+ *         free(iov_array)
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __pyx_t_3 = PySequence_GetSlice(__pyx_v_output_buffer, 0, __pyx_v_compressed_length); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 635, __pyx_L5_error)
+    __Pyx_GOTREF(__pyx_t_3);
+    __pyx_r = __pyx_t_3;
+    __pyx_t_3 = 0;
+    goto __pyx_L4_return;
+  }
+
+  /* "snappy_wrapper.pyx":637
+ *         return output_buffer[:compressed_length]
+ *     finally:
+ *         free(iov_array)             # <<<<<<<<<<<<<<
+ * 
+ * def uncompress_data(bytes compressed_data):
+*/
+  /*finally:*/ {
+    __pyx_L5_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_19 = 0; __pyx_t_20 = 0; __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0;
+      __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+      __Pyx_XDECREF(__pyx_t_11); __pyx_t_11 = 0;
+      __Pyx_XDECREF(__pyx_t_13); __pyx_t_13 = 0;
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_22, &__pyx_t_23, &__pyx_t_24);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_19, &__pyx_t_20, &__pyx_t_21) < 0)) __Pyx_ErrFetch(&__pyx_t_19, &__pyx_t_20, &__pyx_t_21);
+      __Pyx_XGOTREF(__pyx_t_19);
+      __Pyx_XGOTREF(__pyx_t_20);
+      __Pyx_XGOTREF(__pyx_t_21);
+      __Pyx_XGOTREF(__pyx_t_22);
+      __Pyx_XGOTREF(__pyx_t_23);
+      __Pyx_XGOTREF(__pyx_t_24);
+      __pyx_t_16 = __pyx_lineno; __pyx_t_17 = __pyx_clineno; __pyx_t_18 = __pyx_filename;
+      {
+        free(__pyx_v_iov_array);
+      }
+      __Pyx_XGIVEREF(__pyx_t_22);
+      __Pyx_XGIVEREF(__pyx_t_23);
+      __Pyx_XGIVEREF(__pyx_t_24);
+      __Pyx_ExceptionReset(__pyx_t_22, __pyx_t_23, __pyx_t_24);
+      __Pyx_XGIVEREF(__pyx_t_19);
+      __Pyx_XGIVEREF(__pyx_t_20);
+      __Pyx_XGIVEREF(__pyx_t_21);
+      __Pyx_ErrRestore(__pyx_t_19, __pyx_t_20, __pyx_t_21);
+      __pyx_t_19 = 0; __pyx_t_20 = 0; __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0;
+      __pyx_lineno = __pyx_t_16; __pyx_clineno = __pyx_t_17; __pyx_filename = __pyx_t_18;
+      goto __pyx_L1_error;
+    }
+    __pyx_L4_return: {
+      __pyx_t_24 = __pyx_r;
+      __pyx_r = 0;
+      free(__pyx_v_iov_array);
+      __pyx_r = __pyx_t_24;
+      __pyx_t_24 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":589
+ *     return output_buffer[:compressed_length]
+ * 
+ * def compress_raw_from_iovec(list data_chunks, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data from multiple chunks using raw IOVec compression.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_10);
+  __Pyx_XDECREF(__pyx_t_11);
+  __Pyx_XDECREF(__pyx_t_13);
+  __Pyx_AddTraceback("snappy_wrapper.compress_raw_from_iovec", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_output_buffer);
+  __Pyx_XDECREF(__pyx_v_chunk);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":639
+ *         free(iov_array)
  * 
  * def uncompress_data(bytes compressed_data):             # <<<<<<<<<<<<<<
  *     """
@@ -4446,16 +9217,16 @@ static PyObject *__pyx_pf_14snappy_wrapper_4compress_raw(CYTHON_UNUSED PyObject 
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_14snappy_wrapper_7uncompress_data(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_14snappy_wrapper_27uncompress_data(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_6uncompress_data, "\n    Uncompress Snappy-compressed data.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        bytes: Uncompressed data\n        \n    Raises:\n        RuntimeError: If decompression fails\n    ");
-static PyMethodDef __pyx_mdef_14snappy_wrapper_7uncompress_data = {"uncompress_data", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_7uncompress_data, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_6uncompress_data};
-static PyObject *__pyx_pw_14snappy_wrapper_7uncompress_data(PyObject *__pyx_self, 
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_26uncompress_data, "\n    Uncompress Snappy-compressed data.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        bytes: Uncompressed data\n        \n    Raises:\n        RuntimeError: If decompression fails\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_27uncompress_data = {"uncompress_data", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_27uncompress_data, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_26uncompress_data};
+static PyObject *__pyx_pw_14snappy_wrapper_27uncompress_data(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -4485,32 +9256,32 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 134, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 639, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 134, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 639, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "uncompress_data", 0) < 0) __PYX_ERR(0, 134, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "uncompress_data", 0) < 0) __PYX_ERR(0, 639, __pyx_L3_error)
       for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
-        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("uncompress_data", 1, 1, 1, i); __PYX_ERR(0, 134, __pyx_L3_error) }
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("uncompress_data", 1, 1, 1, i); __PYX_ERR(0, 639, __pyx_L3_error) }
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 134, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 639, __pyx_L3_error)
     }
     __pyx_v_compressed_data = ((PyObject*)values[0]);
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("uncompress_data", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 134, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("uncompress_data", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 639, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4521,8 +9292,8 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 134, __pyx_L1_error)
-  __pyx_r = __pyx_pf_14snappy_wrapper_6uncompress_data(__pyx_self, __pyx_v_compressed_data);
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 639, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_26uncompress_data(__pyx_self, __pyx_v_compressed_data);
 
   /* function exit code */
   goto __pyx_L0;
@@ -4541,7 +9312,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+static PyObject *__pyx_pf_14snappy_wrapper_26uncompress_data(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
   char const *__pyx_v_input_ptr;
   size_t __pyx_v_input_length;
   std::string __pyx_v_output;
@@ -4560,7 +9331,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("uncompress_data", 0);
 
-  /* "snappy_wrapper.pyx":148
+  /* "snappy_wrapper.pyx":653
  *     """
  *     cdef:
  *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
@@ -4569,12 +9340,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
 */
   if (unlikely(__pyx_v_compressed_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
-    __PYX_ERR(0, 148, __pyx_L1_error)
+    __PYX_ERR(0, 653, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 148, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 653, __pyx_L1_error)
   __pyx_v_input_ptr = __pyx_t_1;
 
-  /* "snappy_wrapper.pyx":149
+  /* "snappy_wrapper.pyx":654
  *     cdef:
  *         const char* input_ptr = compressed_data
  *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
@@ -4583,12 +9354,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
 */
   if (unlikely(__pyx_v_compressed_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-    __PYX_ERR(0, 149, __pyx_L1_error)
+    __PYX_ERR(0, 654, __pyx_L1_error)
   }
-  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 149, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 654, __pyx_L1_error)
   __pyx_v_input_length = __pyx_t_2;
 
-  /* "snappy_wrapper.pyx":153
+  /* "snappy_wrapper.pyx":658
  *         bool success
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -4602,7 +9373,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
       __Pyx_FastGIL_Remember();
       /*try:*/ {
 
-        /* "snappy_wrapper.pyx":154
+        /* "snappy_wrapper.pyx":659
  * 
  *     with nogil:
  *         success = Uncompress(input_ptr, input_length, &output)             # <<<<<<<<<<<<<<
@@ -4612,7 +9383,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
         __pyx_v_success = snappy::Uncompress(__pyx_v_input_ptr, __pyx_v_input_length, (&__pyx_v_output));
       }
 
-      /* "snappy_wrapper.pyx":153
+      /* "snappy_wrapper.pyx":658
  *         bool success
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -4629,7 +9400,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
       }
   }
 
-  /* "snappy_wrapper.pyx":156
+  /* "snappy_wrapper.pyx":661
  *         success = Uncompress(input_ptr, input_length, &output)
  * 
  *     if not success:             # <<<<<<<<<<<<<<
@@ -4639,7 +9410,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
   __pyx_t_3 = (!(__pyx_v_success != 0));
   if (unlikely(__pyx_t_3)) {
 
-    /* "snappy_wrapper.pyx":157
+    /* "snappy_wrapper.pyx":662
  * 
  *     if not success:
  *         raise RuntimeError("Decompression failed")             # <<<<<<<<<<<<<<
@@ -4655,14 +9426,14 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
       __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
       __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 157, __pyx_L1_error)
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 662, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
     }
     __Pyx_Raise(__pyx_t_4, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __PYX_ERR(0, 157, __pyx_L1_error)
+    __PYX_ERR(0, 662, __pyx_L1_error)
 
-    /* "snappy_wrapper.pyx":156
+    /* "snappy_wrapper.pyx":661
  *         success = Uncompress(input_ptr, input_length, &output)
  * 
  *     if not success:             # <<<<<<<<<<<<<<
@@ -4671,7 +9442,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
 */
   }
 
-  /* "snappy_wrapper.pyx":159
+  /* "snappy_wrapper.pyx":664
  *         raise RuntimeError("Decompression failed")
  * 
  *     return output             # <<<<<<<<<<<<<<
@@ -4679,14 +9450,14 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
  * def uncompress_raw(bytes compressed_data):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_4 = __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(__pyx_v_output); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 159, __pyx_L1_error)
+  __pyx_t_4 = __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(__pyx_v_output); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 664, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_r = __pyx_t_4;
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":134
- *     return output_buffer[:compressed_length]
+  /* "snappy_wrapper.pyx":639
+ *         free(iov_array)
  * 
  * def uncompress_data(bytes compressed_data):             # <<<<<<<<<<<<<<
  *     """
@@ -4706,7 +9477,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":161
+/* "snappy_wrapper.pyx":666
  *     return output
  * 
  * def uncompress_raw(bytes compressed_data):             # <<<<<<<<<<<<<<
@@ -4715,16 +9486,16 @@ static PyObject *__pyx_pf_14snappy_wrapper_6uncompress_data(CYTHON_UNUSED PyObje
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_14snappy_wrapper_9uncompress_raw(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_14snappy_wrapper_29uncompress_raw(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_8uncompress_raw, "\n    Uncompress Snappy-compressed data using raw decompression.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        bytes: Uncompressed data\n        \n    Raises:\n        RuntimeError: If decompression fails or unable to get uncompressed length\n    ");
-static PyMethodDef __pyx_mdef_14snappy_wrapper_9uncompress_raw = {"uncompress_raw", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_9uncompress_raw, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_8uncompress_raw};
-static PyObject *__pyx_pw_14snappy_wrapper_9uncompress_raw(PyObject *__pyx_self, 
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_28uncompress_raw, "\n    Uncompress Snappy-compressed data using raw decompression.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        bytes: Uncompressed data\n        \n    Raises:\n        RuntimeError: If decompression fails or unable to get uncompressed length\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_29uncompress_raw = {"uncompress_raw", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_29uncompress_raw, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_28uncompress_raw};
+static PyObject *__pyx_pw_14snappy_wrapper_29uncompress_raw(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -4754,32 +9525,32 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 161, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 666, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 161, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 666, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "uncompress_raw", 0) < 0) __PYX_ERR(0, 161, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "uncompress_raw", 0) < 0) __PYX_ERR(0, 666, __pyx_L3_error)
       for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
-        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("uncompress_raw", 1, 1, 1, i); __PYX_ERR(0, 161, __pyx_L3_error) }
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("uncompress_raw", 1, 1, 1, i); __PYX_ERR(0, 666, __pyx_L3_error) }
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 161, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 666, __pyx_L3_error)
     }
     __pyx_v_compressed_data = ((PyObject*)values[0]);
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("uncompress_raw", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 161, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("uncompress_raw", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 666, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4790,8 +9561,8 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 161, __pyx_L1_error)
-  __pyx_r = __pyx_pf_14snappy_wrapper_8uncompress_raw(__pyx_self, __pyx_v_compressed_data);
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 666, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_28uncompress_raw(__pyx_self, __pyx_v_compressed_data);
 
   /* function exit code */
   goto __pyx_L0;
@@ -4810,7 +9581,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+static PyObject *__pyx_pf_14snappy_wrapper_28uncompress_raw(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
   char const *__pyx_v_input_ptr;
   size_t __pyx_v_input_length;
   size_t __pyx_v_uncompressed_length;
@@ -4833,7 +9604,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("uncompress_raw", 0);
 
-  /* "snappy_wrapper.pyx":175
+  /* "snappy_wrapper.pyx":680
  *     """
  *     cdef:
  *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
@@ -4842,12 +9613,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
 */
   if (unlikely(__pyx_v_compressed_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
-    __PYX_ERR(0, 175, __pyx_L1_error)
+    __PYX_ERR(0, 680, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 175, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 680, __pyx_L1_error)
   __pyx_v_input_ptr = __pyx_t_1;
 
-  /* "snappy_wrapper.pyx":176
+  /* "snappy_wrapper.pyx":681
  *     cdef:
  *         const char* input_ptr = compressed_data
  *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
@@ -4856,12 +9627,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
 */
   if (unlikely(__pyx_v_compressed_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-    __PYX_ERR(0, 176, __pyx_L1_error)
+    __PYX_ERR(0, 681, __pyx_L1_error)
   }
-  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 176, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 681, __pyx_L1_error)
   __pyx_v_input_length = __pyx_t_2;
 
-  /* "snappy_wrapper.pyx":181
+  /* "snappy_wrapper.pyx":686
  * 
  *     # First get the uncompressed length
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -4875,7 +9646,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
       __Pyx_FastGIL_Remember();
       /*try:*/ {
 
-        /* "snappy_wrapper.pyx":182
+        /* "snappy_wrapper.pyx":687
  *     # First get the uncompressed length
  *     with nogil:
  *         success = GetUncompressedLength(input_ptr, input_length, &uncompressed_length)             # <<<<<<<<<<<<<<
@@ -4885,7 +9656,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
         __pyx_v_success = snappy::GetUncompressedLength(__pyx_v_input_ptr, __pyx_v_input_length, (&__pyx_v_uncompressed_length));
       }
 
-      /* "snappy_wrapper.pyx":181
+      /* "snappy_wrapper.pyx":686
  * 
  *     # First get the uncompressed length
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -4902,7 +9673,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
       }
   }
 
-  /* "snappy_wrapper.pyx":184
+  /* "snappy_wrapper.pyx":689
  *         success = GetUncompressedLength(input_ptr, input_length, &uncompressed_length)
  * 
  *     if not success:             # <<<<<<<<<<<<<<
@@ -4912,7 +9683,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
   __pyx_t_3 = (!(__pyx_v_success != 0));
   if (unlikely(__pyx_t_3)) {
 
-    /* "snappy_wrapper.pyx":185
+    /* "snappy_wrapper.pyx":690
  * 
  *     if not success:
  *         raise RuntimeError("Unable to get uncompressed length")             # <<<<<<<<<<<<<<
@@ -4924,18 +9695,18 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
     __pyx_t_6 = __pyx_builtin_RuntimeError; 
     __pyx_t_7 = 1;
     {
-      PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Unable_to_get_uncompressed_lengt};
+      PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Unable_to_get_uncompressed_lengt_2};
       __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
       __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 185, __pyx_L1_error)
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 690, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
     }
     __Pyx_Raise(__pyx_t_4, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __PYX_ERR(0, 185, __pyx_L1_error)
+    __PYX_ERR(0, 690, __pyx_L1_error)
 
-    /* "snappy_wrapper.pyx":184
+    /* "snappy_wrapper.pyx":689
  *         success = GetUncompressedLength(input_ptr, input_length, &uncompressed_length)
  * 
  *     if not success:             # <<<<<<<<<<<<<<
@@ -4944,7 +9715,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
 */
   }
 
-  /* "snappy_wrapper.pyx":189
+  /* "snappy_wrapper.pyx":694
  *     # Now decompress
  *     cdef:
  *         bytes output_buffer = bytes(uncompressed_length)             # <<<<<<<<<<<<<<
@@ -4954,7 +9725,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
   __pyx_t_6 = NULL;
   __Pyx_INCREF((PyObject *)(&PyBytes_Type));
   __pyx_t_5 = ((PyObject *)(&PyBytes_Type)); 
-  __pyx_t_8 = __Pyx_PyLong_FromSize_t(__pyx_v_uncompressed_length); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 189, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyLong_FromSize_t(__pyx_v_uncompressed_length); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 694, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
   __pyx_t_7 = 1;
   {
@@ -4963,23 +9734,23 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
     __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 189, __pyx_L1_error)
+    if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 694, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
   }
   __pyx_v_output_buffer = ((PyObject*)__pyx_t_4);
   __pyx_t_4 = 0;
 
-  /* "snappy_wrapper.pyx":190
+  /* "snappy_wrapper.pyx":695
  *     cdef:
  *         bytes output_buffer = bytes(uncompressed_length)
  *         char* output_ptr = output_buffer             # <<<<<<<<<<<<<<
  * 
  *     with nogil:
 */
-  __pyx_t_9 = __Pyx_PyBytes_AsWritableString(__pyx_v_output_buffer); if (unlikely((!__pyx_t_9) && PyErr_Occurred())) __PYX_ERR(0, 190, __pyx_L1_error)
+  __pyx_t_9 = __Pyx_PyBytes_AsWritableString(__pyx_v_output_buffer); if (unlikely((!__pyx_t_9) && PyErr_Occurred())) __PYX_ERR(0, 695, __pyx_L1_error)
   __pyx_v_output_ptr = __pyx_t_9;
 
-  /* "snappy_wrapper.pyx":192
+  /* "snappy_wrapper.pyx":697
  *         char* output_ptr = output_buffer
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -4993,7 +9764,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
       __Pyx_FastGIL_Remember();
       /*try:*/ {
 
-        /* "snappy_wrapper.pyx":193
+        /* "snappy_wrapper.pyx":698
  * 
  *     with nogil:
  *         success = RawUncompress(input_ptr, input_length, output_ptr)             # <<<<<<<<<<<<<<
@@ -5003,7 +9774,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
         __pyx_v_success = snappy::RawUncompress(__pyx_v_input_ptr, __pyx_v_input_length, __pyx_v_output_ptr);
       }
 
-      /* "snappy_wrapper.pyx":192
+      /* "snappy_wrapper.pyx":697
  *         char* output_ptr = output_buffer
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -5020,7 +9791,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
       }
   }
 
-  /* "snappy_wrapper.pyx":195
+  /* "snappy_wrapper.pyx":700
  *         success = RawUncompress(input_ptr, input_length, output_ptr)
  * 
  *     if not success:             # <<<<<<<<<<<<<<
@@ -5030,7 +9801,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
   __pyx_t_3 = (!(__pyx_v_success != 0));
   if (unlikely(__pyx_t_3)) {
 
-    /* "snappy_wrapper.pyx":196
+    /* "snappy_wrapper.pyx":701
  * 
  *     if not success:
  *         raise RuntimeError("Raw decompression failed")             # <<<<<<<<<<<<<<
@@ -5046,14 +9817,14 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
       __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_8, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
       __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 196, __pyx_L1_error)
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 701, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
     }
     __Pyx_Raise(__pyx_t_4, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __PYX_ERR(0, 196, __pyx_L1_error)
+    __PYX_ERR(0, 701, __pyx_L1_error)
 
-    /* "snappy_wrapper.pyx":195
+    /* "snappy_wrapper.pyx":700
  *         success = RawUncompress(input_ptr, input_length, output_ptr)
  * 
  *     if not success:             # <<<<<<<<<<<<<<
@@ -5062,19 +9833,19 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
 */
   }
 
-  /* "snappy_wrapper.pyx":198
+  /* "snappy_wrapper.pyx":703
  *         raise RuntimeError("Raw decompression failed")
  * 
  *     return output_buffer             # <<<<<<<<<<<<<<
  * 
- * def get_uncompressed_length(bytes compressed_data):
+ * def uncompress_to_iovec(bytes compressed_data, list buffer_sizes):
 */
   __Pyx_XDECREF(__pyx_r);
   __Pyx_INCREF(__pyx_v_output_buffer);
   __pyx_r = __pyx_v_output_buffer;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":161
+  /* "snappy_wrapper.pyx":666
  *     return output
  * 
  * def uncompress_raw(bytes compressed_data):             # <<<<<<<<<<<<<<
@@ -5097,8 +9868,736 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":200
+/* "snappy_wrapper.pyx":705
  *     return output_buffer
+ * 
+ * def uncompress_to_iovec(bytes compressed_data, list buffer_sizes):             # <<<<<<<<<<<<<<
+ *     """
+ *     Uncompress Snappy-compressed data into multiple buffers using IOVec.
+*/
+
+/* Python wrapper */
+static PyObject *__pyx_pw_14snappy_wrapper_31uncompress_to_iovec(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+); /*proto*/
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_30uncompress_to_iovec, "\n    Uncompress Snappy-compressed data into multiple buffers using IOVec.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        buffer_sizes (list of int): List of buffer sizes for output\n        \n    Returns:\n        list of bytes: List of decompressed data chunks\n        \n    Raises:\n        RuntimeError: If decompression fails\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_31uncompress_to_iovec = {"uncompress_to_iovec", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_31uncompress_to_iovec, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_30uncompress_to_iovec};
+static PyObject *__pyx_pw_14snappy_wrapper_31uncompress_to_iovec(PyObject *__pyx_self, 
+#if CYTHON_METH_FASTCALL
+PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
+#else
+PyObject *__pyx_args, PyObject *__pyx_kwds
+#endif
+) {
+  PyObject *__pyx_v_compressed_data = 0;
+  PyObject *__pyx_v_buffer_sizes = 0;
+  #if !CYTHON_METH_FASTCALL
+  CYTHON_UNUSED Py_ssize_t __pyx_nargs;
+  #endif
+  CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
+  PyObject* values[2] = {0,0};
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("uncompress_to_iovec (wrapper)", 0);
+  #if !CYTHON_METH_FASTCALL
+  #if CYTHON_ASSUME_SAFE_SIZE
+  __pyx_nargs = PyTuple_GET_SIZE(__pyx_args);
+  #else
+  __pyx_nargs = PyTuple_Size(__pyx_args); if (unlikely(__pyx_nargs < 0)) return NULL;
+  #endif
+  #endif
+  __pyx_kwvalues = __Pyx_KwValues_FASTCALL(__pyx_args, __pyx_nargs);
+  {
+    PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,&__pyx_mstate_global->__pyx_n_u_buffer_sizes,0};
+    const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 705, __pyx_L3_error)
+    if (__pyx_kwds_len > 0) {
+      switch (__pyx_nargs) {
+        case  2:
+        values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 705, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  1:
+        values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 705, __pyx_L3_error)
+        CYTHON_FALLTHROUGH;
+        case  0: break;
+        default: goto __pyx_L5_argtuple_error;
+      }
+      const Py_ssize_t kwd_pos_args = __pyx_nargs;
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "uncompress_to_iovec", 0) < 0) __PYX_ERR(0, 705, __pyx_L3_error)
+      for (Py_ssize_t i = __pyx_nargs; i < 2; i++) {
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("uncompress_to_iovec", 1, 2, 2, i); __PYX_ERR(0, 705, __pyx_L3_error) }
+      }
+    } else if (unlikely(__pyx_nargs != 2)) {
+      goto __pyx_L5_argtuple_error;
+    } else {
+      values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 705, __pyx_L3_error)
+      values[1] = __Pyx_ArgRef_FASTCALL(__pyx_args, 1);
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[1])) __PYX_ERR(0, 705, __pyx_L3_error)
+    }
+    __pyx_v_compressed_data = ((PyObject*)values[0]);
+    __pyx_v_buffer_sizes = ((PyObject*)values[1]);
+  }
+  goto __pyx_L6_skip;
+  __pyx_L5_argtuple_error:;
+  __Pyx_RaiseArgtupleInvalid("uncompress_to_iovec", 1, 2, 2, __pyx_nargs); __PYX_ERR(0, 705, __pyx_L3_error)
+  __pyx_L6_skip:;
+  goto __pyx_L4_argument_unpacking_done;
+  __pyx_L3_error:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __Pyx_AddTraceback("snappy_wrapper.uncompress_to_iovec", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_RefNannyFinishContext();
+  return NULL;
+  __pyx_L4_argument_unpacking_done:;
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 705, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_buffer_sizes), (&PyList_Type), 1, "buffer_sizes", 1))) __PYX_ERR(0, 705, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_30uncompress_to_iovec(__pyx_self, __pyx_v_compressed_data, __pyx_v_buffer_sizes);
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  goto __pyx_L7_cleaned_up;
+  __pyx_L0:;
+  for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
+    Py_XDECREF(values[__pyx_temp]);
+  }
+  __pyx_L7_cleaned_up:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_14snappy_wrapper_30uncompress_to_iovec(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data, PyObject *__pyx_v_buffer_sizes) {
+  char const *__pyx_v_input_ptr;
+  size_t __pyx_v_input_length;
+  size_t __pyx_v_iov_cnt;
+  struct iovec *__pyx_v_iov_array;
+  PyObject *__pyx_v_output_buffers = 0;
+  PyObject *__pyx_v_output_bytes = 0;
+  bool __pyx_v_success;
+  size_t __pyx_v_i;
+  char *__pyx_v_buf_ptr;
+  PyObject *__pyx_v_size = NULL;
+  PyObject *__pyx_v_buf = NULL;
+  size_t __pyx_v_j;
+  PyObject *__pyx_r = NULL;
+  __Pyx_RefNannyDeclarations
+  char const *__pyx_t_1;
+  Py_ssize_t __pyx_t_2;
+  PyObject *__pyx_t_3 = NULL;
+  int __pyx_t_4;
+  PyObject *__pyx_t_5 = NULL;
+  PyObject *__pyx_t_6 = NULL;
+  size_t __pyx_t_7;
+  size_t __pyx_t_8;
+  size_t __pyx_t_9;
+  PyObject *__pyx_t_10 = NULL;
+  PyObject *__pyx_t_11[3];
+  PyObject *__pyx_t_12 = NULL;
+  size_t __pyx_t_13;
+  int __pyx_t_14;
+  size_t __pyx_t_15;
+  size_t __pyx_t_16;
+  int __pyx_t_17;
+  int __pyx_t_18;
+  char const *__pyx_t_19;
+  PyObject *__pyx_t_20 = NULL;
+  PyObject *__pyx_t_21 = NULL;
+  PyObject *__pyx_t_22 = NULL;
+  PyObject *__pyx_t_23 = NULL;
+  PyObject *__pyx_t_24 = NULL;
+  PyObject *__pyx_t_25 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("uncompress_to_iovec", 0);
+
+  /* "snappy_wrapper.pyx":720
+ *     """
+ *     cdef:
+ *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
+ *         size_t input_length = len(compressed_data)
+ *         size_t iov_cnt = len(buffer_sizes)
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
+    __PYX_ERR(0, 720, __pyx_L1_error)
+  }
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 720, __pyx_L1_error)
+  __pyx_v_input_ptr = __pyx_t_1;
+
+  /* "snappy_wrapper.pyx":721
+ *     cdef:
+ *         const char* input_ptr = compressed_data
+ *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
+ *         size_t iov_cnt = len(buffer_sizes)
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+*/
+  if (unlikely(__pyx_v_compressed_data == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 721, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 721, __pyx_L1_error)
+  __pyx_v_input_length = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":722
+ *         const char* input_ptr = compressed_data
+ *         size_t input_length = len(compressed_data)
+ *         size_t iov_cnt = len(buffer_sizes)             # <<<<<<<<<<<<<<
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+ *         list output_buffers = []
+*/
+  if (unlikely(__pyx_v_buffer_sizes == Py_None)) {
+    PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
+    __PYX_ERR(0, 722, __pyx_L1_error)
+  }
+  __pyx_t_2 = __Pyx_PyList_GET_SIZE(__pyx_v_buffer_sizes); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 722, __pyx_L1_error)
+  __pyx_v_iov_cnt = __pyx_t_2;
+
+  /* "snappy_wrapper.pyx":723
+ *         size_t input_length = len(compressed_data)
+ *         size_t iov_cnt = len(buffer_sizes)
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)             # <<<<<<<<<<<<<<
+ *         list output_buffers = []
+ *         list output_bytes = []
+*/
+  __pyx_v_iov_array = ((struct iovec *)malloc(((sizeof(struct iovec)) * __pyx_v_iov_cnt)));
+
+  /* "snappy_wrapper.pyx":724
+ *         size_t iov_cnt = len(buffer_sizes)
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+ *         list output_buffers = []             # <<<<<<<<<<<<<<
+ *         list output_bytes = []
+ *         bool success
+*/
+  __pyx_t_3 = PyList_New(0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 724, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_v_output_buffers = ((PyObject*)__pyx_t_3);
+  __pyx_t_3 = 0;
+
+  /* "snappy_wrapper.pyx":725
+ *         iovec* iov_array = <iovec*>malloc(sizeof(iovec) * iov_cnt)
+ *         list output_buffers = []
+ *         list output_bytes = []             # <<<<<<<<<<<<<<
+ *         bool success
+ *         size_t i
+*/
+  __pyx_t_3 = PyList_New(0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 725, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __pyx_v_output_bytes = ((PyObject*)__pyx_t_3);
+  __pyx_t_3 = 0;
+
+  /* "snappy_wrapper.pyx":730
+ *         char* buf_ptr
+ * 
+ *     if not iov_array:             # <<<<<<<<<<<<<<
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+*/
+  __pyx_t_4 = (!(__pyx_v_iov_array != 0));
+  if (unlikely(__pyx_t_4)) {
+
+    /* "snappy_wrapper.pyx":731
+ * 
+ *     if not iov_array:
+ *         raise MemoryError("Failed to allocate IOVec array")             # <<<<<<<<<<<<<<
+ * 
+ *     try:
+*/
+    __pyx_t_5 = NULL;
+    __Pyx_INCREF(__pyx_builtin_MemoryError);
+    __pyx_t_6 = __pyx_builtin_MemoryError; 
+    __pyx_t_7 = 1;
+    {
+      PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Failed_to_allocate_IOVec_array};
+      __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 731, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+    }
+    __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+    __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+    __PYX_ERR(0, 731, __pyx_L1_error)
+
+    /* "snappy_wrapper.pyx":730
+ *         char* buf_ptr
+ * 
+ *     if not iov_array:             # <<<<<<<<<<<<<<
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+*/
+  }
+
+  /* "snappy_wrapper.pyx":733
+ *         raise MemoryError("Failed to allocate IOVec array")
+ * 
+ *     try:             # <<<<<<<<<<<<<<
+ *         # Create output buffers and populate IOVec array
+ *         for i in range(iov_cnt):
+*/
+  /*try:*/ {
+
+    /* "snappy_wrapper.pyx":735
+ *     try:
+ *         # Create output buffers and populate IOVec array
+ *         for i in range(iov_cnt):             # <<<<<<<<<<<<<<
+ *             size = buffer_sizes[i]
+ *             if size < 0:
+*/
+    __pyx_t_7 = __pyx_v_iov_cnt;
+    __pyx_t_8 = __pyx_t_7;
+    for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_8; __pyx_t_9+=1) {
+      __pyx_v_i = __pyx_t_9;
+
+      /* "snappy_wrapper.pyx":736
+ *         # Create output buffers and populate IOVec array
+ *         for i in range(iov_cnt):
+ *             size = buffer_sizes[i]             # <<<<<<<<<<<<<<
+ *             if size < 0:
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+*/
+      if (unlikely(__pyx_v_buffer_sizes == Py_None)) {
+        PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
+        __PYX_ERR(0, 736, __pyx_L5_error)
+      }
+      __pyx_t_3 = __Pyx_GetItemInt_List(__pyx_v_buffer_sizes, __pyx_v_i, size_t, 0, __Pyx_PyLong_FromSize_t, 1, 0, 1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 736, __pyx_L5_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __Pyx_XDECREF_SET(__pyx_v_size, __pyx_t_3);
+      __pyx_t_3 = 0;
+
+      /* "snappy_wrapper.pyx":737
+ *         for i in range(iov_cnt):
+ *             size = buffer_sizes[i]
+ *             if size < 0:             # <<<<<<<<<<<<<<
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+ *             # Create bytes buffer instead of bytearray
+*/
+      __pyx_t_3 = PyObject_RichCompare(__pyx_v_size, __pyx_mstate_global->__pyx_int_0, Py_LT); __Pyx_XGOTREF(__pyx_t_3); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 737, __pyx_L5_error)
+      __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_t_3); if (unlikely((__pyx_t_4 < 0))) __PYX_ERR(0, 737, __pyx_L5_error)
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      if (unlikely(__pyx_t_4)) {
+
+        /* "snappy_wrapper.pyx":738
+ *             size = buffer_sizes[i]
+ *             if size < 0:
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")             # <<<<<<<<<<<<<<
+ *             # Create bytes buffer instead of bytearray
+ *             buf = bytes(size)
+*/
+        __pyx_t_6 = NULL;
+        __Pyx_INCREF(__pyx_builtin_ValueError);
+        __pyx_t_5 = __pyx_builtin_ValueError; 
+        __pyx_t_10 = __Pyx_PyUnicode_From_size_t(__pyx_v_i, 0, ' ', 'd'); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 738, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __pyx_t_11[0] = __pyx_mstate_global->__pyx_kp_u_Buffer_size;
+        __pyx_t_11[1] = __pyx_t_10;
+        __pyx_t_11[2] = __pyx_mstate_global->__pyx_kp_u_must_be_non_negative;
+        __pyx_t_12 = __Pyx_PyUnicode_Join(__pyx_t_11, 3, 12 + __Pyx_PyUnicode_GET_LENGTH(__pyx_t_10) + 21, 127);
+        if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 738, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_12);
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        __pyx_t_13 = 1;
+        {
+          PyObject *__pyx_callargs[2] = {__pyx_t_6, __pyx_t_12};
+          __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+__pyx_t_13, (2-__pyx_t_13) | (__pyx_t_13*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+          __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+          __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+          __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+          if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 738, __pyx_L5_error)
+          __Pyx_GOTREF(__pyx_t_3);
+        }
+        __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+        __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+        __PYX_ERR(0, 738, __pyx_L5_error)
+
+        /* "snappy_wrapper.pyx":737
+ *         for i in range(iov_cnt):
+ *             size = buffer_sizes[i]
+ *             if size < 0:             # <<<<<<<<<<<<<<
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+ *             # Create bytes buffer instead of bytearray
+*/
+      }
+
+      /* "snappy_wrapper.pyx":740
+ *                 raise ValueError(f"Buffer size {i} must be non-negative")
+ *             # Create bytes buffer instead of bytearray
+ *             buf = bytes(size)             # <<<<<<<<<<<<<<
+ *             output_buffers.append(buf)
+ *             # Allocate new memory for mutable buffer
+*/
+      __pyx_t_5 = NULL;
+      __Pyx_INCREF((PyObject *)(&PyBytes_Type));
+      __pyx_t_12 = ((PyObject *)(&PyBytes_Type)); 
+      __pyx_t_13 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_v_size};
+        __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_12, __pyx_callargs+__pyx_t_13, (2-__pyx_t_13) | (__pyx_t_13*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+        if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 740, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_3);
+      }
+      __Pyx_XDECREF_SET(__pyx_v_buf, ((PyObject*)__pyx_t_3));
+      __pyx_t_3 = 0;
+
+      /* "snappy_wrapper.pyx":741
+ *             # Create bytes buffer instead of bytearray
+ *             buf = bytes(size)
+ *             output_buffers.append(buf)             # <<<<<<<<<<<<<<
+ *             # Allocate new memory for mutable buffer
+ *             buf_ptr = <char*>malloc(size)
+*/
+      __pyx_t_14 = __Pyx_PyList_Append(__pyx_v_output_buffers, __pyx_v_buf); if (unlikely(__pyx_t_14 == ((int)-1))) __PYX_ERR(0, 741, __pyx_L5_error)
+
+      /* "snappy_wrapper.pyx":743
+ *             output_buffers.append(buf)
+ *             # Allocate new memory for mutable buffer
+ *             buf_ptr = <char*>malloc(size)             # <<<<<<<<<<<<<<
+ *             if not buf_ptr:
+ *                 # Clean up previously allocated buffers
+*/
+      __pyx_t_13 = __Pyx_PyLong_As_size_t(__pyx_v_size); if (unlikely((__pyx_t_13 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 743, __pyx_L5_error)
+      __pyx_v_buf_ptr = ((char *)malloc(__pyx_t_13));
+
+      /* "snappy_wrapper.pyx":744
+ *             # Allocate new memory for mutable buffer
+ *             buf_ptr = <char*>malloc(size)
+ *             if not buf_ptr:             # <<<<<<<<<<<<<<
+ *                 # Clean up previously allocated buffers
+ *                 for j in range(i):
+*/
+      __pyx_t_4 = (!(__pyx_v_buf_ptr != 0));
+      if (__pyx_t_4) {
+
+        /* "snappy_wrapper.pyx":746
+ *             if not buf_ptr:
+ *                 # Clean up previously allocated buffers
+ *                 for j in range(i):             # <<<<<<<<<<<<<<
+ *                     free(iov_array[j].iov_base)
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")
+*/
+        __pyx_t_13 = __pyx_v_i;
+        __pyx_t_15 = __pyx_t_13;
+        for (__pyx_t_16 = 0; __pyx_t_16 < __pyx_t_15; __pyx_t_16+=1) {
+          __pyx_v_j = __pyx_t_16;
+
+          /* "snappy_wrapper.pyx":747
+ *                 # Clean up previously allocated buffers
+ *                 for j in range(i):
+ *                     free(iov_array[j].iov_base)             # <<<<<<<<<<<<<<
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")
+ *             iov_array[i].iov_base = <void*>buf_ptr
+*/
+          free((__pyx_v_iov_array[__pyx_v_j]).iov_base);
+        }
+
+        /* "snappy_wrapper.pyx":748
+ *                 for j in range(i):
+ *                     free(iov_array[j].iov_base)
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")             # <<<<<<<<<<<<<<
+ *             iov_array[i].iov_base = <void*>buf_ptr
+ *             iov_array[i].iov_len = size
+*/
+        __pyx_t_12 = NULL;
+        __Pyx_INCREF(__pyx_builtin_MemoryError);
+        __pyx_t_5 = __pyx_builtin_MemoryError; 
+        __pyx_t_6 = __Pyx_PyUnicode_From_size_t(__pyx_v_i, 0, ' ', 'd'); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 748, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_6);
+        __pyx_t_10 = __Pyx_PyUnicode_Concat(__pyx_mstate_global->__pyx_kp_u_Failed_to_allocate_buffer, __pyx_t_6); if (unlikely(!__pyx_t_10)) __PYX_ERR(0, 748, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_10);
+        __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+        __pyx_t_13 = 1;
+        {
+          PyObject *__pyx_callargs[2] = {__pyx_t_12, __pyx_t_10};
+          __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_5, __pyx_callargs+__pyx_t_13, (2-__pyx_t_13) | (__pyx_t_13*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+          __Pyx_XDECREF(__pyx_t_12); __pyx_t_12 = 0;
+          __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+          __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+          if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 748, __pyx_L5_error)
+          __Pyx_GOTREF(__pyx_t_3);
+        }
+        __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+        __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+        __PYX_ERR(0, 748, __pyx_L5_error)
+
+        /* "snappy_wrapper.pyx":744
+ *             # Allocate new memory for mutable buffer
+ *             buf_ptr = <char*>malloc(size)
+ *             if not buf_ptr:             # <<<<<<<<<<<<<<
+ *                 # Clean up previously allocated buffers
+ *                 for j in range(i):
+*/
+      }
+
+      /* "snappy_wrapper.pyx":749
+ *                     free(iov_array[j].iov_base)
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")
+ *             iov_array[i].iov_base = <void*>buf_ptr             # <<<<<<<<<<<<<<
+ *             iov_array[i].iov_len = size
+ * 
+*/
+      (__pyx_v_iov_array[__pyx_v_i]).iov_base = ((void *)__pyx_v_buf_ptr);
+
+      /* "snappy_wrapper.pyx":750
+ *                 raise MemoryError(f"Failed to allocate buffer {i}")
+ *             iov_array[i].iov_base = <void*>buf_ptr
+ *             iov_array[i].iov_len = size             # <<<<<<<<<<<<<<
+ * 
+ *         with nogil:
+*/
+      __pyx_t_13 = __Pyx_PyLong_As_size_t(__pyx_v_size); if (unlikely((__pyx_t_13 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 750, __pyx_L5_error)
+      (__pyx_v_iov_array[__pyx_v_i]).iov_len = __pyx_t_13;
+    }
+
+    /* "snappy_wrapper.pyx":752
+ *             iov_array[i].iov_len = size
+ * 
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = RawUncompressToIOVec(input_ptr, input_length, iov_array, iov_cnt)
+ * 
+*/
+    {
+        PyThreadState *_save;
+        _save = NULL;
+        Py_UNBLOCK_THREADS
+        __Pyx_FastGIL_Remember();
+        /*try:*/ {
+
+          /* "snappy_wrapper.pyx":753
+ * 
+ *         with nogil:
+ *             success = RawUncompressToIOVec(input_ptr, input_length, iov_array, iov_cnt)             # <<<<<<<<<<<<<<
+ * 
+ *         if not success:
+*/
+          __pyx_v_success = snappy::RawUncompressToIOVec(__pyx_v_input_ptr, __pyx_v_input_length, __pyx_v_iov_array, __pyx_v_iov_cnt);
+        }
+
+        /* "snappy_wrapper.pyx":752
+ *             iov_array[i].iov_len = size
+ * 
+ *         with nogil:             # <<<<<<<<<<<<<<
+ *             success = RawUncompressToIOVec(input_ptr, input_length, iov_array, iov_cnt)
+ * 
+*/
+        /*finally:*/ {
+          /*normal exit:*/{
+            __Pyx_FastGIL_Forget();
+            Py_BLOCK_THREADS
+            goto __pyx_L15;
+          }
+          __pyx_L15:;
+        }
+    }
+
+    /* "snappy_wrapper.pyx":755
+ *             success = RawUncompressToIOVec(input_ptr, input_length, iov_array, iov_cnt)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             # Clean up allocated buffers
+ *             for i in range(iov_cnt):
+*/
+    __pyx_t_4 = (!(__pyx_v_success != 0));
+    if (__pyx_t_4) {
+
+      /* "snappy_wrapper.pyx":757
+ *         if not success:
+ *             # Clean up allocated buffers
+ *             for i in range(iov_cnt):             # <<<<<<<<<<<<<<
+ *                 free(iov_array[i].iov_base)
+ *             raise RuntimeError("IOVec decompression failed")
+*/
+      __pyx_t_7 = __pyx_v_iov_cnt;
+      __pyx_t_8 = __pyx_t_7;
+      for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_8; __pyx_t_9+=1) {
+        __pyx_v_i = __pyx_t_9;
+
+        /* "snappy_wrapper.pyx":758
+ *             # Clean up allocated buffers
+ *             for i in range(iov_cnt):
+ *                 free(iov_array[i].iov_base)             # <<<<<<<<<<<<<<
+ *             raise RuntimeError("IOVec decompression failed")
+ * 
+*/
+        free((__pyx_v_iov_array[__pyx_v_i]).iov_base);
+      }
+
+      /* "snappy_wrapper.pyx":759
+ *             for i in range(iov_cnt):
+ *                 free(iov_array[i].iov_base)
+ *             raise RuntimeError("IOVec decompression failed")             # <<<<<<<<<<<<<<
+ * 
+ *         # Copy data from allocated buffers to Python bytes objects
+*/
+      __pyx_t_5 = NULL;
+      __Pyx_INCREF(__pyx_builtin_RuntimeError);
+      __pyx_t_10 = __pyx_builtin_RuntimeError; 
+      __pyx_t_7 = 1;
+      {
+        PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_IOVec_decompression_failed};
+        __pyx_t_3 = __Pyx_PyObject_FastCall(__pyx_t_10, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
+        __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+        __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
+        if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 759, __pyx_L5_error)
+        __Pyx_GOTREF(__pyx_t_3);
+      }
+      __Pyx_Raise(__pyx_t_3, 0, 0, 0);
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __PYX_ERR(0, 759, __pyx_L5_error)
+
+      /* "snappy_wrapper.pyx":755
+ *             success = RawUncompressToIOVec(input_ptr, input_length, iov_array, iov_cnt)
+ * 
+ *         if not success:             # <<<<<<<<<<<<<<
+ *             # Clean up allocated buffers
+ *             for i in range(iov_cnt):
+*/
+    }
+
+    /* "snappy_wrapper.pyx":762
+ * 
+ *         # Copy data from allocated buffers to Python bytes objects
+ *         for i in range(iov_cnt):             # <<<<<<<<<<<<<<
+ *             output_bytes.append((<char*>iov_array[i].iov_base)[:iov_array[i].iov_len])
+ *             free(iov_array[i].iov_base)
+*/
+    __pyx_t_7 = __pyx_v_iov_cnt;
+    __pyx_t_8 = __pyx_t_7;
+    for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_8; __pyx_t_9+=1) {
+      __pyx_v_i = __pyx_t_9;
+
+      /* "snappy_wrapper.pyx":763
+ *         # Copy data from allocated buffers to Python bytes objects
+ *         for i in range(iov_cnt):
+ *             output_bytes.append((<char*>iov_array[i].iov_base)[:iov_array[i].iov_len])             # <<<<<<<<<<<<<<
+ *             free(iov_array[i].iov_base)
+ * 
+*/
+      __pyx_t_3 = __Pyx_PyBytes_FromStringAndSize(((char *)(__pyx_v_iov_array[__pyx_v_i]).iov_base) + 0, (__pyx_v_iov_array[__pyx_v_i]).iov_len - 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 763, __pyx_L5_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __pyx_t_14 = __Pyx_PyList_Append(__pyx_v_output_bytes, __pyx_t_3); if (unlikely(__pyx_t_14 == ((int)-1))) __PYX_ERR(0, 763, __pyx_L5_error)
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+
+      /* "snappy_wrapper.pyx":764
+ *         for i in range(iov_cnt):
+ *             output_bytes.append((<char*>iov_array[i].iov_base)[:iov_array[i].iov_len])
+ *             free(iov_array[i].iov_base)             # <<<<<<<<<<<<<<
+ * 
+ *         return output_bytes
+*/
+      free((__pyx_v_iov_array[__pyx_v_i]).iov_base);
+    }
+
+    /* "snappy_wrapper.pyx":766
+ *             free(iov_array[i].iov_base)
+ * 
+ *         return output_bytes             # <<<<<<<<<<<<<<
+ *     finally:
+ *         free(iov_array)
+*/
+    __Pyx_XDECREF(__pyx_r);
+    __Pyx_INCREF(__pyx_v_output_bytes);
+    __pyx_r = __pyx_v_output_bytes;
+    goto __pyx_L4_return;
+  }
+
+  /* "snappy_wrapper.pyx":768
+ *         return output_bytes
+ *     finally:
+ *         free(iov_array)             # <<<<<<<<<<<<<<
+ * 
+ * def get_uncompressed_length(bytes compressed_data):
+*/
+  /*finally:*/ {
+    __pyx_L5_error:;
+    /*exception exit:*/{
+      __Pyx_PyThreadState_declare
+      __Pyx_PyThreadState_assign
+      __pyx_t_20 = 0; __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0; __pyx_t_25 = 0;
+      __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
+      __Pyx_XDECREF(__pyx_t_12); __pyx_t_12 = 0;
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __Pyx_XDECREF(__pyx_t_6); __pyx_t_6 = 0;
+       __Pyx_ExceptionSwap(&__pyx_t_23, &__pyx_t_24, &__pyx_t_25);
+      if ( unlikely(__Pyx_GetException(&__pyx_t_20, &__pyx_t_21, &__pyx_t_22) < 0)) __Pyx_ErrFetch(&__pyx_t_20, &__pyx_t_21, &__pyx_t_22);
+      __Pyx_XGOTREF(__pyx_t_20);
+      __Pyx_XGOTREF(__pyx_t_21);
+      __Pyx_XGOTREF(__pyx_t_22);
+      __Pyx_XGOTREF(__pyx_t_23);
+      __Pyx_XGOTREF(__pyx_t_24);
+      __Pyx_XGOTREF(__pyx_t_25);
+      __pyx_t_17 = __pyx_lineno; __pyx_t_18 = __pyx_clineno; __pyx_t_19 = __pyx_filename;
+      {
+        free(__pyx_v_iov_array);
+      }
+      __Pyx_XGIVEREF(__pyx_t_23);
+      __Pyx_XGIVEREF(__pyx_t_24);
+      __Pyx_XGIVEREF(__pyx_t_25);
+      __Pyx_ExceptionReset(__pyx_t_23, __pyx_t_24, __pyx_t_25);
+      __Pyx_XGIVEREF(__pyx_t_20);
+      __Pyx_XGIVEREF(__pyx_t_21);
+      __Pyx_XGIVEREF(__pyx_t_22);
+      __Pyx_ErrRestore(__pyx_t_20, __pyx_t_21, __pyx_t_22);
+      __pyx_t_20 = 0; __pyx_t_21 = 0; __pyx_t_22 = 0; __pyx_t_23 = 0; __pyx_t_24 = 0; __pyx_t_25 = 0;
+      __pyx_lineno = __pyx_t_17; __pyx_clineno = __pyx_t_18; __pyx_filename = __pyx_t_19;
+      goto __pyx_L1_error;
+    }
+    __pyx_L4_return: {
+      __pyx_t_25 = __pyx_r;
+      __pyx_r = 0;
+      free(__pyx_v_iov_array);
+      __pyx_r = __pyx_t_25;
+      __pyx_t_25 = 0;
+      goto __pyx_L0;
+    }
+  }
+
+  /* "snappy_wrapper.pyx":705
+ *     return output_buffer
+ * 
+ * def uncompress_to_iovec(bytes compressed_data, list buffer_sizes):             # <<<<<<<<<<<<<<
+ *     """
+ *     Uncompress Snappy-compressed data into multiple buffers using IOVec.
+*/
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_5);
+  __Pyx_XDECREF(__pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_10);
+  __Pyx_XDECREF(__pyx_t_12);
+  __Pyx_AddTraceback("snappy_wrapper.uncompress_to_iovec", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_output_buffers);
+  __Pyx_XDECREF(__pyx_v_output_bytes);
+  __Pyx_XDECREF(__pyx_v_size);
+  __Pyx_XDECREF(__pyx_v_buf);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "snappy_wrapper.pyx":770
+ *         free(iov_array)
  * 
  * def get_uncompressed_length(bytes compressed_data):             # <<<<<<<<<<<<<<
  *     """
@@ -5106,16 +10605,16 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_raw(CYTHON_UNUSED PyObjec
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_14snappy_wrapper_11get_uncompressed_length(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_14snappy_wrapper_33get_uncompressed_length(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_10get_uncompressed_length, "\n    Get the uncompressed length from compressed data.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        int: Uncompressed data length\n        \n    Raises:\n        RuntimeError: If unable to get length\n    ");
-static PyMethodDef __pyx_mdef_14snappy_wrapper_11get_uncompressed_length = {"get_uncompressed_length", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_11get_uncompressed_length, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_10get_uncompressed_length};
-static PyObject *__pyx_pw_14snappy_wrapper_11get_uncompressed_length(PyObject *__pyx_self, 
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_32get_uncompressed_length, "\n    Get the uncompressed length from compressed data.\n    \n    Args:\n        compressed_data (bytes): Compressed data\n        \n    Returns:\n        int: Uncompressed data length\n        \n    Raises:\n        RuntimeError: If unable to get length\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_33get_uncompressed_length = {"get_uncompressed_length", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_33get_uncompressed_length, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_32get_uncompressed_length};
+static PyObject *__pyx_pw_14snappy_wrapper_33get_uncompressed_length(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -5145,32 +10644,32 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 200, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 770, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 200, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 770, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "get_uncompressed_length", 0) < 0) __PYX_ERR(0, 200, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "get_uncompressed_length", 0) < 0) __PYX_ERR(0, 770, __pyx_L3_error)
       for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
-        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("get_uncompressed_length", 1, 1, 1, i); __PYX_ERR(0, 200, __pyx_L3_error) }
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("get_uncompressed_length", 1, 1, 1, i); __PYX_ERR(0, 770, __pyx_L3_error) }
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 200, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 770, __pyx_L3_error)
     }
     __pyx_v_compressed_data = ((PyObject*)values[0]);
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("get_uncompressed_length", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 200, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("get_uncompressed_length", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 770, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5181,8 +10680,8 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 200, __pyx_L1_error)
-  __pyx_r = __pyx_pf_14snappy_wrapper_10get_uncompressed_length(__pyx_self, __pyx_v_compressed_data);
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 770, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_32get_uncompressed_length(__pyx_self, __pyx_v_compressed_data);
 
   /* function exit code */
   goto __pyx_L0;
@@ -5201,7 +10700,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+static PyObject *__pyx_pf_14snappy_wrapper_32get_uncompressed_length(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
   char const *__pyx_v_input_ptr;
   size_t __pyx_v_input_length;
   size_t __pyx_v_result;
@@ -5220,7 +10719,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_uncompressed_length", 0);
 
-  /* "snappy_wrapper.pyx":214
+  /* "snappy_wrapper.pyx":784
  *     """
  *     cdef:
  *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
@@ -5229,12 +10728,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
 */
   if (unlikely(__pyx_v_compressed_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
-    __PYX_ERR(0, 214, __pyx_L1_error)
+    __PYX_ERR(0, 784, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 214, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 784, __pyx_L1_error)
   __pyx_v_input_ptr = __pyx_t_1;
 
-  /* "snappy_wrapper.pyx":215
+  /* "snappy_wrapper.pyx":785
  *     cdef:
  *         const char* input_ptr = compressed_data
  *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
@@ -5243,12 +10742,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
 */
   if (unlikely(__pyx_v_compressed_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-    __PYX_ERR(0, 215, __pyx_L1_error)
+    __PYX_ERR(0, 785, __pyx_L1_error)
   }
-  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 215, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 785, __pyx_L1_error)
   __pyx_v_input_length = __pyx_t_2;
 
-  /* "snappy_wrapper.pyx":219
+  /* "snappy_wrapper.pyx":789
  *         bool success
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -5262,7 +10761,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
       __Pyx_FastGIL_Remember();
       /*try:*/ {
 
-        /* "snappy_wrapper.pyx":220
+        /* "snappy_wrapper.pyx":790
  * 
  *     with nogil:
  *         success = GetUncompressedLength(input_ptr, input_length, &result)             # <<<<<<<<<<<<<<
@@ -5272,7 +10771,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
         __pyx_v_success = snappy::GetUncompressedLength(__pyx_v_input_ptr, __pyx_v_input_length, (&__pyx_v_result));
       }
 
-      /* "snappy_wrapper.pyx":219
+      /* "snappy_wrapper.pyx":789
  *         bool success
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -5289,7 +10788,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
       }
   }
 
-  /* "snappy_wrapper.pyx":222
+  /* "snappy_wrapper.pyx":792
  *         success = GetUncompressedLength(input_ptr, input_length, &result)
  * 
  *     if not success:             # <<<<<<<<<<<<<<
@@ -5299,7 +10798,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
   __pyx_t_3 = (!(__pyx_v_success != 0));
   if (unlikely(__pyx_t_3)) {
 
-    /* "snappy_wrapper.pyx":223
+    /* "snappy_wrapper.pyx":793
  * 
  *     if not success:
  *         raise RuntimeError("Unable to get uncompressed length")             # <<<<<<<<<<<<<<
@@ -5311,18 +10810,18 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
     __pyx_t_6 = __pyx_builtin_RuntimeError; 
     __pyx_t_7 = 1;
     {
-      PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Unable_to_get_uncompressed_lengt};
+      PyObject *__pyx_callargs[2] = {__pyx_t_5, __pyx_mstate_global->__pyx_kp_u_Unable_to_get_uncompressed_lengt_2};
       __pyx_t_4 = __Pyx_PyObject_FastCall(__pyx_t_6, __pyx_callargs+__pyx_t_7, (2-__pyx_t_7) | (__pyx_t_7*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
       __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 223, __pyx_L1_error)
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 793, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
     }
     __Pyx_Raise(__pyx_t_4, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __PYX_ERR(0, 223, __pyx_L1_error)
+    __PYX_ERR(0, 793, __pyx_L1_error)
 
-    /* "snappy_wrapper.pyx":222
+    /* "snappy_wrapper.pyx":792
  *         success = GetUncompressedLength(input_ptr, input_length, &result)
  * 
  *     if not success:             # <<<<<<<<<<<<<<
@@ -5331,7 +10830,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
 */
   }
 
-  /* "snappy_wrapper.pyx":225
+  /* "snappy_wrapper.pyx":795
  *         raise RuntimeError("Unable to get uncompressed length")
  * 
  *     return result             # <<<<<<<<<<<<<<
@@ -5339,14 +10838,14 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
  * def is_valid_compressed_buffer(bytes compressed_data):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_4 = __Pyx_PyLong_FromSize_t(__pyx_v_result); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 225, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyLong_FromSize_t(__pyx_v_result); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 795, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_r = __pyx_t_4;
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":200
- *     return output_buffer
+  /* "snappy_wrapper.pyx":770
+ *         free(iov_array)
  * 
  * def get_uncompressed_length(bytes compressed_data):             # <<<<<<<<<<<<<<
  *     """
@@ -5366,7 +10865,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
   return __pyx_r;
 }
 
-/* "snappy_wrapper.pyx":227
+/* "snappy_wrapper.pyx":797
  *     return result
  * 
  * def is_valid_compressed_buffer(bytes compressed_data):             # <<<<<<<<<<<<<<
@@ -5375,16 +10874,16 @@ static PyObject *__pyx_pf_14snappy_wrapper_10get_uncompressed_length(CYTHON_UNUS
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_14snappy_wrapper_13is_valid_compressed_buffer(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_14snappy_wrapper_35is_valid_compressed_buffer(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_12is_valid_compressed_buffer, "\n    Check if the given data is a valid Snappy compressed buffer.\n    \n    Args:\n        compressed_data (bytes): Data to check\n        \n    Returns:\n        bool: True if valid Snappy compressed data, False otherwise\n    ");
-static PyMethodDef __pyx_mdef_14snappy_wrapper_13is_valid_compressed_buffer = {"is_valid_compressed_buffer", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_13is_valid_compressed_buffer, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_12is_valid_compressed_buffer};
-static PyObject *__pyx_pw_14snappy_wrapper_13is_valid_compressed_buffer(PyObject *__pyx_self, 
+PyDoc_STRVAR(__pyx_doc_14snappy_wrapper_34is_valid_compressed_buffer, "\n    Check if the given data is a valid Snappy compressed buffer.\n    \n    Args:\n        compressed_data (bytes): Data to check\n        \n    Returns:\n        bool: True if valid Snappy compressed data, False otherwise\n    ");
+static PyMethodDef __pyx_mdef_14snappy_wrapper_35is_valid_compressed_buffer = {"is_valid_compressed_buffer", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_14snappy_wrapper_35is_valid_compressed_buffer, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_14snappy_wrapper_34is_valid_compressed_buffer};
+static PyObject *__pyx_pw_14snappy_wrapper_35is_valid_compressed_buffer(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -5414,32 +10913,32 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   {
     PyObject ** const __pyx_pyargnames[] = {&__pyx_mstate_global->__pyx_n_u_compressed_data,0};
     const Py_ssize_t __pyx_kwds_len = (__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
-    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 227, __pyx_L3_error)
+    if (unlikely(__pyx_kwds_len) < 0) __PYX_ERR(0, 797, __pyx_L3_error)
     if (__pyx_kwds_len > 0) {
       switch (__pyx_nargs) {
         case  1:
         values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 227, __pyx_L3_error)
+        if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 797, __pyx_L3_error)
         CYTHON_FALLTHROUGH;
         case  0: break;
         default: goto __pyx_L5_argtuple_error;
       }
       const Py_ssize_t kwd_pos_args = __pyx_nargs;
-      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "is_valid_compressed_buffer", 0) < 0) __PYX_ERR(0, 227, __pyx_L3_error)
+      if (__Pyx_ParseKeywords(__pyx_kwds, __pyx_kwvalues, __pyx_pyargnames, 0, values, kwd_pos_args, __pyx_kwds_len, "is_valid_compressed_buffer", 0) < 0) __PYX_ERR(0, 797, __pyx_L3_error)
       for (Py_ssize_t i = __pyx_nargs; i < 1; i++) {
-        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("is_valid_compressed_buffer", 1, 1, 1, i); __PYX_ERR(0, 227, __pyx_L3_error) }
+        if (unlikely(!values[i])) { __Pyx_RaiseArgtupleInvalid("is_valid_compressed_buffer", 1, 1, 1, i); __PYX_ERR(0, 797, __pyx_L3_error) }
       }
     } else if (unlikely(__pyx_nargs != 1)) {
       goto __pyx_L5_argtuple_error;
     } else {
       values[0] = __Pyx_ArgRef_FASTCALL(__pyx_args, 0);
-      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 227, __pyx_L3_error)
+      if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[0])) __PYX_ERR(0, 797, __pyx_L3_error)
     }
     __pyx_v_compressed_data = ((PyObject*)values[0]);
   }
   goto __pyx_L6_skip;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("is_valid_compressed_buffer", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 227, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("is_valid_compressed_buffer", 1, 1, 1, __pyx_nargs); __PYX_ERR(0, 797, __pyx_L3_error)
   __pyx_L6_skip:;
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -5450,8 +10949,8 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 227, __pyx_L1_error)
-  __pyx_r = __pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(__pyx_self, __pyx_v_compressed_data);
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_compressed_data), (&PyBytes_Type), 1, "compressed_data", 1))) __PYX_ERR(0, 797, __pyx_L1_error)
+  __pyx_r = __pyx_pf_14snappy_wrapper_34is_valid_compressed_buffer(__pyx_self, __pyx_v_compressed_data);
 
   /* function exit code */
   goto __pyx_L0;
@@ -5470,7 +10969,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
+static PyObject *__pyx_pf_14snappy_wrapper_34is_valid_compressed_buffer(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_compressed_data) {
   char const *__pyx_v_input_ptr;
   size_t __pyx_v_input_length;
   bool __pyx_v_result;
@@ -5484,7 +10983,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(CYTHON_U
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("is_valid_compressed_buffer", 0);
 
-  /* "snappy_wrapper.pyx":238
+  /* "snappy_wrapper.pyx":808
  *     """
  *     cdef:
  *         const char* input_ptr = compressed_data             # <<<<<<<<<<<<<<
@@ -5493,12 +10992,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(CYTHON_U
 */
   if (unlikely(__pyx_v_compressed_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "expected bytes, NoneType found");
-    __PYX_ERR(0, 238, __pyx_L1_error)
+    __PYX_ERR(0, 808, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 238, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBytes_AsString(__pyx_v_compressed_data); if (unlikely((!__pyx_t_1) && PyErr_Occurred())) __PYX_ERR(0, 808, __pyx_L1_error)
   __pyx_v_input_ptr = __pyx_t_1;
 
-  /* "snappy_wrapper.pyx":239
+  /* "snappy_wrapper.pyx":809
  *     cdef:
  *         const char* input_ptr = compressed_data
  *         size_t input_length = len(compressed_data)             # <<<<<<<<<<<<<<
@@ -5507,12 +11006,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(CYTHON_U
 */
   if (unlikely(__pyx_v_compressed_data == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "object of type 'NoneType' has no len()");
-    __PYX_ERR(0, 239, __pyx_L1_error)
+    __PYX_ERR(0, 809, __pyx_L1_error)
   }
-  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 239, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyBytes_GET_SIZE(__pyx_v_compressed_data); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 809, __pyx_L1_error)
   __pyx_v_input_length = __pyx_t_2;
 
-  /* "snappy_wrapper.pyx":242
+  /* "snappy_wrapper.pyx":812
  *         bool result
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -5526,7 +11025,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(CYTHON_U
       __Pyx_FastGIL_Remember();
       /*try:*/ {
 
-        /* "snappy_wrapper.pyx":243
+        /* "snappy_wrapper.pyx":813
  * 
  *     with nogil:
  *         result = IsValidCompressedBuffer(input_ptr, input_length)             # <<<<<<<<<<<<<<
@@ -5536,7 +11035,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(CYTHON_U
         __pyx_v_result = snappy::IsValidCompressedBuffer(__pyx_v_input_ptr, __pyx_v_input_length);
       }
 
-      /* "snappy_wrapper.pyx":242
+      /* "snappy_wrapper.pyx":812
  *         bool result
  * 
  *     with nogil:             # <<<<<<<<<<<<<<
@@ -5553,19 +11052,19 @@ static PyObject *__pyx_pf_14snappy_wrapper_12is_valid_compressed_buffer(CYTHON_U
       }
   }
 
-  /* "snappy_wrapper.pyx":245
+  /* "snappy_wrapper.pyx":815
  *         result = IsValidCompressedBuffer(input_ptr, input_length)
  * 
  *     return result             # <<<<<<<<<<<<<<
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_result); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 245, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyBool_FromLong(__pyx_v_result); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 815, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __pyx_r = __pyx_t_3;
   __pyx_t_3 = 0;
   goto __pyx_L0;
 
-  /* "snappy_wrapper.pyx":227
+  /* "snappy_wrapper.pyx":797
  *     return result
  * 
  * def is_valid_compressed_buffer(bytes compressed_data):             # <<<<<<<<<<<<<<
@@ -5785,23 +11284,23 @@ static int __Pyx_modinit_type_init_code(__pyx_mstatetype *__pyx_mstate) {
   __Pyx_RefNannySetupContext("__Pyx_modinit_type_init_code", 0);
   /*--- Type init code ---*/
   #if CYTHON_USE_TYPE_SPECS
-  __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_14snappy_wrapper_PyCompressionOptions_spec, NULL); if (unlikely(!__pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions)) __PYX_ERR(0, 35, __pyx_L1_error)
-  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_14snappy_wrapper_PyCompressionOptions_spec, __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions) < 0) __PYX_ERR(0, 35, __pyx_L1_error)
+  __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_14snappy_wrapper_PyCompressionOptions_spec, NULL); if (unlikely(!__pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions)) __PYX_ERR(0, 158, __pyx_L1_error)
+  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_14snappy_wrapper_PyCompressionOptions_spec, __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions) < 0) __PYX_ERR(0, 158, __pyx_L1_error)
   #else
   __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions = &__pyx_type_14snappy_wrapper_PyCompressionOptions;
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
   #endif
   #if !CYTHON_USE_TYPE_SPECS
-  if (__Pyx_PyType_Ready(__pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions) < 0) __PYX_ERR(0, 35, __pyx_L1_error)
+  if (__Pyx_PyType_Ready(__pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions) < 0) __PYX_ERR(0, 158, __pyx_L1_error)
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
   if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions->tp_dictoffset && __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions->tp_getattro == PyObject_GenericGetAttr)) {
     __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions->tp_getattro = PyObject_GenericGetAttr;
   }
   #endif
-  if (PyObject_SetAttr(__pyx_m, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions, (PyObject *) __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions) < 0) __PYX_ERR(0, 35, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject *) __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions) < 0) __PYX_ERR(0, 35, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions, (PyObject *) __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions) < 0) __PYX_ERR(0, 158, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject *) __pyx_mstate->__pyx_ptype_14snappy_wrapper_PyCompressionOptions) < 0) __PYX_ERR(0, 158, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -5812,10 +11311,30 @@ static int __Pyx_modinit_type_init_code(__pyx_mstatetype *__pyx_mstate) {
 static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   __Pyx_RefNannyDeclarations
   CYTHON_UNUSED_VAR(__pyx_mstate);
+  PyObject *__pyx_t_1 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__Pyx_modinit_type_import_code", 0);
   /*--- Type import code ---*/
+  __pyx_t_1 = PyImport_ImportModule(__Pyx_BUILTIN_MODULE_NAME); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 9, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_mstate->__pyx_ptype_7cpython_4type_type = __Pyx_ImportType_3_1_0(__pyx_t_1, __Pyx_BUILTIN_MODULE_NAME, "type",
+  #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
+  sizeof(PyTypeObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_0(PyTypeObject),
+  #elif CYTHON_COMPILING_IN_LIMITED_API
+  0, 0,
+  #else
+  sizeof(PyHeapTypeObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_0(PyHeapTypeObject),
+  #endif
+  __Pyx_ImportType_CheckSize_Warn_3_1_0); if (!__pyx_mstate->__pyx_ptype_7cpython_4type_type) __PYX_ERR(2, 9, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_RefNannyFinishContext();
   return 0;
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_RefNannyFinishContext();
+  return -1;
 }
 
 static int __Pyx_modinit_variable_import_code(__pyx_mstatetype *__pyx_mstate) {
@@ -6114,38 +11633,38 @@ __Pyx_RefNannySetupContext("PyInit_snappy_wrapper", 0);
   (void)__Pyx_modinit_variable_export_code(__pyx_mstate);
   (void)__Pyx_modinit_function_export_code(__pyx_mstate);
   if (unlikely((__Pyx_modinit_type_init_code(__pyx_mstate) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
-  (void)__Pyx_modinit_type_import_code(__pyx_mstate);
+  if (unlikely((__Pyx_modinit_type_import_code(__pyx_mstate) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
   (void)__Pyx_modinit_variable_import_code(__pyx_mstate);
   (void)__Pyx_modinit_function_import_code(__pyx_mstate);
   /*--- Execution code ---*/
 
-  /* "snappy_wrapper.pyx":43
+  /* "snappy_wrapper.pyx":166
  *         self.opt = CompressionOptions(level)
  * 
  *     def get_level(self):             # <<<<<<<<<<<<<<
  *         return self.opt.level
  * 
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_20PyCompressionOptions_3get_level, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions_get_level, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[0])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 43, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_20PyCompressionOptions_3get_level, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions_get_level, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[0])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 166, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_get_level, __pyx_t_2) < 0) __PYX_ERR(0, 43, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_get_level, __pyx_t_2) < 0) __PYX_ERR(0, 166, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":46
+  /* "snappy_wrapper.pyx":169
  *         return self.opt.level
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
  *     def min_level():
  *         return CompressionOptions.MinCompressionLevel()
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_20PyCompressionOptions_5min_level, __Pyx_CYFUNCTION_STATICMETHOD | __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions_min_level, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[1])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 46, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_20PyCompressionOptions_5min_level, __Pyx_CYFUNCTION_STATICMETHOD | __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions_min_level, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[1])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 169, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_min_level, __pyx_t_2) < 0) __PYX_ERR(0, 46, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_min_level, __pyx_t_2) < 0) __PYX_ERR(0, 169, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_3 = NULL;
   __Pyx_INCREF(__pyx_builtin_staticmethod);
   __pyx_t_4 = __pyx_builtin_staticmethod; 
-  __Pyx_GetNameInClass(__pyx_t_5, (PyObject*)__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_min_level); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 46, __pyx_L1_error)
+  __Pyx_GetNameInClass(__pyx_t_5, (PyObject*)__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_min_level); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 169, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_6 = 1;
   {
@@ -6154,27 +11673,27 @@ __Pyx_RefNannySetupContext("PyInit_snappy_wrapper", 0);
     __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 46, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 169, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
   }
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_min_level, __pyx_t_2) < 0) __PYX_ERR(0, 46, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_min_level, __pyx_t_2) < 0) __PYX_ERR(0, 169, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":50
+  /* "snappy_wrapper.pyx":173
  *         return CompressionOptions.MinCompressionLevel()
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
  *     def max_level():
  *         return CompressionOptions.MaxCompressionLevel()
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_20PyCompressionOptions_7max_level, __Pyx_CYFUNCTION_STATICMETHOD | __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions_max_level, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[2])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 50, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_20PyCompressionOptions_7max_level, __Pyx_CYFUNCTION_STATICMETHOD | __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions_max_level, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[2])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 173, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_max_level, __pyx_t_2) < 0) __PYX_ERR(0, 50, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_max_level, __pyx_t_2) < 0) __PYX_ERR(0, 173, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_4 = NULL;
   __Pyx_INCREF(__pyx_builtin_staticmethod);
   __pyx_t_5 = __pyx_builtin_staticmethod; 
-  __Pyx_GetNameInClass(__pyx_t_3, (PyObject*)__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_max_level); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 50, __pyx_L1_error)
+  __Pyx_GetNameInClass(__pyx_t_3, (PyObject*)__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_max_level); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 173, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __pyx_t_6 = 1;
   {
@@ -6183,27 +11702,27 @@ __Pyx_RefNannySetupContext("PyInit_snappy_wrapper", 0);
     __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 50, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 173, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
   }
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_max_level, __pyx_t_2) < 0) __PYX_ERR(0, 50, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_max_level, __pyx_t_2) < 0) __PYX_ERR(0, 173, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":54
+  /* "snappy_wrapper.pyx":177
  *         return CompressionOptions.MaxCompressionLevel()
  * 
  *     @staticmethod             # <<<<<<<<<<<<<<
  *     def default_level():
  *         return CompressionOptions.DefaultCompressionLevel()
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_20PyCompressionOptions_9default_level, __Pyx_CYFUNCTION_STATICMETHOD | __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions_default_lev, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[3])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 54, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_20PyCompressionOptions_9default_level, __Pyx_CYFUNCTION_STATICMETHOD | __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_PyCompressionOptions_default_lev, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[3])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 177, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_default_level, __pyx_t_2) < 0) __PYX_ERR(0, 54, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_default_level, __pyx_t_2) < 0) __PYX_ERR(0, 177, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_5 = NULL;
   __Pyx_INCREF(__pyx_builtin_staticmethod);
   __pyx_t_3 = __pyx_builtin_staticmethod; 
-  __Pyx_GetNameInClass(__pyx_t_4, (PyObject*)__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_default_level); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 54, __pyx_L1_error)
+  __Pyx_GetNameInClass(__pyx_t_4, (PyObject*)__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_default_level); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 177, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __pyx_t_6 = 1;
   {
@@ -6212,10 +11731,10 @@ __Pyx_RefNannySetupContext("PyInit_snappy_wrapper", 0);
     __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 54, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 177, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
   }
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_default_level, __pyx_t_2) < 0) __PYX_ERR(0, 54, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_14snappy_wrapper_PyCompressionOptions, __pyx_mstate_global->__pyx_n_u_default_level, __pyx_t_2) < 0) __PYX_ERR(0, 177, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "(tree fragment)":1
@@ -6239,90 +11758,225 @@ __Pyx_RefNannySetupContext("PyInit_snappy_wrapper", 0);
   if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_setstate_cython, __pyx_t_2) < 0) __PYX_ERR(1, 3, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":59
- * 
+  /* "snappy_wrapper.pyx":183
  * # Python wrapper functions
+ * 
+ * def get_constants():             # <<<<<<<<<<<<<<
+ *     """Get Snappy constants."""
+ *     return {
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_1get_constants, 0, __pyx_mstate_global->__pyx_n_u_get_constants, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[6])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 183, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_get_constants, __pyx_t_2) < 0) __PYX_ERR(0, 183, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":194
+ *     }
+ * 
  * def max_compressed_length(size_t source_bytes):             # <<<<<<<<<<<<<<
  *     """
  *     Calculate the maximum possible compressed length for given input size.
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_1max_compressed_length, 0, __pyx_mstate_global->__pyx_n_u_max_compressed_length, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[6])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 59, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_3max_compressed_length, 0, __pyx_mstate_global->__pyx_n_u_max_compressed_length, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[7])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 194, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_max_compressed_length, __pyx_t_2) < 0) __PYX_ERR(0, 59, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_max_compressed_length, __pyx_t_2) < 0) __PYX_ERR(0, 194, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":74
+  /* "snappy_wrapper.pyx":209
  *     return result
+ * 
+ * def is_valid_compressed_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Check if the given data is valid Snappy compressed data using Source interface.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_5is_valid_compressed_source, 0, __pyx_mstate_global->__pyx_n_u_is_valid_compressed_source, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[8])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 209, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_is_valid_compressed_source, __pyx_t_2) < 0) __PYX_ERR(0, 209, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":233
+ *         del source
+ * 
+ * def compress_source_to_sink(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data using Source/Sink interfaces.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_7compress_source_to_sink, 0, __pyx_mstate_global->__pyx_n_u_compress_source_to_sink, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[9])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 233, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_mstate_global->__pyx_tuple[0]);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_compress_source_to_sink, __pyx_t_2) < 0) __PYX_ERR(0, 233, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":271
+ *         del sink
+ * 
+ * def uncompress_source_to_sink(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress data using Source/Sink interfaces.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_9uncompress_source_to_sink, 0, __pyx_mstate_global->__pyx_n_u_uncompress_source_to_sink, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[10])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 271, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_uncompress_source_to_sink, __pyx_t_2) < 0) __PYX_ERR(0, 271, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":307
+ *         del sink
+ * 
+ * def uncompress_as_much_as_possible(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress as much data as possible from potentially corrupted compressed data.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_11uncompress_as_much_as_possible, 0, __pyx_mstate_global->__pyx_n_u_uncompress_as_much_as_possible, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[11])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 307, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_uncompress_as_much_as_possible, __pyx_t_2) < 0) __PYX_ERR(0, 307, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":337
+ *         del sink
+ * 
+ * def get_uncompressed_length_from_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Get uncompressed length using Source interface.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_13get_uncompressed_length_from_source, 0, __pyx_mstate_global->__pyx_n_u_get_uncompressed_length_from_sou, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[12])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 337, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_get_uncompressed_length_from_sou, __pyx_t_2) < 0) __PYX_ERR(0, 337, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":369
+ *         del source
+ * 
+ * def raw_uncompress_from_source(bytes compressed_data):             # <<<<<<<<<<<<<<
+ *     """
+ *     Raw decompress using Source interface.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_15raw_uncompress_from_source, 0, __pyx_mstate_global->__pyx_n_u_raw_uncompress_from_source, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[13])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 369, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_raw_uncompress_from_source, __pyx_t_2) < 0) __PYX_ERR(0, 369, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":418
+ *         del source
+ * 
+ * def raw_uncompress_to_iovec_from_source(bytes compressed_data, list buffer_sizes):             # <<<<<<<<<<<<<<
+ *     """
+ *     Decompress to IOVec using Source interface.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_17raw_uncompress_to_iovec_from_source, 0, __pyx_mstate_global->__pyx_n_u_raw_uncompress_to_iovec_from_sou, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[14])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 418, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_raw_uncompress_to_iovec_from_sou, __pyx_t_2) < 0) __PYX_ERR(0, 418, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":482
+ *         free(iov_array)
  * 
  * def compress_data(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
  *     """
  *     Compress data using Snappy compression.
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_3compress_data, 0, __pyx_mstate_global->__pyx_n_u_compress_data, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[7])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 74, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_19compress_data, 0, __pyx_mstate_global->__pyx_n_u_compress_data, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[15])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 482, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_mstate_global->__pyx_tuple[0]);
-  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_compress_data, __pyx_t_2) < 0) __PYX_ERR(0, 74, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_compress_data, __pyx_t_2) < 0) __PYX_ERR(0, 482, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":106
+  /* "snappy_wrapper.pyx":514
  *     return output
+ * 
+ * def compress_from_iovec(list data_chunks, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data from multiple chunks using IOVec.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_21compress_from_iovec, 0, __pyx_mstate_global->__pyx_n_u_compress_from_iovec, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[16])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 514, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_mstate_global->__pyx_tuple[0]);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_compress_from_iovec, __pyx_t_2) < 0) __PYX_ERR(0, 514, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":561
+ *         free(iov_array)
  * 
  * def compress_raw(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
  *     """
  *     Compress data using Snappy raw compression.
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_5compress_raw, 0, __pyx_mstate_global->__pyx_n_u_compress_raw, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[8])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 106, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_23compress_raw, 0, __pyx_mstate_global->__pyx_n_u_compress_raw, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[17])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 561, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_mstate_global->__pyx_tuple[0]);
-  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_compress_raw, __pyx_t_2) < 0) __PYX_ERR(0, 106, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_compress_raw, __pyx_t_2) < 0) __PYX_ERR(0, 561, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":134
+  /* "snappy_wrapper.pyx":589
  *     return output_buffer[:compressed_length]
+ * 
+ * def compress_raw_from_iovec(list data_chunks, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ *     """
+ *     Compress data from multiple chunks using raw IOVec compression.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_25compress_raw_from_iovec, 0, __pyx_mstate_global->__pyx_n_u_compress_raw_from_iovec, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[18])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 589, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_2, __pyx_mstate_global->__pyx_tuple[0]);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_compress_raw_from_iovec, __pyx_t_2) < 0) __PYX_ERR(0, 589, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":639
+ *         free(iov_array)
  * 
  * def uncompress_data(bytes compressed_data):             # <<<<<<<<<<<<<<
  *     """
  *     Uncompress Snappy-compressed data.
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_7uncompress_data, 0, __pyx_mstate_global->__pyx_n_u_uncompress_data, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[9])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 134, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_27uncompress_data, 0, __pyx_mstate_global->__pyx_n_u_uncompress_data, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[19])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 639, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_uncompress_data, __pyx_t_2) < 0) __PYX_ERR(0, 134, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_uncompress_data, __pyx_t_2) < 0) __PYX_ERR(0, 639, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":161
+  /* "snappy_wrapper.pyx":666
  *     return output
  * 
  * def uncompress_raw(bytes compressed_data):             # <<<<<<<<<<<<<<
  *     """
  *     Uncompress Snappy-compressed data using raw decompression.
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_9uncompress_raw, 0, __pyx_mstate_global->__pyx_n_u_uncompress_raw, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[10])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 161, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_29uncompress_raw, 0, __pyx_mstate_global->__pyx_n_u_uncompress_raw, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[20])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 666, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_uncompress_raw, __pyx_t_2) < 0) __PYX_ERR(0, 161, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_uncompress_raw, __pyx_t_2) < 0) __PYX_ERR(0, 666, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":200
+  /* "snappy_wrapper.pyx":705
  *     return output_buffer
+ * 
+ * def uncompress_to_iovec(bytes compressed_data, list buffer_sizes):             # <<<<<<<<<<<<<<
+ *     """
+ *     Uncompress Snappy-compressed data into multiple buffers using IOVec.
+*/
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_31uncompress_to_iovec, 0, __pyx_mstate_global->__pyx_n_u_uncompress_to_iovec, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[21])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 705, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_uncompress_to_iovec, __pyx_t_2) < 0) __PYX_ERR(0, 705, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+
+  /* "snappy_wrapper.pyx":770
+ *         free(iov_array)
  * 
  * def get_uncompressed_length(bytes compressed_data):             # <<<<<<<<<<<<<<
  *     """
  *     Get the uncompressed length from compressed data.
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_11get_uncompressed_length, 0, __pyx_mstate_global->__pyx_n_u_get_uncompressed_length, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[11])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 200, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_33get_uncompressed_length, 0, __pyx_mstate_global->__pyx_n_u_get_uncompressed_length, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[22])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 770, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_get_uncompressed_length, __pyx_t_2) < 0) __PYX_ERR(0, 200, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_get_uncompressed_length, __pyx_t_2) < 0) __PYX_ERR(0, 770, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "snappy_wrapper.pyx":227
+  /* "snappy_wrapper.pyx":797
  *     return result
  * 
  * def is_valid_compressed_buffer(bytes compressed_data):             # <<<<<<<<<<<<<<
  *     """
  *     Check if the given data is a valid Snappy compressed buffer.
 */
-  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_13is_valid_compressed_buffer, 0, __pyx_mstate_global->__pyx_n_u_is_valid_compressed_buffer, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[12])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 227, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_14snappy_wrapper_35is_valid_compressed_buffer, 0, __pyx_mstate_global->__pyx_n_u_is_valid_compressed_buffer, NULL, __pyx_mstate_global->__pyx_n_u_snappy_wrapper, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[23])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 797, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_is_valid_compressed_buffer, __pyx_t_2) < 0) __PYX_ERR(0, 227, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_is_valid_compressed_buffer, __pyx_t_2) < 0) __PYX_ERR(0, 797, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "snappy_wrapper.pyx":1
@@ -6397,9 +12051,17 @@ typedef struct {
 static const char * const __pyx_string_tab_encodings[] = { 0 };
 static const __Pyx_StringTabEntry __pyx_string_tab[] = {
   {__pyx_k_, sizeof(__pyx_k_), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_ */
+  {__pyx_k_Buffer_size, sizeof(__pyx_k_Buffer_size), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Buffer_size */
+  {__pyx_k_Chunk, sizeof(__pyx_k_Chunk), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Chunk */
   {__pyx_k_Compression_failed, sizeof(__pyx_k_Compression_failed), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Compression_failed */
   {__pyx_k_Compression_level_must_be_1_or_2, sizeof(__pyx_k_Compression_level_must_be_1_or_2), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Compression_level_must_be_1_or_2 */
   {__pyx_k_Decompression_failed, sizeof(__pyx_k_Decompression_failed), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Decompression_failed */
+  {__pyx_k_Failed_to_allocate_IOVec_array, sizeof(__pyx_k_Failed_to_allocate_IOVec_array), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Failed_to_allocate_IOVec_array */
+  {__pyx_k_Failed_to_allocate_buffer, sizeof(__pyx_k_Failed_to_allocate_buffer), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Failed_to_allocate_buffer */
+  {__pyx_k_IOVec_compression_failed, sizeof(__pyx_k_IOVec_compression_failed), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_IOVec_compression_failed */
+  {__pyx_k_IOVec_decompression_failed, sizeof(__pyx_k_IOVec_decompression_failed), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_IOVec_decompression_failed */
+  {__pyx_k_IOVec_decompression_from_source, sizeof(__pyx_k_IOVec_decompression_from_source), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_IOVec_decompression_from_source */
+  {__pyx_k_MemoryError, sizeof(__pyx_k_MemoryError), 0, 1, 1}, /* PyObject cname: __pyx_n_u_MemoryError */
   {__pyx_k_Note_that_Cython_is_deliberately, sizeof(__pyx_k_Note_that_Cython_is_deliberately), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Note_that_Cython_is_deliberately */
   {__pyx_k_PyCompressionOptions, sizeof(__pyx_k_PyCompressionOptions), 0, 1, 1}, /* PyObject cname: __pyx_n_u_PyCompressionOptions */
   {__pyx_k_PyCompressionOptions___reduce_cy, sizeof(__pyx_k_PyCompressionOptions___reduce_cy), 0, 1, 1}, /* PyObject cname: __pyx_n_u_PyCompressionOptions___reduce_cy */
@@ -6409,32 +12071,58 @@ static const __Pyx_StringTabEntry __pyx_string_tab[] = {
   {__pyx_k_PyCompressionOptions_max_level, sizeof(__pyx_k_PyCompressionOptions_max_level), 0, 1, 1}, /* PyObject cname: __pyx_n_u_PyCompressionOptions_max_level */
   {__pyx_k_PyCompressionOptions_min_level, sizeof(__pyx_k_PyCompressionOptions_min_level), 0, 1, 1}, /* PyObject cname: __pyx_n_u_PyCompressionOptions_min_level */
   {__pyx_k_Raw_decompression_failed, sizeof(__pyx_k_Raw_decompression_failed), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Raw_decompression_failed */
+  {__pyx_k_Raw_decompression_from_source_fa, sizeof(__pyx_k_Raw_decompression_from_source_fa), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Raw_decompression_from_source_fa */
   {__pyx_k_RuntimeError, sizeof(__pyx_k_RuntimeError), 0, 1, 1}, /* PyObject cname: __pyx_n_u_RuntimeError */
+  {__pyx_k_Source_Sink_compression_failed, sizeof(__pyx_k_Source_Sink_compression_failed), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Source_Sink_compression_failed */
+  {__pyx_k_Source_Sink_decompression_failed, sizeof(__pyx_k_Source_Sink_decompression_failed), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Source_Sink_decompression_failed */
   {__pyx_k_TypeError, sizeof(__pyx_k_TypeError), 0, 1, 1}, /* PyObject cname: __pyx_n_u_TypeError */
   {__pyx_k_Unable_to_get_uncompressed_lengt, sizeof(__pyx_k_Unable_to_get_uncompressed_lengt), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Unable_to_get_uncompressed_lengt */
+  {__pyx_k_Unable_to_get_uncompressed_lengt_2, sizeof(__pyx_k_Unable_to_get_uncompressed_lengt_2), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_Unable_to_get_uncompressed_lengt_2 */
   {__pyx_k_ValueError, sizeof(__pyx_k_ValueError), 0, 1, 1}, /* PyObject cname: __pyx_n_u_ValueError */
   {__pyx_k_add_note, sizeof(__pyx_k_add_note), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_add_note */
   {__pyx_k_asyncio_coroutines, sizeof(__pyx_k_asyncio_coroutines), 0, 1, 1}, /* PyObject cname: __pyx_n_u_asyncio_coroutines */
+  {__pyx_k_buf, sizeof(__pyx_k_buf), 0, 1, 1}, /* PyObject cname: __pyx_n_u_buf */
+  {__pyx_k_buf_ptr, sizeof(__pyx_k_buf_ptr), 0, 1, 1}, /* PyObject cname: __pyx_n_u_buf_ptr */
+  {__pyx_k_buffer_sizes, sizeof(__pyx_k_buffer_sizes), 0, 1, 1}, /* PyObject cname: __pyx_n_u_buffer_sizes */
+  {__pyx_k_bytes_processed, sizeof(__pyx_k_bytes_processed), 0, 1, 1}, /* PyObject cname: __pyx_n_u_bytes_processed */
+  {__pyx_k_chunk, sizeof(__pyx_k_chunk), 0, 1, 1}, /* PyObject cname: __pyx_n_u_chunk */
   {__pyx_k_cline_in_traceback, sizeof(__pyx_k_cline_in_traceback), 0, 1, 1}, /* PyObject cname: __pyx_n_u_cline_in_traceback */
   {__pyx_k_compress_data, sizeof(__pyx_k_compress_data), 0, 1, 1}, /* PyObject cname: __pyx_n_u_compress_data */
+  {__pyx_k_compress_from_iovec, sizeof(__pyx_k_compress_from_iovec), 0, 1, 1}, /* PyObject cname: __pyx_n_u_compress_from_iovec */
   {__pyx_k_compress_raw, sizeof(__pyx_k_compress_raw), 0, 1, 1}, /* PyObject cname: __pyx_n_u_compress_raw */
+  {__pyx_k_compress_raw_from_iovec, sizeof(__pyx_k_compress_raw_from_iovec), 0, 1, 1}, /* PyObject cname: __pyx_n_u_compress_raw_from_iovec */
+  {__pyx_k_compress_source_to_sink, sizeof(__pyx_k_compress_source_to_sink), 0, 1, 1}, /* PyObject cname: __pyx_n_u_compress_source_to_sink */
   {__pyx_k_compressed_data, sizeof(__pyx_k_compressed_data), 0, 1, 1}, /* PyObject cname: __pyx_n_u_compressed_data */
   {__pyx_k_compressed_length, sizeof(__pyx_k_compressed_length), 0, 1, 1}, /* PyObject cname: __pyx_n_u_compressed_length */
+  {__pyx_k_data_chunks, sizeof(__pyx_k_data_chunks), 0, 1, 1}, /* PyObject cname: __pyx_n_u_data_chunks */
   {__pyx_k_default_level, sizeof(__pyx_k_default_level), 0, 1, 1}, /* PyObject cname: __pyx_n_u_default_level */
   {__pyx_k_dict, sizeof(__pyx_k_dict), 0, 1, 1}, /* PyObject cname: __pyx_n_u_dict */
   {__pyx_k_disable, sizeof(__pyx_k_disable), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_disable */
   {__pyx_k_enable, sizeof(__pyx_k_enable), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_enable */
   {__pyx_k_func, sizeof(__pyx_k_func), 0, 1, 1}, /* PyObject cname: __pyx_n_u_func */
   {__pyx_k_gc, sizeof(__pyx_k_gc), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_gc */
+  {__pyx_k_get_constants, sizeof(__pyx_k_get_constants), 0, 1, 1}, /* PyObject cname: __pyx_n_u_get_constants */
   {__pyx_k_get_level, sizeof(__pyx_k_get_level), 0, 1, 1}, /* PyObject cname: __pyx_n_u_get_level */
   {__pyx_k_get_uncompressed_length, sizeof(__pyx_k_get_uncompressed_length), 0, 1, 1}, /* PyObject cname: __pyx_n_u_get_uncompressed_length */
+  {__pyx_k_get_uncompressed_length_from_sou, sizeof(__pyx_k_get_uncompressed_length_from_sou), 0, 1, 1}, /* PyObject cname: __pyx_n_u_get_uncompressed_length_from_sou */
   {__pyx_k_getstate, sizeof(__pyx_k_getstate), 0, 1, 1}, /* PyObject cname: __pyx_n_u_getstate */
+  {__pyx_k_i, sizeof(__pyx_k_i), 0, 1, 1}, /* PyObject cname: __pyx_n_u_i */
   {__pyx_k_input_data, sizeof(__pyx_k_input_data), 0, 1, 1}, /* PyObject cname: __pyx_n_u_input_data */
   {__pyx_k_input_length, sizeof(__pyx_k_input_length), 0, 1, 1}, /* PyObject cname: __pyx_n_u_input_length */
   {__pyx_k_input_ptr, sizeof(__pyx_k_input_ptr), 0, 1, 1}, /* PyObject cname: __pyx_n_u_input_ptr */
+  {__pyx_k_iov_array, sizeof(__pyx_k_iov_array), 0, 1, 1}, /* PyObject cname: __pyx_n_u_iov_array */
+  {__pyx_k_iov_cnt, sizeof(__pyx_k_iov_cnt), 0, 1, 1}, /* PyObject cname: __pyx_n_u_iov_cnt */
   {__pyx_k_is_coroutine, sizeof(__pyx_k_is_coroutine), 0, 1, 1}, /* PyObject cname: __pyx_n_u_is_coroutine */
   {__pyx_k_is_valid_compressed_buffer, sizeof(__pyx_k_is_valid_compressed_buffer), 0, 1, 1}, /* PyObject cname: __pyx_n_u_is_valid_compressed_buffer */
+  {__pyx_k_is_valid_compressed_source, sizeof(__pyx_k_is_valid_compressed_source), 0, 1, 1}, /* PyObject cname: __pyx_n_u_is_valid_compressed_source */
   {__pyx_k_isenabled, sizeof(__pyx_k_isenabled), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_isenabled */
+  {__pyx_k_j, sizeof(__pyx_k_j), 0, 1, 1}, /* PyObject cname: __pyx_n_u_j */
+  {__pyx_k_kBlockLog, sizeof(__pyx_k_kBlockLog), 0, 1, 1}, /* PyObject cname: __pyx_n_u_kBlockLog */
+  {__pyx_k_kBlockSize, sizeof(__pyx_k_kBlockSize), 0, 1, 1}, /* PyObject cname: __pyx_n_u_kBlockSize */
+  {__pyx_k_kMaxHashTableBits, sizeof(__pyx_k_kMaxHashTableBits), 0, 1, 1}, /* PyObject cname: __pyx_n_u_kMaxHashTableBits */
+  {__pyx_k_kMaxHashTableSize, sizeof(__pyx_k_kMaxHashTableSize), 0, 1, 1}, /* PyObject cname: __pyx_n_u_kMaxHashTableSize */
+  {__pyx_k_kMinHashTableBits, sizeof(__pyx_k_kMinHashTableBits), 0, 1, 1}, /* PyObject cname: __pyx_n_u_kMinHashTableBits */
+  {__pyx_k_kMinHashTableSize, sizeof(__pyx_k_kMinHashTableSize), 0, 1, 1}, /* PyObject cname: __pyx_n_u_kMinHashTableSize */
   {__pyx_k_level, sizeof(__pyx_k_level), 0, 1, 1}, /* PyObject cname: __pyx_n_u_level */
   {__pyx_k_main, sizeof(__pyx_k_main), 0, 1, 1}, /* PyObject cname: __pyx_n_u_main */
   {__pyx_k_max_compressed_length, sizeof(__pyx_k_max_compressed_length), 0, 1, 1}, /* PyObject cname: __pyx_n_u_max_compressed_length */
@@ -6442,15 +12130,22 @@ static const __Pyx_StringTabEntry __pyx_string_tab[] = {
   {__pyx_k_max_output_length, sizeof(__pyx_k_max_output_length), 0, 1, 1}, /* PyObject cname: __pyx_n_u_max_output_length */
   {__pyx_k_min_level, sizeof(__pyx_k_min_level), 0, 1, 1}, /* PyObject cname: __pyx_n_u_min_level */
   {__pyx_k_module, sizeof(__pyx_k_module), 0, 1, 1}, /* PyObject cname: __pyx_n_u_module */
+  {__pyx_k_must_be_bytes_got, sizeof(__pyx_k_must_be_bytes_got), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_must_be_bytes_got */
+  {__pyx_k_must_be_non_negative, sizeof(__pyx_k_must_be_non_negative), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_must_be_non_negative */
   {__pyx_k_name, sizeof(__pyx_k_name), 0, 1, 1}, /* PyObject cname: __pyx_n_u_name */
   {__pyx_k_no_default___reduce___due_to_non, sizeof(__pyx_k_no_default___reduce___due_to_non), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_no_default___reduce___due_to_non */
   {__pyx_k_options, sizeof(__pyx_k_options), 0, 1, 1}, /* PyObject cname: __pyx_n_u_options */
   {__pyx_k_output, sizeof(__pyx_k_output), 0, 1, 1}, /* PyObject cname: __pyx_n_u_output */
   {__pyx_k_output_buffer, sizeof(__pyx_k_output_buffer), 0, 1, 1}, /* PyObject cname: __pyx_n_u_output_buffer */
+  {__pyx_k_output_buffers, sizeof(__pyx_k_output_buffers), 0, 1, 1}, /* PyObject cname: __pyx_n_u_output_buffers */
+  {__pyx_k_output_bytes, sizeof(__pyx_k_output_bytes), 0, 1, 1}, /* PyObject cname: __pyx_n_u_output_bytes */
   {__pyx_k_output_ptr, sizeof(__pyx_k_output_ptr), 0, 1, 1}, /* PyObject cname: __pyx_n_u_output_ptr */
   {__pyx_k_pop, sizeof(__pyx_k_pop), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pop */
   {__pyx_k_pyx_state, sizeof(__pyx_k_pyx_state), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pyx_state */
   {__pyx_k_qualname, sizeof(__pyx_k_qualname), 0, 1, 1}, /* PyObject cname: __pyx_n_u_qualname */
+  {__pyx_k_range, sizeof(__pyx_k_range), 0, 1, 1}, /* PyObject cname: __pyx_n_u_range */
+  {__pyx_k_raw_uncompress_from_source, sizeof(__pyx_k_raw_uncompress_from_source), 0, 1, 1}, /* PyObject cname: __pyx_n_u_raw_uncompress_from_source */
+  {__pyx_k_raw_uncompress_to_iovec_from_sou, sizeof(__pyx_k_raw_uncompress_to_iovec_from_sou), 0, 1, 1}, /* PyObject cname: __pyx_n_u_raw_uncompress_to_iovec_from_sou */
   {__pyx_k_reduce, sizeof(__pyx_k_reduce), 0, 1, 1}, /* PyObject cname: __pyx_n_u_reduce */
   {__pyx_k_reduce_cython, sizeof(__pyx_k_reduce_cython), 0, 1, 1}, /* PyObject cname: __pyx_n_u_reduce_cython */
   {__pyx_k_reduce_ex, sizeof(__pyx_k_reduce_ex), 0, 1, 1}, /* PyObject cname: __pyx_n_u_reduce_ex */
@@ -6459,15 +12154,22 @@ static const __Pyx_StringTabEntry __pyx_string_tab[] = {
   {__pyx_k_set_name, sizeof(__pyx_k_set_name), 0, 1, 1}, /* PyObject cname: __pyx_n_u_set_name */
   {__pyx_k_setstate, sizeof(__pyx_k_setstate), 0, 1, 1}, /* PyObject cname: __pyx_n_u_setstate */
   {__pyx_k_setstate_cython, sizeof(__pyx_k_setstate_cython), 0, 1, 1}, /* PyObject cname: __pyx_n_u_setstate_cython */
+  {__pyx_k_sink, sizeof(__pyx_k_sink), 0, 1, 1}, /* PyObject cname: __pyx_n_u_sink */
+  {__pyx_k_size, sizeof(__pyx_k_size), 0, 1, 1}, /* PyObject cname: __pyx_n_u_size */
   {__pyx_k_snappy_wrapper, sizeof(__pyx_k_snappy_wrapper), 0, 1, 1}, /* PyObject cname: __pyx_n_u_snappy_wrapper */
   {__pyx_k_snappy_wrapper_pyx, sizeof(__pyx_k_snappy_wrapper_pyx), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_snappy_wrapper_pyx */
+  {__pyx_k_source, sizeof(__pyx_k_source), 0, 1, 1}, /* PyObject cname: __pyx_n_u_source */
   {__pyx_k_source_bytes, sizeof(__pyx_k_source_bytes), 0, 1, 1}, /* PyObject cname: __pyx_n_u_source_bytes */
   {__pyx_k_staticmethod, sizeof(__pyx_k_staticmethod), 0, 1, 1}, /* PyObject cname: __pyx_n_u_staticmethod */
   {__pyx_k_stringsource, sizeof(__pyx_k_stringsource), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_stringsource */
   {__pyx_k_success, sizeof(__pyx_k_success), 0, 1, 1}, /* PyObject cname: __pyx_n_u_success */
   {__pyx_k_test, sizeof(__pyx_k_test), 0, 1, 1}, /* PyObject cname: __pyx_n_u_test */
+  {__pyx_k_total_length, sizeof(__pyx_k_total_length), 0, 1, 1}, /* PyObject cname: __pyx_n_u_total_length */
+  {__pyx_k_uncompress_as_much_as_possible, sizeof(__pyx_k_uncompress_as_much_as_possible), 0, 1, 1}, /* PyObject cname: __pyx_n_u_uncompress_as_much_as_possible */
   {__pyx_k_uncompress_data, sizeof(__pyx_k_uncompress_data), 0, 1, 1}, /* PyObject cname: __pyx_n_u_uncompress_data */
   {__pyx_k_uncompress_raw, sizeof(__pyx_k_uncompress_raw), 0, 1, 1}, /* PyObject cname: __pyx_n_u_uncompress_raw */
+  {__pyx_k_uncompress_source_to_sink, sizeof(__pyx_k_uncompress_source_to_sink), 0, 1, 1}, /* PyObject cname: __pyx_n_u_uncompress_source_to_sink */
+  {__pyx_k_uncompress_to_iovec, sizeof(__pyx_k_uncompress_to_iovec), 0, 1, 1}, /* PyObject cname: __pyx_n_u_uncompress_to_iovec */
   {__pyx_k_uncompressed_length, sizeof(__pyx_k_uncompressed_length), 0, 1, 1}, /* PyObject cname: __pyx_n_u_uncompressed_length */
   {0, 0, 0, 0, 0}
 };
@@ -6478,10 +12180,12 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, c
 
 static int __Pyx_InitCachedBuiltins(__pyx_mstatetype *__pyx_mstate) {
   CYTHON_UNUSED_VAR(__pyx_mstate);
-  __pyx_builtin_staticmethod = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_staticmethod); if (!__pyx_builtin_staticmethod) __PYX_ERR(0, 46, __pyx_L1_error)
-  __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(0, 40, __pyx_L1_error)
+  __pyx_builtin_staticmethod = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_staticmethod); if (!__pyx_builtin_staticmethod) __PYX_ERR(0, 169, __pyx_L1_error)
+  __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(0, 163, __pyx_L1_error)
   __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_TypeError); if (!__pyx_builtin_TypeError) __PYX_ERR(1, 2, __pyx_L1_error)
-  __pyx_builtin_RuntimeError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_RuntimeError); if (!__pyx_builtin_RuntimeError) __PYX_ERR(0, 102, __pyx_L1_error)
+  __pyx_builtin_RuntimeError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_RuntimeError); if (!__pyx_builtin_RuntimeError) __PYX_ERR(0, 264, __pyx_L1_error)
+  __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_MemoryError); if (!__pyx_builtin_MemoryError) __PYX_ERR(0, 444, __pyx_L1_error)
+  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_range); if (!__pyx_builtin_range) __PYX_ERR(0, 450, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -6493,14 +12197,14 @@ static int __Pyx_InitCachedConstants(__pyx_mstatetype *__pyx_mstate) {
   CYTHON_UNUSED_VAR(__pyx_mstate);
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "snappy_wrapper.pyx":74
- *     return result
+  /* "snappy_wrapper.pyx":233
+ *         del source
  * 
- * def compress_data(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
+ * def compress_source_to_sink(bytes input_data, PyCompressionOptions options=None):             # <<<<<<<<<<<<<<
  *     """
- *     Compress data using Snappy compression.
+ *     Compress data using Source/Sink interfaces.
 */
-  __pyx_mstate_global->__pyx_tuple[0] = PyTuple_Pack(1, Py_None); if (unlikely(!__pyx_mstate_global->__pyx_tuple[0])) __PYX_ERR(0, 74, __pyx_L1_error)
+  __pyx_mstate_global->__pyx_tuple[0] = PyTuple_Pack(1, Py_None); if (unlikely(!__pyx_mstate_global->__pyx_tuple[0])) __PYX_ERR(0, 233, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_mstate_global->__pyx_tuple[0]);
   __Pyx_GIVEREF(__pyx_mstate_global->__pyx_tuple[0]);
   __Pyx_RefNannyFinishContext();
@@ -6516,6 +12220,7 @@ static int __Pyx_InitConstants(__pyx_mstatetype *__pyx_mstate) {
   __pyx_mstate->__pyx_umethod_PyDict_Type_pop.type = (PyObject*)&PyDict_Type;
   __pyx_mstate->__pyx_umethod_PyDict_Type_pop.method_name = &__pyx_mstate->__pyx_n_u_pop;
   if (__Pyx_InitStrings(__pyx_string_tab, __pyx_mstate->__pyx_string_tab, __pyx_string_tab_encodings) < 0) __PYX_ERR(0, 1, __pyx_L1_error);
+  __pyx_mstate->__pyx_int_0 = PyLong_FromLong(0); if (unlikely(!__pyx_mstate->__pyx_int_0)) __PYX_ERR(0, 1, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -6528,8 +12233,8 @@ static int __Pyx_InitConstants(__pyx_mstatetype *__pyx_mstate) {
             unsigned int num_kwonly_args : 1;
             unsigned int nlocals : 4;
             unsigned int flags : 10;
-            unsigned int first_line : 8;
-            unsigned int line_table_length : 12;
+            unsigned int first_line : 10;
+            unsigned int line_table_length : 13;
         } __Pyx_PyCode_New_function_description;
 /* NewCodeObj.proto */
 static PyObject* __Pyx_PyCode_New(
@@ -6546,22 +12251,22 @@ static int __Pyx_CreateCodeObjects(__pyx_mstatetype *__pyx_mstate) {
   PyObject* tuple_dedup_map = PyDict_New();
   if (unlikely(!tuple_dedup_map)) return -1;
   {
-    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 1, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 43, 11};
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 1, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 166, 11};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_self};
     __pyx_mstate_global->__pyx_codeobj_tab[0] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_get_level, __pyx_k_A_t4q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[0])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {0, 0, 0, 0, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 46, 10};
+    __Pyx_PyCode_New_function_description descr = {0, 0, 0, 0, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 169, 10};
     PyObject* varnames[] = {0};
     __pyx_mstate_global->__pyx_codeobj_tab[1] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_min_level, __pyx_k_A_5Q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[1])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {0, 0, 0, 0, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 50, 10};
+    __Pyx_PyCode_New_function_description descr = {0, 0, 0, 0, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 173, 10};
     PyObject* varnames[] = {0};
     __pyx_mstate_global->__pyx_codeobj_tab[2] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_max_level, __pyx_k_A_5Q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[2])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {0, 0, 0, 0, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 54, 10};
+    __Pyx_PyCode_New_function_description descr = {0, 0, 0, 0, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 177, 10};
     PyObject* varnames[] = {0};
     __pyx_mstate_global->__pyx_codeobj_tab[3] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_default_level, __pyx_k_A_9, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[3])) goto bad;
   }
@@ -6576,39 +12281,94 @@ static int __Pyx_CreateCodeObjects(__pyx_mstatetype *__pyx_mstate) {
     __pyx_mstate_global->__pyx_codeobj_tab[5] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_stringsource, __pyx_mstate->__pyx_n_u_setstate_cython, __pyx_k_Q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[5])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 2, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 59, 22};
+    __Pyx_PyCode_New_function_description descr = {0, 0, 0, 0, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 183, 35};
+    PyObject* varnames[] = {0};
+    __pyx_mstate_global->__pyx_codeobj_tab[6] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_get_constants, __pyx_k_Q_a_Q_Q_Q_Q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[6])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 2, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 194, 22};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_source_bytes, __pyx_mstate->__pyx_n_u_result};
-    __pyx_mstate_global->__pyx_codeobj_tab[6] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_max_compressed_length, __pyx_k_AQ_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[6])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[7] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_max_compressed_length, __pyx_k_AQ_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[7])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 6, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 74, 97};
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 5, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 209, 57};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_source, __pyx_mstate->__pyx_n_u_result};
+    __pyx_mstate_global->__pyx_codeobj_tab[8] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_is_valid_compressed_source, __pyx_k_c__A_aq_q_A, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[8])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 8, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 233, 123};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_input_data, __pyx_mstate->__pyx_n_u_options, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_source, __pyx_mstate->__pyx_n_u_output, __pyx_mstate->__pyx_n_u_sink, __pyx_mstate->__pyx_n_u_compressed_length};
+    __pyx_mstate_global->__pyx_codeobj_tab[9] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_compress_source_to_sink, __pyx_k_a_c__A_1_83a_HAXQ_HAXV7_S_aq_q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[9])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 7, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 271, 90};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_source, __pyx_mstate->__pyx_n_u_output, __pyx_mstate->__pyx_n_u_sink, __pyx_mstate->__pyx_n_u_success};
+    __pyx_mstate_global->__pyx_codeobj_tab[10] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_uncompress_source_to_sink, __pyx_k_c__A_1_j_4q_aq_q_A_A, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[10])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 7, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 307, 77};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_source, __pyx_mstate->__pyx_n_u_output, __pyx_mstate->__pyx_n_u_sink, __pyx_mstate->__pyx_n_u_bytes_processed};
+    __pyx_mstate_global->__pyx_codeobj_tab[11] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_uncompress_as_much_as_possible, __pyx_k_c__A_1_8_A_A, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[11])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 6, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 337, 77};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_source, __pyx_mstate->__pyx_n_u_result, __pyx_mstate->__pyx_n_u_success};
+    __pyx_mstate_global->__pyx_codeobj_tab[12] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_get_uncompressed_length_from_sou, __pyx_k_c__A_1HAQ_4q_aq_q_A, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[12])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 8, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 369, 142};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_source, __pyx_mstate->__pyx_n_u_uncompressed_length, __pyx_mstate->__pyx_n_u_output_buffer, __pyx_mstate->__pyx_n_u_output_ptr, __pyx_mstate->__pyx_n_u_success};
+    __pyx_mstate_global->__pyx_codeobj_tab[13] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_raw_uncompress_from_source, __pyx_k_c__A_1HAQ_4q_aq_A__A_E_m1HA_4q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[13])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 13, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 418, 329};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_buffer_sizes, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_source, __pyx_mstate->__pyx_n_u_iov_cnt, __pyx_mstate->__pyx_n_u_iov_array, __pyx_mstate->__pyx_n_u_output_bytes, __pyx_mstate->__pyx_n_u_success, __pyx_mstate->__pyx_n_u_i, __pyx_mstate->__pyx_n_u_buf_ptr, __pyx_mstate->__pyx_n_u_size, __pyx_mstate->__pyx_n_u_j};
+    __pyx_mstate_global->__pyx_codeobj_tab[14] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_raw_uncompress_to_iovec_from_sou, __pyx_k_c_AQ_86_A_t1_k__A_E_aq_q_uBa_j, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[14])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 6, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 482, 97};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_input_data, __pyx_mstate->__pyx_n_u_options, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_output, __pyx_mstate->__pyx_n_u_compressed_length};
-    __pyx_mstate_global->__pyx_codeobj_tab[7] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_compress_data, __pyx_k_A_c_xs_N_1_N_87RS_A_l_1_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[7])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[15] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_compress_data, __pyx_k_A_c_xs_N_1_N_87RS_A_l_1_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[15])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 8, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 106, 111};
+    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 8, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 514, 222};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_data_chunks, __pyx_mstate->__pyx_n_u_options, __pyx_mstate->__pyx_n_u_iov_cnt, __pyx_mstate->__pyx_n_u_iov_array, __pyx_mstate->__pyx_n_u_output, __pyx_mstate->__pyx_n_u_compressed_length, __pyx_mstate->__pyx_n_u_i, __pyx_mstate->__pyx_n_u_chunk};
+    __pyx_mstate_global->__pyx_codeobj_tab[16] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_compress_from_iovec, __pyx_k_AQ_86_t1_k_E_aq_Kq_t_QgQ_iq_C4q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[16])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 8, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 561, 111};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_input_data, __pyx_mstate->__pyx_n_u_options, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_max_output_length, __pyx_mstate->__pyx_n_u_output_buffer, __pyx_mstate->__pyx_n_u_output_ptr, __pyx_mstate->__pyx_n_u_compressed_length};
-    __pyx_mstate_global->__pyx_codeobj_tab[8] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_compress_raw, __pyx_k_1_c_6aq_e1A_1_1_xs_q_Qa_q_Q_QQX, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[8])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[17] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_compress_raw, __pyx_k_1_c_6aq_e1A_1_1_xs_q_Qa_q_Q_QQX, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[17])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 5, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 134, 59};
+    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 11, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 589, 249};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_data_chunks, __pyx_mstate->__pyx_n_u_options, __pyx_mstate->__pyx_n_u_iov_cnt, __pyx_mstate->__pyx_n_u_iov_array, __pyx_mstate->__pyx_n_u_total_length, __pyx_mstate->__pyx_n_u_max_output_length, __pyx_mstate->__pyx_n_u_output_buffer, __pyx_mstate->__pyx_n_u_output_ptr, __pyx_mstate->__pyx_n_u_compressed_length, __pyx_mstate->__pyx_n_u_i, __pyx_mstate->__pyx_n_u_chunk};
+    __pyx_mstate_global->__pyx_codeobj_tab[18] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_compress_raw_from_iovec, __pyx_k_a_AQ_86_a_t1_k_E_aq_Kq_t_QgQ_iq, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[18])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 5, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 639, 59};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_output, __pyx_mstate->__pyx_n_u_success};
-    __pyx_mstate_global->__pyx_codeobj_tab[9] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_uncompress_data, __pyx_k_c_A_aq_t1_l_1_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[9])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[19] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_uncompress_data, __pyx_k_c_A_aq_t1_l_1_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[19])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 7, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 161, 108};
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 7, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 666, 108};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_uncompressed_length, __pyx_mstate->__pyx_n_u_success, __pyx_mstate->__pyx_n_u_output_buffer, __pyx_mstate->__pyx_n_u_output_ptr};
-    __pyx_mstate_global->__pyx_codeobj_tab[10] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_uncompress_raw, __pyx_k_c_q_t1_l_1_e1A_1_q_t1_l_1_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[10])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[20] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_uncompress_raw, __pyx_k_c_q_t1_l_1_e1A_1_q_t1_l_1_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[20])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 5, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 200, 60};
+    __Pyx_PyCode_New_function_description descr = {2, 0, 0, 14, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 705, 338};
+    PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_buffer_sizes, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_iov_cnt, __pyx_mstate->__pyx_n_u_iov_array, __pyx_mstate->__pyx_n_u_output_buffers, __pyx_mstate->__pyx_n_u_output_bytes, __pyx_mstate->__pyx_n_u_success, __pyx_mstate->__pyx_n_u_i, __pyx_mstate->__pyx_n_u_buf_ptr, __pyx_mstate->__pyx_n_u_size, __pyx_mstate->__pyx_n_u_buf, __pyx_mstate->__pyx_n_u_j};
+    __pyx_mstate_global->__pyx_codeobj_tab[21] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_uncompress_to_iovec, __pyx_k_c_AQ_86_a_A_t1_k_E_aq_q_uBa_j_3, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[21])) goto bad;
+  }
+  {
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 5, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 770, 60};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_result, __pyx_mstate->__pyx_n_u_success};
-    __pyx_mstate_global->__pyx_codeobj_tab[11] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_get_uncompressed_length, __pyx_k_c_q_t1_l_1_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[11])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[22] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_get_uncompressed_length, __pyx_k_c_q_t1_l_1_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[22])) goto bad;
   }
   {
-    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 4, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 227, 40};
+    __Pyx_PyCode_New_function_description descr = {1, 0, 0, 4, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 797, 40};
     PyObject* varnames[] = {__pyx_mstate->__pyx_n_u_compressed_data, __pyx_mstate->__pyx_n_u_input_ptr, __pyx_mstate->__pyx_n_u_input_length, __pyx_mstate->__pyx_n_u_result};
-    __pyx_mstate_global->__pyx_codeobj_tab[12] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_is_valid_compressed_buffer, __pyx_k_c_A_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[12])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[23] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_snappy_wrapper_pyx, __pyx_mstate->__pyx_n_u_is_valid_compressed_buffer, __pyx_k_c_A_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[23])) goto bad;
   }
   Py_DECREF(tuple_dedup_map);
   return 0;
@@ -8023,6 +13783,650 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
     return 0;
 }
 
+/* GetException */
+#if CYTHON_FAST_THREAD_STATE
+static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb)
+#else
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
+#endif
+{
+    PyObject *local_type = NULL, *local_value, *local_tb = NULL;
+#if CYTHON_FAST_THREAD_STATE
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+  #if PY_VERSION_HEX >= 0x030C0000
+    local_value = tstate->current_exception;
+    tstate->current_exception = 0;
+  #else
+    local_type = tstate->curexc_type;
+    local_value = tstate->curexc_value;
+    local_tb = tstate->curexc_traceback;
+    tstate->curexc_type = 0;
+    tstate->curexc_value = 0;
+    tstate->curexc_traceback = 0;
+  #endif
+#elif __PYX_LIMITED_VERSION_HEX > 0x030C0000
+    local_value = PyErr_GetRaisedException();
+#else
+    PyErr_Fetch(&local_type, &local_value, &local_tb);
+#endif
+#if __PYX_LIMITED_VERSION_HEX > 0x030C0000
+    if (likely(local_value)) {
+        local_type = (PyObject*) Py_TYPE(local_value);
+        Py_INCREF(local_type);
+        local_tb = PyException_GetTraceback(local_value);
+    }
+#else
+    PyErr_NormalizeException(&local_type, &local_value, &local_tb);
+#if CYTHON_FAST_THREAD_STATE
+    if (unlikely(tstate->curexc_type))
+#else
+    if (unlikely(PyErr_Occurred()))
+#endif
+        goto bad;
+    if (local_tb) {
+        if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
+            goto bad;
+    }
+#endif // __PYX_LIMITED_VERSION_HEX > 0x030C0000
+    Py_XINCREF(local_tb);
+    Py_XINCREF(local_type);
+    Py_XINCREF(local_value);
+    *type = local_type;
+    *value = local_value;
+    *tb = local_tb;
+#if CYTHON_FAST_THREAD_STATE
+    #if CYTHON_USE_EXC_INFO_STACK
+    {
+        _PyErr_StackItem *exc_info = tstate->exc_info;
+      #if PY_VERSION_HEX >= 0x030B00a4
+        tmp_value = exc_info->exc_value;
+        exc_info->exc_value = local_value;
+        tmp_type = NULL;
+        tmp_tb = NULL;
+        Py_XDECREF(local_type);
+        Py_XDECREF(local_tb);
+      #else
+        tmp_type = exc_info->exc_type;
+        tmp_value = exc_info->exc_value;
+        tmp_tb = exc_info->exc_traceback;
+        exc_info->exc_type = local_type;
+        exc_info->exc_value = local_value;
+        exc_info->exc_traceback = local_tb;
+      #endif
+    }
+    #else
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = local_type;
+    tstate->exc_value = local_value;
+    tstate->exc_traceback = local_tb;
+    #endif
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030b0000
+    PyErr_SetHandledException(local_value);
+    Py_XDECREF(local_value);
+    Py_XDECREF(local_type);
+    Py_XDECREF(local_tb);
+#else
+    PyErr_SetExcInfo(local_type, local_value, local_tb);
+#endif
+    return 0;
+#if __PYX_LIMITED_VERSION_HEX <= 0x030C0000
+bad:
+    *type = 0;
+    *value = 0;
+    *tb = 0;
+    Py_XDECREF(local_type);
+    Py_XDECREF(local_value);
+    Py_XDECREF(local_tb);
+    return -1;
+#endif
+}
+
+/* SwapException */
+#if CYTHON_FAST_THREAD_STATE
+static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+  #if CYTHON_USE_EXC_INFO_STACK && PY_VERSION_HEX >= 0x030B00a4
+    _PyErr_StackItem *exc_info = tstate->exc_info;
+    tmp_value = exc_info->exc_value;
+    exc_info->exc_value = *value;
+    if (tmp_value == NULL || tmp_value == Py_None) {
+        Py_XDECREF(tmp_value);
+        tmp_value = NULL;
+        tmp_type = NULL;
+        tmp_tb = NULL;
+    } else {
+        tmp_type = (PyObject*) Py_TYPE(tmp_value);
+        Py_INCREF(tmp_type);
+        #if CYTHON_COMPILING_IN_CPYTHON
+        tmp_tb = ((PyBaseExceptionObject*) tmp_value)->traceback;
+        Py_XINCREF(tmp_tb);
+        #else
+        tmp_tb = PyException_GetTraceback(tmp_value);
+        #endif
+    }
+  #elif CYTHON_USE_EXC_INFO_STACK
+    _PyErr_StackItem *exc_info = tstate->exc_info;
+    tmp_type = exc_info->exc_type;
+    tmp_value = exc_info->exc_value;
+    tmp_tb = exc_info->exc_traceback;
+    exc_info->exc_type = *type;
+    exc_info->exc_value = *value;
+    exc_info->exc_traceback = *tb;
+  #else
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = *type;
+    tstate->exc_value = *value;
+    tstate->exc_traceback = *tb;
+  #endif
+    *type = tmp_type;
+    *value = tmp_value;
+    *tb = tmp_tb;
+}
+#else
+static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyErr_GetExcInfo(&tmp_type, &tmp_value, &tmp_tb);
+    PyErr_SetExcInfo(*type, *value, *tb);
+    *type = tmp_type;
+    *value = tmp_value;
+    *tb = tmp_tb;
+}
+#endif
+
+/* GetTopmostException */
+#if CYTHON_USE_EXC_INFO_STACK && CYTHON_FAST_THREAD_STATE
+static _PyErr_StackItem *
+__Pyx_PyErr_GetTopmostException(PyThreadState *tstate)
+{
+    _PyErr_StackItem *exc_info = tstate->exc_info;
+    while ((exc_info->exc_value == NULL || exc_info->exc_value == Py_None) &&
+           exc_info->previous_item != NULL)
+    {
+        exc_info = exc_info->previous_item;
+    }
+    return exc_info;
+}
+#endif
+
+/* SaveResetException */
+#if CYTHON_FAST_THREAD_STATE
+static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
+  #if CYTHON_USE_EXC_INFO_STACK && PY_VERSION_HEX >= 0x030B00a4
+    _PyErr_StackItem *exc_info = __Pyx_PyErr_GetTopmostException(tstate);
+    PyObject *exc_value = exc_info->exc_value;
+    if (exc_value == NULL || exc_value == Py_None) {
+        *value = NULL;
+        *type = NULL;
+        *tb = NULL;
+    } else {
+        *value = exc_value;
+        Py_INCREF(*value);
+        *type = (PyObject*) Py_TYPE(exc_value);
+        Py_INCREF(*type);
+        *tb = PyException_GetTraceback(exc_value);
+    }
+  #elif CYTHON_USE_EXC_INFO_STACK
+    _PyErr_StackItem *exc_info = __Pyx_PyErr_GetTopmostException(tstate);
+    *type = exc_info->exc_type;
+    *value = exc_info->exc_value;
+    *tb = exc_info->exc_traceback;
+    Py_XINCREF(*type);
+    Py_XINCREF(*value);
+    Py_XINCREF(*tb);
+  #else
+    *type = tstate->exc_type;
+    *value = tstate->exc_value;
+    *tb = tstate->exc_traceback;
+    Py_XINCREF(*type);
+    Py_XINCREF(*value);
+    Py_XINCREF(*tb);
+  #endif
+}
+static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject *type, PyObject *value, PyObject *tb) {
+  #if CYTHON_USE_EXC_INFO_STACK && PY_VERSION_HEX >= 0x030B00a4
+    _PyErr_StackItem *exc_info = tstate->exc_info;
+    PyObject *tmp_value = exc_info->exc_value;
+    exc_info->exc_value = value;
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(type);
+    Py_XDECREF(tb);
+  #else
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    #if CYTHON_USE_EXC_INFO_STACK
+    _PyErr_StackItem *exc_info = tstate->exc_info;
+    tmp_type = exc_info->exc_type;
+    tmp_value = exc_info->exc_value;
+    tmp_tb = exc_info->exc_traceback;
+    exc_info->exc_type = type;
+    exc_info->exc_value = value;
+    exc_info->exc_traceback = tb;
+    #else
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = type;
+    tstate->exc_value = value;
+    tstate->exc_traceback = tb;
+    #endif
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
+  #endif
+}
+#endif
+
+/* GetItemInt */
+static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
+    PyObject *r;
+    if (unlikely(!j)) return NULL;
+    r = PyObject_GetItem(o, j);
+    Py_DECREF(j);
+    return r;
+}
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_List_Fast(PyObject *o, Py_ssize_t i,
+                                                              CYTHON_NCP_UNUSED int wraparound,
+                                                              CYTHON_NCP_UNUSED int boundscheck) {
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+    Py_ssize_t wrapped_i = i;
+    if (wraparound & unlikely(i < 0)) {
+        wrapped_i += PyList_GET_SIZE(o);
+    }
+    if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, PyList_GET_SIZE(o)))) {
+        PyObject *r = PyList_GET_ITEM(o, wrapped_i);
+        Py_INCREF(r);
+        return r;
+    }
+    return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
+#else
+    return PySequence_GetItem(o, i);
+#endif
+}
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Tuple_Fast(PyObject *o, Py_ssize_t i,
+                                                              CYTHON_NCP_UNUSED int wraparound,
+                                                              CYTHON_NCP_UNUSED int boundscheck) {
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
+    Py_ssize_t wrapped_i = i;
+    if (wraparound & unlikely(i < 0)) {
+        wrapped_i += PyTuple_GET_SIZE(o);
+    }
+    if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, PyTuple_GET_SIZE(o)))) {
+        PyObject *r = PyTuple_GET_ITEM(o, wrapped_i);
+        Py_INCREF(r);
+        return r;
+    }
+    return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
+#else
+    return PySequence_GetItem(o, i);
+#endif
+}
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
+                                                     CYTHON_NCP_UNUSED int wraparound,
+                                                     CYTHON_NCP_UNUSED int boundscheck) {
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
+    if (is_list || PyList_CheckExact(o)) {
+        Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
+        if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
+            return __Pyx_PyList_GetItemRef(o, n);
+        }
+    }
+    else if (PyTuple_CheckExact(o)) {
+        Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
+        if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyTuple_GET_SIZE(o)))) {
+            PyObject *r = PyTuple_GET_ITEM(o, n);
+            Py_INCREF(r);
+            return r;
+        }
+    } else {
+        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
+        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
+        if (mm && mm->mp_subscript) {
+            PyObject *r, *key = PyLong_FromSsize_t(i);
+            if (unlikely(!key)) return NULL;
+            r = mm->mp_subscript(o, key);
+            Py_DECREF(key);
+            return r;
+        }
+        if (likely(sm && sm->sq_item)) {
+            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
+                Py_ssize_t l = sm->sq_length(o);
+                if (likely(l >= 0)) {
+                    i += l;
+                } else {
+                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
+                        return NULL;
+                    PyErr_Clear();
+                }
+            }
+            return sm->sq_item(o, i);
+        }
+    }
+#else
+    if (is_list || !PyMapping_Check(o)) {
+        return PySequence_GetItem(o, i);
+    }
+#endif
+    return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
+}
+
+/* CIntToDigits */
+static const char DIGIT_PAIRS_10[2*10*10+1] = {
+    "00010203040506070809"
+    "10111213141516171819"
+    "20212223242526272829"
+    "30313233343536373839"
+    "40414243444546474849"
+    "50515253545556575859"
+    "60616263646566676869"
+    "70717273747576777879"
+    "80818283848586878889"
+    "90919293949596979899"
+};
+static const char DIGIT_PAIRS_8[2*8*8+1] = {
+    "0001020304050607"
+    "1011121314151617"
+    "2021222324252627"
+    "3031323334353637"
+    "4041424344454647"
+    "5051525354555657"
+    "6061626364656667"
+    "7071727374757677"
+};
+static const char DIGITS_HEX[2*16+1] = {
+    "0123456789abcdef"
+    "0123456789ABCDEF"
+};
+
+/* BuildPyUnicode */
+static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, const char* chars, int clength,
+                                                int prepend_sign, char padding_char) {
+    PyObject *uval;
+    Py_ssize_t uoffset = ulength - clength;
+#if CYTHON_USE_UNICODE_INTERNALS
+    Py_ssize_t i;
+    void *udata;
+    uval = PyUnicode_New(ulength, 127);
+    if (unlikely(!uval)) return NULL;
+    udata = PyUnicode_DATA(uval);
+    if (uoffset > 0) {
+        i = 0;
+        if (prepend_sign) {
+            __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, 0, '-');
+            i++;
+        }
+        for (; i < uoffset; i++) {
+            __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, i, padding_char);
+        }
+    }
+    for (i=0; i < clength; i++) {
+        __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, uoffset+i, chars[i]);
+    }
+#else
+    {
+        PyObject *sign = NULL, *padding = NULL;
+        uval = NULL;
+        if (uoffset > 0) {
+            prepend_sign = !!prepend_sign;
+            if (uoffset > prepend_sign) {
+                padding = PyUnicode_FromOrdinal(padding_char);
+                if (likely(padding) && uoffset > prepend_sign + 1) {
+                    PyObject *tmp = PySequence_Repeat(padding, uoffset - prepend_sign);
+                    Py_DECREF(padding);
+                    padding = tmp;
+                }
+                if (unlikely(!padding)) goto done_or_error;
+            }
+            if (prepend_sign) {
+                sign = PyUnicode_FromOrdinal('-');
+                if (unlikely(!sign)) goto done_or_error;
+            }
+        }
+        uval = PyUnicode_DecodeASCII(chars, clength, NULL);
+        if (likely(uval) && padding) {
+            PyObject *tmp = PyUnicode_Concat(padding, uval);
+            Py_DECREF(uval);
+            uval = tmp;
+        }
+        if (likely(uval) && sign) {
+            PyObject *tmp = PyUnicode_Concat(sign, uval);
+            Py_DECREF(uval);
+            uval = tmp;
+        }
+done_or_error:
+        Py_XDECREF(padding);
+        Py_XDECREF(sign);
+    }
+#endif
+    return uval;
+}
+
+/* COrdinalToPyUnicode */
+static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value) {
+    return value <= 1114111;
+}
+static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulength, char padding_char) {
+    if (likely(ulength <= 250)) {
+        char chars[256];
+        if (value <= 255) {
+            memset(chars, padding_char, (size_t) (ulength - 1));
+            chars[ulength-1] = (char) value;
+            return PyUnicode_DecodeLatin1(chars, ulength, NULL);
+        }
+        char *cpos = chars + sizeof(chars);
+        if (value < 0x800) {
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0xc0 | (value & 0x1f));
+        } else if (value < 0x10000) {
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0xe0 | (value & 0x0f));
+        } else {
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0x80 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0xf0 | (value & 0x07));
+        }
+        cpos -= ulength;
+        memset(cpos, padding_char, (size_t) (ulength - 1));
+        return PyUnicode_DecodeUTF8(cpos, chars + sizeof(chars) - cpos, NULL);
+    }
+    if (value <= 127 && CYTHON_USE_UNICODE_INTERNALS) {
+        const char chars[1] = {(char) value};
+        return __Pyx_PyUnicode_BuildFromAscii(ulength, chars, 1, 0, padding_char);
+    }
+    {
+        PyObject *uchar, *padding_uchar, *padding, *result;
+        padding_uchar = PyUnicode_FromOrdinal(padding_char);
+        if (unlikely(!padding_uchar)) return NULL;
+        padding = PySequence_Repeat(padding_uchar, ulength - 1);
+        Py_DECREF(padding_uchar);
+        if (unlikely(!padding)) return NULL;
+        uchar = PyUnicode_FromOrdinal(value);
+        if (unlikely(!uchar)) {
+            Py_DECREF(padding);
+            return NULL;
+        }
+        result = PyUnicode_Concat(padding, uchar);
+        Py_DECREF(padding);
+        Py_DECREF(uchar);
+        return result;
+    }
+}
+
+/* CIntToPyUnicode */
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_From_size_t(size_t value, Py_ssize_t width, char padding_char, char format_char) {
+    char digits[sizeof(size_t)*3+2];
+    char *dpos, *end = digits + sizeof(size_t)*3+2;
+    const char *hex_digits = DIGITS_HEX;
+    Py_ssize_t length, ulength;
+    int prepend_sign, last_one_off;
+    size_t remaining;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const size_t neg_one = (size_t) -1, const_zero = (size_t) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+    if (format_char == 'c') {
+        if (unlikely(!(is_unsigned || value == 0 || value > 0) ||
+                     !(sizeof(value) <= 2 || value & ~ (size_t) 0x01fffff || __Pyx_CheckUnicodeValue((int) value)))) {
+            PyErr_SetString(PyExc_OverflowError, "%c arg not in range(0x110000)");
+            return NULL;
+        }
+        if (width <= 1) {
+            return PyUnicode_FromOrdinal((int) value);
+        }
+        return __Pyx_PyUnicode_FromOrdinal_Padded((int) value, width, padding_char);
+    }
+    if (format_char == 'X') {
+        hex_digits += 16;
+        format_char = 'x';
+    }
+    remaining = value;
+    last_one_off = 0;
+    dpos = end;
+    do {
+        int digit_pos;
+        switch (format_char) {
+        case 'o':
+            digit_pos = abs((int)(remaining % (8*8)));
+            remaining = (size_t) (remaining / (8*8));
+            dpos -= 2;
+            memcpy(dpos, DIGIT_PAIRS_8 + digit_pos * 2, 2);
+            last_one_off = (digit_pos < 8);
+            break;
+        case 'd':
+            digit_pos = abs((int)(remaining % (10*10)));
+            remaining = (size_t) (remaining / (10*10));
+            dpos -= 2;
+            memcpy(dpos, DIGIT_PAIRS_10 + digit_pos * 2, 2);
+            last_one_off = (digit_pos < 10);
+            break;
+        case 'x':
+            *(--dpos) = hex_digits[abs((int)(remaining % 16))];
+            remaining = (size_t) (remaining / 16);
+            break;
+        default:
+            assert(0);
+            break;
+        }
+    } while (unlikely(remaining != 0));
+    assert(!last_one_off || *dpos == '0');
+    dpos += last_one_off;
+    length = end - dpos;
+    ulength = length;
+    prepend_sign = 0;
+    if (!is_unsigned && value <= neg_one) {
+        if (padding_char == ' ' || width <= length + 1) {
+            *(--dpos) = '-';
+            ++length;
+        } else {
+            prepend_sign = 1;
+        }
+        ++ulength;
+    }
+    if (width > ulength) {
+        ulength = width;
+    }
+    if (ulength == 1) {
+        return PyUnicode_FromOrdinal(*dpos);
+    }
+    return __Pyx_PyUnicode_BuildFromAscii(ulength, dpos, (int) length, prepend_sign, padding_char);
+}
+
+/* JoinPyUnicode */
+static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
+                                      Py_UCS4 max_char) {
+#if CYTHON_USE_UNICODE_INTERNALS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+    PyObject *result_uval;
+    int result_ukind, kind_shift;
+    Py_ssize_t i, char_pos;
+    void *result_udata;
+    if (max_char > 1114111) max_char = 1114111;
+    result_uval = PyUnicode_New(result_ulength, max_char);
+    if (unlikely(!result_uval)) return NULL;
+    result_ukind = (max_char <= 255) ? PyUnicode_1BYTE_KIND : (max_char <= 65535) ? PyUnicode_2BYTE_KIND : PyUnicode_4BYTE_KIND;
+    kind_shift = (result_ukind == PyUnicode_4BYTE_KIND) ? 2 : result_ukind - 1;
+    result_udata = PyUnicode_DATA(result_uval);
+    assert(kind_shift == 2 || kind_shift == 1 || kind_shift == 0);
+    if (unlikely((PY_SSIZE_T_MAX >> kind_shift) - result_ulength < 0))
+        goto overflow;
+    char_pos = 0;
+    for (i=0; i < value_count; i++) {
+        int ukind;
+        Py_ssize_t ulength;
+        void *udata;
+        PyObject *uval = values[i];
+        #if !CYTHON_COMPILING_IN_LIMITED_API
+        if (__Pyx_PyUnicode_READY(uval) == (-1))
+            goto bad;
+        #endif
+        ulength = __Pyx_PyUnicode_GET_LENGTH(uval);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(ulength < 0)) goto bad;
+        #endif
+        if (unlikely(!ulength))
+            continue;
+        if (unlikely((PY_SSIZE_T_MAX >> kind_shift) - ulength < char_pos))
+            goto overflow;
+        ukind = __Pyx_PyUnicode_KIND(uval);
+        udata = __Pyx_PyUnicode_DATA(uval);
+        if (ukind == result_ukind) {
+            memcpy((char *)result_udata + (char_pos << kind_shift), udata, (size_t) (ulength << kind_shift));
+        } else {
+            #if PY_VERSION_HEX >= 0x030d0000
+            if (unlikely(PyUnicode_CopyCharacters(result_uval, char_pos, uval, 0, ulength) < 0)) goto bad;
+            #elif CYTHON_COMPILING_IN_CPYTHON || defined(_PyUnicode_FastCopyCharacters)
+            _PyUnicode_FastCopyCharacters(result_uval, char_pos, uval, 0, ulength);
+            #else
+            Py_ssize_t j;
+            for (j=0; j < ulength; j++) {
+                Py_UCS4 uchar = __Pyx_PyUnicode_READ(ukind, udata, j);
+                __Pyx_PyUnicode_WRITE(result_ukind, result_udata, char_pos+j, uchar);
+            }
+            #endif
+        }
+        char_pos += ulength;
+    }
+    return result_uval;
+overflow:
+    PyErr_SetString(PyExc_OverflowError, "join() result is too long for a Python string");
+bad:
+    Py_DECREF(result_uval);
+    return NULL;
+#else
+    Py_ssize_t i;
+    PyObject *result = NULL;
+    PyObject *value_tuple = PyTuple_New(value_count);
+    if (unlikely(!value_tuple)) return NULL;
+    CYTHON_UNUSED_VAR(max_char);
+    CYTHON_UNUSED_VAR(result_ulength);
+    for (i=0; i<value_count; i++) {
+        if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
+        Py_INCREF(values[i]);
+    }
+    result = PyUnicode_Join(__pyx_mstate_global->__pyx_empty_unicode, value_tuple);
+bad:
+    Py_DECREF(value_tuple);
+    return result;
+#endif
+}
+
 /* FixUpExtensionType */
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
 #if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
@@ -8563,6 +14967,89 @@ __PYX_GOOD:
     Py_XDECREF(setstate_cython);
     return ret;
 }
+
+/* TypeImport */
+#ifndef __PYX_HAVE_RT_ImportType_3_1_0
+#define __PYX_HAVE_RT_ImportType_3_1_0
+static PyTypeObject *__Pyx_ImportType_3_1_0(PyObject *module, const char *module_name, const char *class_name,
+    size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_3_1_0 check_size)
+{
+    PyObject *result = 0;
+    char warning[200];
+    Py_ssize_t basicsize;
+    Py_ssize_t itemsize;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *py_basicsize;
+    PyObject *py_itemsize;
+#endif
+    result = PyObject_GetAttrString(module, class_name);
+    if (!result)
+        goto bad;
+    if (!PyType_Check(result)) {
+        PyErr_Format(PyExc_TypeError,
+            "%.200s.%.200s is not a type object",
+            module_name, class_name);
+        goto bad;
+    }
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    basicsize = ((PyTypeObject *)result)->tp_basicsize;
+    itemsize = ((PyTypeObject *)result)->tp_itemsize;
+#else
+    if (size == 0) {
+        return (PyTypeObject *)result;
+    }
+    py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
+    if (!py_basicsize)
+        goto bad;
+    basicsize = PyLong_AsSsize_t(py_basicsize);
+    Py_DECREF(py_basicsize);
+    py_basicsize = 0;
+    if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
+        goto bad;
+    py_itemsize = PyObject_GetAttrString(result, "__itemsize__");
+    if (!py_itemsize)
+        goto bad;
+    itemsize = PyLong_AsSsize_t(py_itemsize);
+    Py_DECREF(py_itemsize);
+    py_itemsize = 0;
+    if (itemsize == (Py_ssize_t)-1 && PyErr_Occurred())
+        goto bad;
+#endif
+    if (itemsize) {
+        if (size % alignment) {
+            alignment = size % alignment;
+        }
+        if (itemsize < (Py_ssize_t)alignment)
+            itemsize = (Py_ssize_t)alignment;
+    }
+    if ((size_t)(basicsize + itemsize) < size) {
+        PyErr_Format(PyExc_ValueError,
+            "%.200s.%.200s size changed, may indicate binary incompatibility. "
+            "Expected %zd from C header, got %zd from PyObject",
+            module_name, class_name, size, basicsize+itemsize);
+        goto bad;
+    }
+    if (check_size == __Pyx_ImportType_CheckSize_Error_3_1_0 &&
+            ((size_t)basicsize > size || (size_t)(basicsize + itemsize) < size)) {
+        PyErr_Format(PyExc_ValueError,
+            "%.200s.%.200s size changed, may indicate binary incompatibility. "
+            "Expected %zd from C header, got %zd-%zd from PyObject",
+            module_name, class_name, size, basicsize, basicsize+itemsize);
+        goto bad;
+    }
+    else if (check_size == __Pyx_ImportType_CheckSize_Warn_3_1_0 && (size_t)basicsize > size) {
+        PyOS_snprintf(warning, sizeof(warning),
+            "%s.%s size changed, may indicate binary incompatibility. "
+            "Expected %zd from C header, got %zd from PyObject",
+            module_name, class_name, size, basicsize);
+        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
+    }
+    return (PyTypeObject *)result;
+bad:
+    Py_XDECREF(result);
+    return NULL;
+}
+#endif
 
 /* FetchSharedCythonModule */
 static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
@@ -10824,6 +17311,77 @@ static CYTHON_INLINE PyObject* __Pyx_PyLong_From_int(int value) {
         from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
         if (!from_bytes) return NULL;
         py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof(int));
+        if (!py_bytes) goto limited_bad;
+        order_str = PyUnicode_FromString(little ? "little" : "big");
+        if (!order_str) goto limited_bad;
+        {
+            PyObject *args[3+(CYTHON_VECTORCALL ? 1 : 0)] = { NULL, py_bytes, order_str };
+            if (!is_unsigned) {
+                kwds = __Pyx_MakeVectorcallBuilderKwds(1);
+                if (!kwds) goto limited_bad;
+                if (__Pyx_VectorcallBuilder_AddArgStr("signed", __Pyx_NewRef(Py_True), kwds, args+3, 0) < 0) goto limited_bad;
+            }
+            result = __Pyx_Object_Vectorcall_CallFromBuilder(from_bytes, args+1, 2 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, kwds);
+        }
+        limited_bad:
+        Py_XDECREF(kwds);
+        Py_XDECREF(order_str);
+        Py_XDECREF(py_bytes);
+        Py_XDECREF(from_bytes);
+        return result;
+#endif
+    }
+}
+
+/* CIntToPy */
+static CYTHON_INLINE PyObject* __Pyx_PyLong_From_uint32_t(uint32_t value) {
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const uint32_t neg_one = (uint32_t) -1, const_zero = (uint32_t) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
+    const int is_unsigned = neg_one > const_zero;
+    if (is_unsigned) {
+        if (sizeof(uint32_t) < sizeof(long)) {
+            return PyLong_FromLong((long) value);
+        } else if (sizeof(uint32_t) <= sizeof(unsigned long)) {
+            return PyLong_FromUnsignedLong((unsigned long) value);
+#ifdef HAVE_LONG_LONG
+        } else if (sizeof(uint32_t) <= sizeof(unsigned PY_LONG_LONG)) {
+            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
+#endif
+        }
+    } else {
+        if (sizeof(uint32_t) <= sizeof(long)) {
+            return PyLong_FromLong((long) value);
+#ifdef HAVE_LONG_LONG
+        } else if (sizeof(uint32_t) <= sizeof(PY_LONG_LONG)) {
+            return PyLong_FromLongLong((PY_LONG_LONG) value);
+#endif
+        }
+    }
+    {
+        unsigned char *bytes = (unsigned char *)&value;
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00A4
+        if (is_unsigned) {
+            return PyLong_FromUnsignedNativeBytes(bytes, sizeof(value), -1);
+        } else {
+            return PyLong_FromNativeBytes(bytes, sizeof(value), -1);
+        }
+#elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        return _PyLong_FromByteArray(bytes, sizeof(uint32_t),
+                                     little, !is_unsigned);
+#else
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        PyObject *from_bytes, *result = NULL, *kwds = NULL;
+        PyObject *py_bytes = NULL, *order_str = NULL;
+        from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
+        if (!from_bytes) return NULL;
+        py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof(uint32_t));
         if (!py_bytes) goto limited_bad;
         order_str = PyUnicode_FromString(little ? "little" : "big");
         if (!order_str) goto limited_bad;

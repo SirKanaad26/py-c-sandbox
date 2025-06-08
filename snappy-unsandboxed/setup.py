@@ -1,8 +1,6 @@
-# setup.py
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 import os
-import glob
 import shutil
 
 # Path to your local snappy directory
