@@ -196,8 +196,12 @@ class SnappyWasm:
         # Copy input data into WASM memory
         ctypes.memmove(raw_addr + input_offset, src_array, input_len)
 
-        # Call compress function
-        compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
+        # Call compress function - add compression_level parameter when needed
+        if compression_level is not None:
+            compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len, compression_level)
+        else:
+            compressed_len = func(self.store, input_offset, input_len, output_offset, max_out_len)
+            
         if compressed_len <= 0:
             raise RuntimeError("Compression failed")
 
