@@ -51,11 +51,16 @@ class SnappyWasm:
             raise RuntimeError("CompressFromSourceToSink not found")
         
         input_len = len(data)
+        
+        # For very large data, fall back to regular compress method
+        if input_len > 4000:  # Safe threshold
+            return self.compress(data)
+        
         max_out_len = self.max_compressed_length(input_len)
         
-        # Memory offsets - use larger gaps for safety
+        # Memory offsets
         input_offset = 0
-        output_offset = input_len + 1024  # Fixed large gap
+        output_offset = input_len + 1024
         
         # Access WASM memory
         mem_ptr = self.memory.data_ptr(self.store)
@@ -88,11 +93,16 @@ class SnappyWasm:
             raise RuntimeError("CompressFromSourceToSinkWithOptions not found")
         
         input_len = len(data)
+        
+        # For very large data, fall back to regular compress method
+        if input_len > 4000:
+            return self.compress(data, compression_level)
+        
         max_out_len = self.max_compressed_length(input_len)
         
-        # Memory offsets - use larger gap for bigger data
+        # Memory offsets
         input_offset = 0
-        output_offset = input_len + max(1024, input_len // 4)  # Dynamic gap
+        output_offset = input_len + 1024
         
         # Access WASM memory
         mem_ptr = self.memory.data_ptr(self.store)

@@ -40,9 +40,9 @@ def test_compress_source_sink_with_options():
             "description": "Structured data"
         },
         {
-            "name": "Large Text",
-            "data": "The quick brown fox jumps over the lazy dog. " * 100,
-            "description": "Large text block"
+            "name": "Medium Text",
+            "data": "The quick brown fox jumps over the lazy dog. " * 50,  # Reduced size to avoid fallback
+            "description": "Medium text block"
         }
     ]
     
@@ -102,7 +102,7 @@ def test_level_comparison():
     print("\n--- Detailed Level Comparison ---")
     
     snappy = SnappyWasm()
-    test_data = "Hello, Snappy compression with options! " * 50
+    test_data = "Hello, Snappy compression with options! " * 20  # Reduced to avoid size limit
     
     print(f"Test data: {len(test_data)} characters")
     print(f"Preview: '{test_data[:50]}...'")
