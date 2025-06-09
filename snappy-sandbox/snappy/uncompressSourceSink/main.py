@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Final fixed test file for uncompress_source_sink function with correct memory API
-"""
-
 import sys
 import os
 import time
@@ -22,7 +17,6 @@ def get_memory_size(snappy):
             elif hasattr(snappy.memory, 'data_size'):
                 return snappy.memory.data_size(snappy.store)
             else:
-                # Fallback: assume reasonable memory size
                 return 16 * 1024 * 1024  # 16MB default
         except Exception:
             return 16 * 1024 * 1024  # 16MB fallback
@@ -41,7 +35,7 @@ def check_simple_memory(snappy, compressed_data, output_size):
 
 def test_basic_functionality():
     """Test basic uncompress_source_sink functionality"""
-    print("🧪 Testing Basic uncompress_source_sink Functionality")
+    print("Testing Basic uncompress_source_sink Functionality")
     print("=" * 60)
     
     snappy = SnappyWasm()
@@ -75,7 +69,7 @@ def test_basic_functionality():
             
             # Check if we have enough memory (conservative check)
             if not check_simple_memory(snappy, compressed_data, len(original_data)):
-                print(f"⚠️ Skipping: May not have enough memory for {len(original_data)} byte output")
+                print(f"Skipping: May not have enough memory for {len(original_data)} byte output")
                 continue
             
             # Test uncompress_source_sink
@@ -88,25 +82,25 @@ def test_basic_functionality():
             
             # Verify integrity
             if uncompressed_data == original_data:
-                print("✅ PASSED - Data integrity verified")
+                print("PASSED - Data integrity verified")
                 passed += 1
             else:
-                print("❌ FAILED - Data mismatch")
+                print("FAILED - Data mismatch")
                 print(f"Expected: {len(original_data)} bytes")
                 print(f"Got: {len(uncompressed_data)} bytes")
                 
         except Exception as e:
-            print(f"❌ FAILED - {e}")
+            print(f"FAILED - {e}")
             # For debugging the specific error
             if "memory" in str(e).lower():
-                print(f"   Memory-related error - this confirms memory constraints")
+                print(f"Memory-related error - this confirms memory constraints")
     
     print(f"\nBasic Functionality Results: {passed}/{total} passed")
     return passed > 0
 
 def test_different_data_sizes():
     """Test with various data sizes"""
-    print("\n📏 Testing Different Data Sizes")
+    print("\nTesting Different Data Sizes")
     print("=" * 45)
     
     snappy = SnappyWasm()
@@ -134,7 +128,7 @@ def test_different_data_sizes():
             
             # Check memory
             if not check_simple_memory(snappy, compressed_data, len(test_data)):
-                print(f"⚠️ Skipping: May not have enough memory")
+                print(f"Skipping: May not have enough memory")
                 continue
             
             # Test uncompress_source_sink
@@ -146,23 +140,23 @@ def test_different_data_sizes():
             
             # Verify
             if uncompressed_data == test_data:
-                print("✅ PASSED")
+                print("PASSED")
                 passed += 1
             else:
-                print("❌ FAILED - Size or content mismatch")
+                print("FAILED - Size or content mismatch")
                 
         except Exception as e:
-            print(f"❌ FAILED - {e}")
+            print(f"FAILED - {e}")
             if "memory" in str(e).lower():
                 print(f"   Memory constraint hit at {len(test_data)} bytes")
-                break  # Stop testing larger sizes
+                break 
     
     print(f"\nSize Test Results: {passed}/{total} passed")
     return passed > 0
 
 def test_error_conditions():
     """Test error handling"""
-    print("\n⚠️ Testing Error Conditions")
+    print("\nTesting Error Conditions")
     print("=" * 35)
     
     snappy = SnappyWasm()
@@ -181,13 +175,13 @@ def test_error_conditions():
         # Test uncompress_source_sink
         try:
             result = snappy.uncompress_source_sink(invalid_data)
-            print(f"⚠️ Unexpected success: {len(result)} bytes decompressed")
+            print(f"Unexpected success: {len(result)} bytes decompressed")
         except Exception as e:
-            print(f"✅ Expected failure: {type(e).__name__}")
+            print(f"Expected failure: {type(e).__name__}")
 
 def test_comparison_with_standard():
     """Compare with standard uncompress"""
-    print("\n🔍 Comparison with Standard Uncompress")
+    print("\nComparison with Standard Uncompress")
     print("=" * 50)
     
     snappy = SnappyWasm()
@@ -227,26 +221,26 @@ def test_comparison_with_standard():
             
             # Compare results
             if result_standard == result_source_sink == original_data:
-                print("✅ Both methods produced identical correct results")
+                print("Both methods produced identical correct results")
                 
                 # Performance comparison
                 if time_source_sink < time_standard:
                     speedup = time_standard / time_source_sink
-                    print(f"🚀 Source/Sink is {speedup:.2f}x faster")
+                    print(f"Source/Sink is {speedup:.2f}x faster")
                 elif time_standard < time_source_sink:
                     slowdown = time_source_sink / time_standard
-                    print(f"⏱️ Source/Sink is {slowdown:.2f}x slower")
+                    print(f"Source/Sink is {slowdown:.2f}x slower")
                 else:
                     print("⚖️ Similar performance")
             else:
-                print("❌ Methods produced different results")
+                print("Methods produced different results")
                 
         except Exception as e:
-            print(f"❌ Comparison test failed: {e}")
+            print(f"Comparison test failed: {e}")
 
 def main():
     """Main test function"""
-    print("🚀 uncompress_source_sink Function Test Suite")
+    print("uncompress_source_sink Function Test Suite")
     print("=" * 60)
     
     try:
@@ -254,11 +248,11 @@ def main():
         snappy = SnappyWasm()
         
         if not snappy.exports.get("UncompressSourceSink"):
-            print("❌ UncompressSourceSink function not found in WASM module")
+            print("UncompressSourceSink function not found in WASM module")
             return False
         
-        print("✅ UncompressSourceSink function found")
-        print(f"✅ Snappy WASM version: {snappy.get_version()}")
+        print("UncompressSourceSink function found")
+        print(f"Snappy WASM version: {snappy.get_version()}")
         
         # Run tests
         test_results = []
@@ -272,30 +266,30 @@ def main():
         
         # Summary
         print("\n" + "=" * 60)
-        print("📊 TEST SUMMARY")
+        print("TEST SUMMARY")
         print("=" * 60)
         
         passed_tests = sum(1 for _, result in test_results if result)
         total_tests = len(test_results)
         
         for test_name, result in test_results:
-            status = "✅ PASSED" if result else "❌ FAILED"
+            status = "PASSED" if result else "FAILED"
             print(f"{test_name:<25}: {status}")
         
         print("-" * 60)
         print(f"Overall Result: {passed_tests}/{total_tests} critical test categories passed")
         
         if passed_tests == total_tests:
-            print("🎉 ALL CRITICAL TESTS PASSED!")
-            print("✅ uncompress_source_sink function is working correctly")
+            print("ALL CRITICAL TESTS PASSED!")
+            print("uncompress_source_sink function is working correctly")
         else:
             print("⚠️ Some critical tests failed")
-            print("💡 This may be due to memory constraints or function signature issues")
+            print("This may be due to memory constraints or function signature issues")
         
         return passed_tests == total_tests
         
     except Exception as e:
-        print(f"❌ Test suite failed: {e}")
+        print(f"Test suite failed: {e}")
         import traceback
         traceback.print_exc()
         return False
