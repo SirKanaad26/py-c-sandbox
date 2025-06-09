@@ -8,3 +8,23 @@ Steps to activate emsdk:
 source ./emsdk_env.sh
 emcc --version
 ```
+
+- [x] compress
+- [x] ⁠compressFromIovec
+- [x] ⁠compressFromIovecWithOptions
+- [x] ⁠compressSourceSink
+- [x] ⁠compressSourceSinkWithOptions
+- [x] ⁠compressWithOptions
+- [x] ⁠getUncompressedLength
+- [x] ⁠isValidCompressed
+- [x] ⁠isValidCompressedBuffer
+- [x] ⁠rawCompress
+- [x] ⁠rawCompressFromIOVec
+- [x] ⁠rawCompressFromIOVecWithOptions
+- [x] ⁠rawUncompress
+- [x] ⁠rawUncompressSource
+- [x] ⁠rawUncompressToIOVec
+- [x] ⁠rawUncompressToIOVecSource
+- [x] maxCompressedLength
+- [x] uncompress
+- [ ] uncompressSourceSink
