@@ -1347,6 +1347,55 @@ class SnappyWasm:
             # Fallback estimation
             return source_length + (source_length // 6) + 32
 
+    def uncompress(self, compressed_data: bytes) -> bytes:
+        """Uncompress data using Snappy WASM"""
+        if not self.memory:
+            raise RuntimeError("Memory not available")
+
+        func = self.exports.get("UncompressFromPtr")
+        if not func:
+            raise RuntimeError("UncompressFromPtr not found")
+
+        # First, get the expected uncompressed length
+        try:
+            uncompressed_length = self.get_uncompressed_length(compressed_data)
+        except RuntimeError:
+            # Fallback: estimate a reasonable buffer size
+            uncompressed_length = len(compressed_data) * 4  # Conservative estimate
+
+        compressed_len = len(compressed_data)
+
+        # Define offsets
+        compressed_offset = 0
+        output_offset = compressed_len + 1024  # leave a gap to prevent overwrite
+
+        # Convert compressed data to byte array
+        compressed_array = (ctypes.c_ubyte * compressed_len).from_buffer_copy(compressed_data)
+
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        # Copy compressed data into WASM memory
+        ctypes.memmove(raw_addr + compressed_offset, compressed_array, compressed_len)
+
+        # Call uncompress function
+        actual_uncompressed_len = func(self.store, compressed_offset, compressed_len, output_offset, uncompressed_length)
+        
+        validate_uncompress_output(compressed_len, uncompressed_length, actual_uncompressed_len)
+
+        if actual_uncompressed_len <= 0:
+            raise RuntimeError("Decompression failed")
+
+        # Allocate output buffer
+        result = bytearray(actual_uncompressed_len)
+        result_array = (ctypes.c_ubyte * actual_uncompressed_len).from_buffer(result)
+
+        # Copy back uncompressed result
+        ctypes.memmove(result_array, raw_addr + output_offset, actual_uncompressed_len)
+
+        return bytes(result)
+
 if __name__ == "__main__":
     snappy = SnappyWasm("snappy.wasm")
     
