@@ -1,6 +1,9 @@
-cramjam==2.10.0
 Cython==3.1.0
 importlib_resources==6.5.2
 python-snappy==0.7.3
 setuptools==80.4.0
 wasmtime==33.0.0
+fastapi
+uvicorn
+wasmtime
+python-multipart

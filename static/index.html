@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Snappy WASM Compressor</title>
+</head>
+<body>
+    <h2>Snappy Compression Sandbox (WASM)</h2>
+    <form id="compress-form">
+        <textarea name="data" rows="10" cols="50" placeholder="Enter text to compress"></textarea><br>
+        <button type="submit">Compress</button>
+    </form>
+    <p id="result"></p>
+
+    <script>
+        const form = document.getElementById("compress-form");
+        const result = document.getElementById("result");
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+
+            const response = await fetch("/compress/", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+            result.innerText = `Original: ${data.original_size} bytes, Compressed: ${data.compressed_size} bytes`;
+        };
+    </script>
+</body>
+</html>
