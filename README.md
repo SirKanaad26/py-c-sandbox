@@ -28,3 +28,4 @@ emcc --version
 - [x] maxCompressedLength
 - [x] uncompress
 - [ ] uncompressSourceSink
+- [ ] uncompressAsMuchAsPossibleSourceSink

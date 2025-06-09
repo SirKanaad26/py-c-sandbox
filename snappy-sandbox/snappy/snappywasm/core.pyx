@@ -1396,6 +1396,200 @@ class SnappyWasm:
 
         return bytes(result)
 
+
+    def uncompress_source_sink(self, compressed_data: bytes) -> bytes:
+        """
+        Uncompress data using Source/Sink abstraction.
+        Uses: int UncompressSourceSink(const char* compressed, size_t compressed_length, char* output, size_t max_output_length)
+        
+        Args:
+            compressed_data: The compressed data bytes
+            
+        Returns:
+            bytes: The uncompressed data
+            
+        Raises:
+            RuntimeError: If decompression fails or memory is not available
+        """
+        if not self.memory:
+            raise RuntimeError("Memory not available")
+
+        func = self.exports.get("UncompressSourceSink")
+        if not func:
+            raise RuntimeError("UncompressSourceSink not found")
+
+        if not compressed_data:
+            raise RuntimeError("Compressed data cannot be empty")
+
+        # Get expected uncompressed length
+        try:
+            uncompressed_length = self.get_uncompressed_length(compressed_data)
+        except RuntimeError:
+            # Fallback estimation
+            uncompressed_length = len(compressed_data) * 4
+
+        compressed_len = len(compressed_data)
+        
+        # Calculate safe memory offsets with larger spacing to avoid memory issues
+        compressed_offset = 0
+        output_offset = compressed_len + 2048  # Increased spacing from 1024 to 2048
+        
+        # Check if we have enough memory (conservative check)
+        total_needed = output_offset + uncompressed_length
+        try:
+            # Try different methods to get memory size
+            if hasattr(self.memory, 'size'):
+                memory_size = self.memory.size(self.store) * 65536  # Convert pages to bytes
+            elif hasattr(self.memory, 'data_len'):
+                memory_size = self.memory.data_len(self.store)
+            else:
+                memory_size = 16 * 1024 * 1024  # 16MB fallback
+                
+            if total_needed > memory_size:
+                raise RuntimeError(f"Not enough WASM memory: need {total_needed}, have {memory_size}")
+        except Exception:
+            # If we can't check memory size, proceed carefully
+            pass
+        
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        try:
+            # Copy compressed data into WASM memory
+            compressed_array = (ctypes.c_ubyte * compressed_len).from_buffer_copy(compressed_data)
+            ctypes.memmove(raw_addr + compressed_offset, compressed_array, compressed_len)
+
+            # Call UncompressSourceSink function
+            # IMPORTANT: The function returns the number of bytes written (int), not a boolean
+            bytes_written = func(self.store, compressed_offset, compressed_len, output_offset, uncompressed_length)
+            
+            if bytes_written <= 0:
+                raise RuntimeError("Source/Sink decompression failed")
+
+            # Validate bytes_written doesn't exceed expected length
+            if bytes_written > uncompressed_length:
+                raise RuntimeError(f"Invalid decompression result: {bytes_written} > {uncompressed_length}")
+
+            # Read the actual uncompressed data (use bytes_written, not uncompressed_length)
+            result = bytearray(bytes_written)
+            result_array = (ctypes.c_ubyte * bytes_written).from_buffer(result)
+            ctypes.memmove(result_array, raw_addr + output_offset, bytes_written)
+
+            return bytes(result)
+            
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
+            raise RuntimeError(f"Source/Sink decompression error: {str(e)}")
+
+    def uncompress_as_much_as_possible_source_sink(self, compressed_data: bytes, max_output_size: int = None) -> bytes:
+        """
+        Uncompress as much data as possible using Source/Sink abstraction.
+        Uses: size_t UncompressAsMuchAsPossibleSourceSink(const char* compressed, size_t compressed_length, char* output, size_t max_output_length)
+        
+        This function is useful when you have limited output buffer space and want to
+        decompress as much as possible without failing.
+        
+        Args:
+            compressed_data: The compressed data bytes
+            max_output_size: Maximum size of output buffer (if None, uses estimated size)
+            
+        Returns:
+            bytes: The uncompressed data (may be partial if buffer was too small)
+            
+        Raises:
+            RuntimeError: If decompression fails or memory is not available
+        """
+        if not self.memory:
+            raise RuntimeError("Memory not available")
+
+        func = self.exports.get("UncompressAsMuchAsPossibleSourceSink")
+        if not func:
+            raise RuntimeError("UncompressAsMuchAsPossibleSourceSink not found")
+
+        if not compressed_data:
+            raise RuntimeError("Compressed data cannot be empty")
+
+        # Determine output buffer size
+        if max_output_size is None:
+            try:
+                max_output_size = self.get_uncompressed_length(compressed_data)
+            except RuntimeError:
+                # Fallback estimation
+                max_output_size = len(compressed_data) * 4
+        
+        # Handle edge case of zero or negative buffer size
+        if max_output_size <= 0:
+            return b""
+
+        compressed_len = len(compressed_data)
+        
+        # Calculate safe memory offsets with larger spacing
+        compressed_offset = 0
+        output_offset = compressed_len + 2048  # Increased spacing
+        
+        # Check memory constraints and adjust if necessary
+        total_needed = output_offset + max_output_size
+        try:
+            # Try different methods to get memory size
+            if hasattr(self.memory, 'size'):
+                memory_size = self.memory.size(self.store) * 65536  # Convert pages to bytes
+            elif hasattr(self.memory, 'data_len'):
+                memory_size = self.memory.data_len(self.store)
+            else:
+                memory_size = 16 * 1024 * 1024  # 16MB fallback
+            
+            if total_needed > memory_size:
+                # Reduce max_output_size to fit in available memory
+                available_output_space = memory_size - output_offset - 1024  # Safety margin
+                if available_output_space <= 0:
+                    raise RuntimeError("Not enough WASM memory for decompression")
+                max_output_size = min(max_output_size, available_output_space)
+                
+                if max_output_size <= 0:
+                    return b""
+        except Exception:
+            # If we can't check memory size, proceed carefully
+            pass
+        
+        # Access WASM memory
+        mem_ptr = self.memory.data_ptr(self.store)
+        raw_addr = ctypes.addressof(ctypes.cast(mem_ptr, ctypes.POINTER(ctypes.c_ubyte)).contents)
+
+        try:
+            # Copy compressed data into WASM memory
+            compressed_array = (ctypes.c_ubyte * compressed_len).from_buffer_copy(compressed_data)
+            ctypes.memmove(raw_addr + compressed_offset, compressed_array, compressed_len)
+
+            # Call UncompressAsMuchAsPossibleSourceSink function
+            bytes_written = func(self.store, compressed_offset, compressed_len, output_offset, max_output_size)
+            
+            # bytes_written of 0 is acceptable for this function (partial decompression)
+            if bytes_written < 0:
+                raise RuntimeError("Source/Sink partial decompression failed")
+
+            # Validate bytes_written doesn't exceed buffer size
+            if bytes_written > max_output_size:
+                raise RuntimeError(f"Invalid result: {bytes_written} > {max_output_size}")
+
+            # Handle case where no bytes were written
+            if bytes_written == 0:
+                return b""
+
+            # Read the uncompressed data (only the bytes that were actually written)
+            result = bytearray(bytes_written)
+            result_array = (ctypes.c_ubyte * bytes_written).from_buffer(result)
+            ctypes.memmove(result_array, raw_addr + output_offset, bytes_written)
+
+            return bytes(result)
+            
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
+            raise RuntimeError(f"Partial decompression error: {str(e)}")
+
+
 if __name__ == "__main__":
     snappy = SnappyWasm("snappy.wasm")
     
