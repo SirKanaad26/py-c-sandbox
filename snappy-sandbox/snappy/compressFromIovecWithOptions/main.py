@@ -25,7 +25,7 @@ def main():
     
     try:
         # Compress using IOVec
-        compressed_iovec = snappy.compress_from_iovec(data_buffers)
+        compressed_iovec = snappy.compress_from_iovec(data_buffers, 2)
         print(f"IOVec compressed size: {len(compressed_iovec)} bytes")
         print(f"IOVec compression ratio: {(1 - len(compressed_iovec)/total_original_size)*100:.1f}%")
         

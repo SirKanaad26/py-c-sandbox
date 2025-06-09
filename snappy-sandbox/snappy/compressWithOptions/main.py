@@ -5,9 +5,8 @@ from snappywasm.core import SnappyWasm
 
 def main():
     snappy = SnappyWasm()
-    data = b"hello world " * 10
-    compressed = snappy.compress(data)
-    print(compressed)
+    data = b"hello worldsajisijqbwnedjbideiwidjqbwdjhqwbdjbkdjjkdajksdjka" * 50
+    compressed = snappy.compress(data, 2)
     print("Compressed Length:", len(compressed))
     print("Original Length:", len(data))
 

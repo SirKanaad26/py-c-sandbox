@@ -586,16 +586,24 @@ void RawCompressFromBuffersWithOptions(const char* buffer_ptr, const size_t* len
 }
 
 // Custom Sink implementation for WASM that writes to a pre-allocated buffer
+// Replace your existing WASMSink class in wasm_wrapper.cc with this fixed version:
+
 class WASMSink : public snappy::Sink {
 public:
-    WASMSink(char* buffer, size_t max_size) : buffer_(buffer), max_size_(max_size), written_(0) {}
+    WASMSink(char* buffer, size_t max_size) : buffer_(buffer), max_size_(max_size), written_(0), overflow_(false) {}
     
     virtual void Append(const char* bytes, size_t n) override {
         if (written_ + n <= max_size_) {
+            // Normal case: everything fits
             std::memcpy(buffer_ + written_, bytes, n);
             written_ += n;
         } else {
-            // Buffer overflow - you might want to handle this differently
+            // Partial case: write as much as possible (this is the key fix!)
+            size_t can_write = max_size_ - written_;
+            if (can_write > 0) {
+                std::memcpy(buffer_ + written_, bytes, can_write);
+                written_ += can_write;
+            }
             overflow_ = true;
         }
     }
@@ -604,7 +612,31 @@ public:
         if (written_ + length <= max_size_) {
             return buffer_ + written_;
         }
+        overflow_ = true;
         return scratch; // Fallback to scratch buffer
+    }
+    
+    // Add the missing virtual method implementations
+    virtual char* GetAppendBufferVariable(size_t min_size, size_t desired_size_hint,
+                                          char* scratch, size_t scratch_size,
+                                          size_t* allocated_size) override {
+        size_t available = max_size_ - written_;
+        if (min_size <= available) {
+            *allocated_size = std::min(desired_size_hint, available);
+            return buffer_ + written_;
+        }
+        overflow_ = true;
+        *allocated_size = std::min(scratch_size, available);
+        return scratch;
+    }
+
+    virtual void AppendAndTakeOwnership(char* data, size_t n,
+                                        void (*deleter)(void*, const char*, size_t),
+                                        void* deleter_arg) override {
+        Append(data, n);
+        if (deleter) {
+            deleter(deleter_arg, data, n);
+        }
     }
     
     size_t bytes_written() const { return written_; }
@@ -614,7 +646,7 @@ private:
     char* buffer_;
     size_t max_size_;
     size_t written_;
-    bool overflow_ = false;
+    bool overflow_;
 };
 
 // Custom Source implementation for WASM that reads from a buffer
@@ -676,6 +708,67 @@ size_t CompressFromSourceToSinkWithOptions(const char* input_buffer, size_t inpu
     return compressed_size;
 }
 
+EXPORT
+int UncompressSourceSink(const char* compressed_buffer, size_t compressed_length, char* output_buffer, size_t max_output_length) {
+    snappy::ByteArraySource source(compressed_buffer, compressed_length);
+    WASMSink sink(output_buffer, max_output_length);
+    
+    bool success = snappy::Uncompress(&source, &sink);
+    
+    if (!success || sink.overflow()) {
+        return 0; // Error: decompression failed or output buffer too small
+    }
+    
+    return static_cast<int>(sink.bytes_written());
+}
+
+
+EXPORT
+size_t UncompressAsMuchAsPossibleSourceSink(const char* compressed_buffer, size_t compressed_length, 
+                                           char* output_buffer, size_t max_output_length) {
+    // Validate input parameters
+    if (!compressed_buffer || !output_buffer || compressed_length == 0) {
+        return 0;
+    }
+    
+    // Handle zero-size output buffer
+    if (max_output_length == 0) {
+        return 0;
+    }
+
+    try {
+        // First, get the full uncompressed length
+        size_t full_uncompressed_length;
+        if (!snappy::GetUncompressedLength(compressed_buffer, compressed_length, &full_uncompressed_length)) {
+            return 0; // Can't determine uncompressed length - invalid data
+        }
+        
+        // If the full data fits in our buffer, decompress normally
+        if (full_uncompressed_length <= max_output_length) {
+            if (snappy::RawUncompress(compressed_buffer, compressed_length, output_buffer)) {
+                return full_uncompressed_length;
+            } else {
+                return 0; // Decompression failed
+            }
+        }
+        
+        // For partial decompression: decompress to temporary buffer and copy what fits
+        std::vector<char> temp_buffer(full_uncompressed_length);
+        
+        bool success = snappy::RawUncompress(compressed_buffer, compressed_length, temp_buffer.data());
+        if (!success) {
+            return 0; // Decompression failed
+        }
+        
+        // Copy as much as fits into the output buffer
+        std::memcpy(output_buffer, temp_buffer.data(), max_output_length);
+        return max_output_length;
+        
+    } catch (...) {
+        return 0; // Error occurred
+    }
+}
+
 // Export memory allocation functions for managing WASM memory from Python
 EXPORT
 void* AllocateMemory(size_t size) {
@@ -701,7 +794,7 @@ void ReadFromMemory(const void* src, char* dest, size_t size) {
 
 EXPORT
 int GetVersion() {
-    return 11; // Version 11 - now includes RawCompress, RawCompressFromIOVec, and Source/Sink Compress functions
+    return 12;
 }
 EOF
 
@@ -727,7 +820,7 @@ emcc $SNAPPY_SOURCES wasm_wrapper.cc \
      -I. \
      -s WASM=1 \
      -s STANDALONE_WASM=1 \
-     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_RawCompress", "_RawCompressWithOptions", "_RawCompressFromIOVec", "_RawCompressFromIOVecWithOptions", "_RawCompressFromBuffers", "_RawCompressFromBuffersWithOptions", "_CompressFromSourceToSink", "_CompressFromSourceToSinkWithOptions", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_IsValidCompressed", "_IsValidCompressedInt", "_RawUncompress", "_RawUncompressInt", "_RawUncompressFromSource", "_RawUncompressFromSourceInt", "_RawUncompressToIOVec", "_RawUncompressToIOVecInt", "_RawUncompressToIOVecFromSource", "_RawUncompressToIOVecFromSourceInt", "_RawUncompressToBuffers", "_RawUncompressToBuffersInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
+     -s EXPORTED_FUNCTIONS='["_MaxCompressedLength", "_GetUncompressedLength", "_GetUncompressedLengthFromPtr", "_Compress", "_CompressFromPtr", "_CompressWithOptions", "_CompressWithOptionsFromPtr", "_CompressFromIOVec", "_CompressFromBuffers", "_CompressFromIOVecWithOptions", "_CompressFromBuffersWithOptions", "_RawCompress", "_RawCompressWithOptions", "_RawCompressFromIOVec", "_RawCompressFromIOVecWithOptions", "_RawCompressFromBuffers", "_RawCompressFromBuffersWithOptions", "_CompressFromSourceToSink", "_CompressFromSourceToSinkWithOptions", "_UncompressSourceSink", "_UncompressAsMuchAsPossibleSourceSink", "_IsValidCompressedBuffer", "_IsValidCompressedBufferInt", "_IsValidCompressed", "_IsValidCompressedInt", "_RawUncompress", "_RawUncompressInt", "_RawUncompressFromSource", "_RawUncompressFromSourceInt", "_RawUncompressToIOVec", "_RawUncompressToIOVecInt", "_RawUncompressToIOVecFromSource", "_RawUncompressToIOVecFromSourceInt", "_RawUncompressToBuffers", "_RawUncompressToBuffersInt", "_Uncompress", "_UncompressFromPtr", "_GetMinCompressionLevel", "_GetMaxCompressionLevel", "_GetDefaultCompressionLevel", "_AllocateMemory", "_FreeMemory", "_WriteToMemory", "_ReadFromMemory", "_GetVersion"]' \
      -s ALLOW_MEMORY_GROWTH=1 \
      -DHAVE_SYS_UIO_H=1 \
      -DHAVE_UNISTD_H=1 \
