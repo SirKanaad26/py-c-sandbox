@@ -1,32 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Snappy WASM Compressor</title>
+  <meta charset="UTF-8">
+  <title>Snappy Compression - Sandboxed</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+    }
+    #status {
+      padding: 10px;
+      border-radius: 8px;
+      color: white;
+      margin-bottom: 15px;
+    }
+    .sandboxed {
+      background-color: green;
+    }
+    .unsandboxed {
+      background-color: red;
+    }
+    #outputBox {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid gray;
+      background-color: #f2f2f2;
+    }
+  </style>
 </head>
 <body>
-    <h2>Snappy Compression Sandbox (WASM)</h2>
-    <form id="compress-form">
-        <textarea name="data" rows="10" cols="50" placeholder="Enter text to compress"></textarea><br>
-        <button type="submit">Compress</button>
-    </form>
-    <p id="result"></p>
 
-    <script>
-        const form = document.getElementById("compress-form");
-        const result = document.getElementById("result");
+<h1 id="pageTitle">Snappy Compression - Sandboxed</h1>
 
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            const formData = new FormData(form);
+<div id="status" class="sandboxed">Mode: Sandboxed (Safe)</div>
 
-            const response = await fetch("/compress/", {
-                method: "POST",
-                body: formData
-            });
+<label for="textInput">Text to Compress:</label><br>
+<textarea id="textInput" rows="5" cols="60"></textarea><br><br>
 
-            const data = await response.json();
-            result.innerText = `Original: ${data.original_size} bytes, Compressed: ${data.compressed_size} bytes`;
-        };
-    </script>
+<button onclick="compress()">Compress</button>
+<button onclick="downloadCompressed()">Download Compressed</button>
+<button onclick="toggleMode()">Toggle Mode</button>
+
+<div id="outputBox">
+  <p><strong>Original Size:</strong> <span id="originalSize">-</span></p>
+  <p><strong>Compressed Size:</strong> <span id="compressedSize">-</span></p>
+</div>
+
+<script>
+  let currentMode = "sandboxed";
+  let lastCompressed = "";
+
+  function toggleMode() {
+    currentMode = currentMode === "sandboxed" ? "unsandboxed" : "sandboxed";
+    document.getElementById("status").textContent = currentMode === "sandboxed" ? "Mode: Sandboxed (Safe)" : "Mode: Unsandboxed (Unsafe)";
+    document.getElementById("status").className = currentMode;
+    document.getElementById("pageTitle").textContent = "Snappy Compression - " + (currentMode === "sandboxed" ? "Sandboxed" : "Unsandboxed");
+  }
+
+  async function compress() {
+    const text = document.getElementById("textInput").value;
+    const formData = new FormData();
+    formData.append("data", text);
+    formData.append("mode", currentMode);
+
+    const response = await fetch("/compress/", {
+      method: "POST",
+      body: formData
+    });
+    const result = await response.json();
+
+    document.getElementById("originalSize").textContent = result.original_size;
+    document.getElementById("compressedSize").textContent = result.compressed_size;
+    lastCompressed = result.compressed_base64;
+  }
+
+  function downloadCompressed() {
+    if (!lastCompressed) {
+      alert("Please compress text first!");
+      return;
+    }
+
+    const blob = new Blob([atob(lastCompressed)], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "compressed.snappy";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+</script>
+
 </body>
 </html>
