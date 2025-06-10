@@ -16,11 +16,17 @@ async def homepage():
 @app.post("/compress/")
 async def compress_text(data: str = Form(...), mode: str = Form(...)):
     input_bytes = data.encode("utf-8")
-    if mode == "sandboxed":
-        snappy_sandboxed = snappy_sandbox.SnappyWasm()
-        compressed = snappy_sandboxed.compress(input_bytes)
-    else:
-        compressed = snappy_wrapper.compress_data(input_bytes)
+    try: 
+        if mode == "sandboxed":
+            snappy_sandboxed = snappy_sandbox.SnappyWasm()
+            compressed = snappy_sandboxed.compress(input_bytes)
+        else:
+            compressed = snappy_wrapper.compress_data(input_bytes)
+    except Exception as e:
+        print(f"Crashed===================================\
+              ====================\n==============================\
+              ========================\n============================================\
+              ==========\n======================================================{e}")
 
     encoded = base64.b64encode(compressed).decode("utf-8")
     return JSONResponse({

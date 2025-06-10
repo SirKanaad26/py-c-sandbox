@@ -5211,7 +5211,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_source_to_sink(CYTHON_UNU
  *         if not success:
  *             raise RuntimeError("Source/Sink decompression failed")             # <<<<<<<<<<<<<<
  * 
- *         return success
+ *         return output
 */
       __pyx_t_5 = NULL;
       __Pyx_INCREF(__pyx_builtin_RuntimeError);
@@ -5241,12 +5241,12 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_source_to_sink(CYTHON_UNU
     /* "snappy_wrapper.pyx":302
  *             raise RuntimeError("Source/Sink decompression failed")
  * 
- *         return success             # <<<<<<<<<<<<<<
+ *         return output             # <<<<<<<<<<<<<<
  *     finally:
  *         del source
 */
     __Pyx_XDECREF(__pyx_r);
-    __pyx_t_4 = __Pyx_PyBool_FromLong(__pyx_v_success); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 302, __pyx_L4_error)
+    __pyx_t_4 = __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(__pyx_v_output); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 302, __pyx_L4_error)
     __Pyx_GOTREF(__pyx_t_4);
     __pyx_r = __pyx_t_4;
     __pyx_t_4 = 0;
@@ -5254,7 +5254,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_source_to_sink(CYTHON_UNU
   }
 
   /* "snappy_wrapper.pyx":304
- *         return success
+ *         return output
  *     finally:
  *         del source             # <<<<<<<<<<<<<<
  *         del sink
@@ -5307,7 +5307,7 @@ static PyObject *__pyx_pf_14snappy_wrapper_8uncompress_source_to_sink(CYTHON_UNU
       __pyx_r = 0;
 
       /* "snappy_wrapper.pyx":304
- *         return success
+ *         return output
  *     finally:
  *         del source             # <<<<<<<<<<<<<<
  *         del sink

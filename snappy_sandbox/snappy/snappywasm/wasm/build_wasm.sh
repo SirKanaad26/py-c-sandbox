@@ -11,14 +11,14 @@ BUILD_DIR="snappy_source"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
-# Download Snappy source if not already present
-if [ ! -d "snappy" ]; then
-    echo "Downloading Google Snappy source code..."
-    git clone https://github.com/google/snappy.git
-    echo "Downloaded Snappy repository"
-fi
+# # Download Snappy source if not already present
+# if [ ! -d "snappy" ]; then
+#     echo "Downloading Google Snappy source code..."
+#     git clone https://github.com/google/snappy.git
+#     echo "Downloaded Snappy repository"
+# fi
 
-cd snappy
+cd ../../../../../snappy_unsandboxed/snappy
 
 # Check if emscripten is available
 if ! command -v emcc &> /dev/null; then
