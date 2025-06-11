@@ -1,13 +1,9 @@
-#!/usr/bin/env python3
-"""
-Final test based on actual Snappy UncompressAsMuchAsPossible behavior
-"""
-
 import sys
 import os
+import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from snappywasm.core import SnappyWasm
+from snappywasm.snappy_sandbox import SnappyWasm
 
 def main():
     """Test based on actual Snappy behavior"""
