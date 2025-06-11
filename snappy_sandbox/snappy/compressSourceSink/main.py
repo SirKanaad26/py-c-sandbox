@@ -1,7 +1,9 @@
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
 
-from snappywasm.core import SnappyWasm
+from snappywasm.snappy_sandbox import SnappyWasm
+# from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def test_compress_source_sink():
     """Test the compress_source_sink method exactly as the original"""

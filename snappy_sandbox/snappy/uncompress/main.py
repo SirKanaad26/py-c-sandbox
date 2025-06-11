@@ -6,8 +6,9 @@ Minimal test for the uncompress function using SnappyWasm class
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from snappywasm.core import SnappyWasm
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm.snappy_sandbox import SnappyWasm
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def test_uncompress():
     """Test basic uncompress functionality"""

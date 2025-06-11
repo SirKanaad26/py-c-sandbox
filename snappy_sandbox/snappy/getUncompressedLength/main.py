@@ -1,12 +1,14 @@
 import sys, os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from snappywasm.core import SnappyWasm
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm.snappy_sandbox import SnappyWasm
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def main():
     snappy = SnappyWasm()
 
-    data = b"hello world " * 10
+    data = b"hello world " 
     print("Original Length:   ", len(data))
 
     compressed = snappy.compress(data)

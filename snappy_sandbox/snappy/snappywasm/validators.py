@@ -4,7 +4,6 @@ from typing import List, Union
 
 def validate_max_compressed_length(source_length: int, result: int):
     """Validate the result returned by MaxCompressedLength."""
-    print("validating")
     if not isinstance(result, int):
         raise ValueError("Result from MaxCompressedLength must be an integer.")
 
@@ -13,6 +12,8 @@ def validate_max_compressed_length(source_length: int, result: int):
 
     if result > source_length * 2 + 64:
         raise ValueError(f"Compressed length too large: {result} for input size {source_length}")
+    print("validating max compress length", result, source_length)
+    return result
 
 def validate_uncompressed_length(compressed_len: int, result: int):
     """Validate the output of GetUncompressedLength."""
@@ -25,6 +26,7 @@ def validate_uncompressed_length(compressed_len: int, result: int):
 
     if result > compressed_len * 100:
         raise ValueError(f"Uncompressed length too large: {result} for compressed size {compressed_len}")
+    return result
 
 def validate_compressed_output(input_len: int, max_out_len: int, compressed_len: int):
     """Validate the result length of a compression operation."""
@@ -40,6 +42,8 @@ def validate_compressed_output(input_len: int, max_out_len: int, compressed_len:
     if compressed_len >= input_len:
         # Compression usually reduces size, warn if it doesn't
         print(f"[WARNING] Compressed length ({compressed_len}) >= input length ({input_len}) — possible inefficiency.")
+    return compressed_len
+
 
 def validate_iovec_compressed_output(total_input_len: int, max_out_len: int, compressed_len: int):
     """Validate compressed output length from CompressFromIOVec."""
@@ -54,6 +58,8 @@ def validate_iovec_compressed_output(total_input_len: int, max_out_len: int, com
 
     if compressed_len >= total_input_len:
         print(f"[WARNING] Compressed length ({compressed_len}) >= input length ({total_input_len}).")
+    
+    return compressed_len
 
 def validate_uncompress_output(compressed_len: int, expected_uncompressed_len: int, actual_uncompressed_len: int):
     """Validate the length of the uncompressed output returned from WASM."""
@@ -72,6 +78,7 @@ def validate_uncompress_output(compressed_len: int, expected_uncompressed_len: i
         print(
             f"[WARNING] Uncompressed length ({actual_uncompressed_len}) much smaller than expected ({expected_uncompressed_len})"
         )
+    return actual_uncompressed_len
 
 def validate_raw_uncompressed_output(expected_len: int, output: bytes):
     """Validate the result of raw uncompression."""
@@ -186,10 +193,12 @@ def validate_is_valid_compressed_buffer_result(compressed_data: bytes, result: b
 
     if len(compressed_data) == 0 and result:
         raise ValueError("Empty buffer cannot be validly compressed.")
+    return compressed_data
 
 
 def validate_is_valid_compressed_result(compressed_data: bytes, result: bool):
     """Validate output of is_valid_compressed()."""
+    print('Compressed Data: ', compressed_data, 'Result: ', bool)
     if not isinstance(result, bool):
         raise ValueError("Result must be of type bool.")
 
@@ -198,12 +207,14 @@ def validate_is_valid_compressed_result(compressed_data: bytes, result: bool):
 
     if len(compressed_data) == 0 and result:
         raise ValueError("Empty buffer cannot be validly compressed.")
+    return compressed_data
 
 def validate_compression_level_result(level: int, label: str):
     if not isinstance(level, int):
         raise ValueError(f"{label} must be an integer.")
     if level < 0 or level > 100:
         raise ValueError(f"{label} is out of expected range: {level}")
+    return level
 
 def validate_compression_info(info: dict):
     min_level = info["min_level"]
@@ -215,11 +226,9 @@ def validate_compression_info(info: dict):
 
 def validate_raw_uncompress_buffer_output(compressed_data: bytes, uncompressed_buffer: bytearray, success: bool):
     """Validate the output of raw_uncompress with provided bytearray."""
+    
     if not isinstance(success, bool):
         raise ValueError("Return value must be of type bool.")
-
-    if not isinstance(uncompressed_buffer, bytearray):
-        raise ValueError("uncompressed_buffer must be a bytearray.")
 
     if not isinstance(compressed_data, (bytes, bytearray)):
         raise ValueError("compressed_data must be bytes or bytearray.")
@@ -229,6 +238,8 @@ def validate_raw_uncompress_buffer_output(compressed_data: bytes, uncompressed_b
             raise ValueError("Uncompressed buffer should not be empty if decompression succeeded.")
         if all(b == 0 for b in uncompressed_buffer):
             raise ValueError("Uncompressed buffer appears to be empty (all zeros) despite success.")
+    
+    return uncompressed_buffer
 
 def validate_raw_uncompress_to_iovec_from_source_output(
     compressed_data: bytes,
@@ -265,7 +276,6 @@ def validate_raw_compress_output(input_data: bytes, output_data: bytes, max_expe
     """Validate output of raw_compress()."""
     if not isinstance(output_data, bytes):
         raise ValueError("Compressed output must be of type bytes.")
-
     input_len = len(input_data)
     output_len = len(output_data)
 
@@ -281,6 +291,8 @@ def validate_raw_compress_output(input_data: bytes, output_data: bytes, max_expe
     # Optional: warn if compression was ineffective
     if output_len >= input_len:
         print(f"[WARNING] Compressed output ({output_len}) >= input ({input_len}). Inefficient compression.")
+    
+    return output_data
 
 def validate_raw_compress_with_options_output(
     input_data: bytes,
@@ -369,4 +381,5 @@ def validate_raw_compress_from_iovec_with_options_output(
 
     if output_len >= total_input_len:
         print(f"[WARNING] Compressed output ({output_len}) >= input ({total_input_len}) — inefficient compression.")
+    return output_data
 

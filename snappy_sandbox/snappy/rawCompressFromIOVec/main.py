@@ -1,11 +1,11 @@
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from snappywasm.core import SnappyWasm
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm.snappy_sandbox import SnappyWasm
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def test_raw_compress_from_iovec():
-    wasm_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'snappywasm/wasm/snappy.wasm'))
-    snappy = SnappyWasm(wasm_path)
+    snappy = SnappyWasm()
 
     data = [b"hello", b" ", b"snappy", b" ", b"iovec"]
     original = b"".join(data)

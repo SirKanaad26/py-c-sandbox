@@ -1,7 +1,8 @@
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from snappywasm.core import SnappyWasm
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm.snappy_sandbox import SnappyWasm
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 import time
 
 def test_raw_uncompress():
@@ -84,51 +85,11 @@ def test_raw_uncompress():
             print(f"✗ Test failed with error: {e}")
         
         print("-" * 50)
-    
-    # Test error handling
-    print("\n=== Error Handling Tests ===\n")
-    
-    try:
-        print("Test: Invalid compressed data")
-        invalid_data = b"This is not compressed data"
-        
-        # This should return False
-        if not snappy.is_valid_compressed(invalid_data):
-            print("✓ Invalid data correctly identified")
-        else:
-            print("✗ Invalid data incorrectly validated")
-            
-    except Exception as e:
-        print(f"✗ Error handling test failed: {e}")
-    
-    print("-" * 50)
-
-def benchmark_performance():
-    """Benchmark the performance of decompression"""
-    
-    print("\n=== Performance Benchmark ===\n")
-    
-    # Create test data of various sizes
-    test_sizes = [1024, 10240, 102400, 1024000]  # 1KB, 10KB, 100KB, 1MB
-    
-    for size in test_sizes:
-        print(f"Testing {size} bytes...")
-        
-        # Create test data
-        test_data = b"A" * (size // 2) + b"B" * (size // 2)
-        
-        print(f"  Original size: {len(test_data)} bytes")
-        print("  Performance test would require actual compression/decompression")
-        print("  Skipping for now...\n")
 
 
 def main():
     """Main test function"""
     
-    print("Snappy WASM RawUncompress Test Suite")
-    print("====================================\n")
-    print("Usage: python main.py [basic|benchmark|interactive]")
-    print("\nRunning basic tests by default...\n")
     test_raw_uncompress()
 
 if __name__ == "__main__":

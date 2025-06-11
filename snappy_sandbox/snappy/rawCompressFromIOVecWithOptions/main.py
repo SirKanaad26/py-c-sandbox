@@ -1,15 +1,13 @@
 import sys, os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from snappywasm.core import SnappyWasm
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm.snappy_sandbox import SnappyWasm
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def main():
     print("======= SnappyWasm RawCompressFromIOVecWithOptions Tests =======")
-
-    wasm_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'snappywasm/wasm/snappy.wasm'))
-    print(f"[SETUP] Using WASM file: {wasm_path}")
-    
-    sn = SnappyWasm(wasm_path)
+    sn = SnappyWasm()
     print("[SETUP] SnappyWasm object created.")
     print(f"[INFO] Compression level range: {sn.get_min_compression_level()} to {sn.get_max_compression_level()}")
 

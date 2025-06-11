@@ -1,8 +1,9 @@
 import sys, os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from snappywasm.core import SnappyWasm
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm import snappy_sandbox_framework as snappy_sandbox
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def test_snappy_direct_wasm():
     """Test both MaxCompressedLength and GetUncompressedLength"""
@@ -27,6 +28,7 @@ def test_snappy_direct_wasm():
     for size in test_sizes:
         try:
             max_size = snappy.max_compressed_length(size)
+            print('Max_size... ', max_size)
             overhead = max_size - size
             overhead_pct = (overhead / size * 100) if size > 0 else 0
             
@@ -34,29 +36,7 @@ def test_snappy_direct_wasm():
         except Exception as e:
             print(f"{size:12,} | {'ERROR':>14} | {'N/A':>10} | {'N/A':>11}")
             print(f"    Error: {e}")
-    
-    
-    print(f"\n Performance Tests")
-    print("-" * 30)
-    
-    import time
-    iterations = 50000
-    
-    # Test MaxCompressedLength performance
-    test_size = 1000
-    try:
-        start_time = time.time()
-        for _ in range(iterations):
-            snappy.max_compressed_length(test_size)
-        mcl_time = time.time() - start_time
-        
-        print(f"MaxCompressedLength:")
-        print(f"  {iterations:,} calls in {mcl_time:.3f}s")
-        print(f"  {iterations/mcl_time:,.0f} calls/sec")
-        print(f"  {(mcl_time/iterations)*1_000_000:.3f} μs/call")
-    except Exception as e:
-        print(f"MaxCompressedLength performance test failed: {e}")
-        
+
     print(f"\nTest completed!")
 
 

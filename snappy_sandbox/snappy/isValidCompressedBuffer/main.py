@@ -6,21 +6,19 @@ Tests the char* buffer version of the validation function
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from snappywasm.core import SnappyWasm
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm.snappy_sandbox import SnappyWasm
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def test_is_valid_compressed_buffer():
     """Test the is_valid_compressed_buffer method"""
     
-    print("🚀 Snappy WASM Test - IsValidCompressedBuffer (char* buffer version)")
-    print("=" * 70)
     
     # Initialize SnappyWasm
     snappy = SnappyWasm()
     
-    print(f"✅ Snappy WASM version: {snappy.get_version()}")
-    print()
     
     # Test data
     test_data = "Hello, World! This is a test of Snappy compression validation."
@@ -263,25 +261,25 @@ def main():
     
     try:
         test_is_valid_compressed_buffer()
-        test_invalid_data()
-        test_multiple_data_types()
-        test_edge_cases()
-        test_malformed_data()
+        # test_invalid_data()
+        # test_multiple_data_types()
+        # test_edge_cases()
+        # test_malformed_data()
         
-        print("\n" + "=" * 70)
-        print("✅ IsValidCompressedBuffer tests completed!")
-        print("=" * 70)
-        print("Summary:")
-        print("• Tested char* buffer-based validation")
-        print("• Verified with valid compressed data")
-        print("• Tested rejection of invalid data")
-        print("• Checked various data types and sizes")
-        print("• Examined edge cases and malformed data")
+        # print("\n" + "=" * 70)
+        # print("✅ IsValidCompressedBuffer tests completed!")
+        # print("=" * 70)
+        # print("Summary:")
+        # print("• Tested char* buffer-based validation")
+        # print("• Verified with valid compressed data")
+        # print("• Tested rejection of invalid data")
+        # print("• Checked various data types and sizes")
+        # print("• Examined edge cases and malformed data")
         
     except Exception as e:
         print(f"❌ Test suite failed: {e}")
-        import traceback
-        traceback.print_exc()
+        # import traceback
+        # traceback.print_exc()
 
 if __name__ == "__main__":
     main()

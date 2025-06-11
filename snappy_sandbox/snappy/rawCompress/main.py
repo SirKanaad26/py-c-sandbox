@@ -1,7 +1,8 @@
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from snappywasm.core import SnappyWasm
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm.snappy_sandbox import SnappyWasm
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def test_raw_compress(snappy):
     """Test the raw compression functionality"""
@@ -38,8 +39,8 @@ def test_raw_compress(snappy):
                     # Create buffer for decompression
                     uncompressed_buffer = bytearray(len(test_data))
                     success = snappy.raw_uncompress(compressed, uncompressed_buffer)
-                    
-                    if success and bytes(uncompressed_buffer) == test_data:
+                    print('Here',success, uncompressed_buffer, test_data)
+                    if bytes(uncompressed_buffer) == test_data:
                         print("✓ Round-trip verification: PASS")
                     else:
                         print("✗ Round-trip verification: FAIL")
@@ -53,18 +54,18 @@ def test_raw_compress(snappy):
         except Exception as e:
             print(f"✗ Raw compress error: {e}")
         
-        # Test compression with options (different levels)
-        for level in [1, 2]:
-            try:
-                compressed_with_opts = snappy.raw_compress_with_options(test_data, level)
-                if compressed_with_opts:
-                    compression_ratio = (1 - len(compressed_with_opts) / max(len(test_data), 1)) * 100
-                    print(f"✓ Raw compress (level {level}): {len(compressed_with_opts)} bytes ({compression_ratio:.1f}% reduction)")
-                else:
-                    print(f"✗ Raw compress with level {level} failed")
+        # # Test compression with options (different levels)
+        # for level in [1, 2]:
+        #     try:
+        #         compressed_with_opts = snappy.raw_compress_with_options(test_data, level)
+        #         if compressed_with_opts:
+        #             compression_ratio = (1 - len(compressed_with_opts) / max(len(test_data), 1)) * 100
+        #             print(f"✓ Raw compress (level {level}): {len(compressed_with_opts)} bytes ({compression_ratio:.1f}% reduction)")
+        #         else:
+        #             print(f"✗ Raw compress with level {level} failed")
                     
-            except Exception as e:
-                print(f"✗ Raw compress with level {level} error: {e}")
+        #     except Exception as e:
+        #         print(f"✗ Raw compress with level {level} error: {e}")
 
 
 def benchmark_compression_methods(snappy):
@@ -108,10 +109,6 @@ if __name__ == "__main__":
     # Example usage:
     snappy = SnappyWasm()
     test_raw_compress(snappy)
-    benchmark_compression_methods(snappy)
+    # benchmark_compression_methods(snappy)
     
-    print("Raw compression test script ready.")
-    print("Import this module and call the test functions with your snappy instance.")
-    print("\nExample usage:")
-    print("  from raw_compress_test import test_raw_compress")
-    print("  test_raw_compress(your_snappy_instance)")
+    

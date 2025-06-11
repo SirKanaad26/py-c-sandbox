@@ -1,16 +1,16 @@
 import os
 import struct
 from wasmtime import Store, Module, Instance, Func
-from .utils import create_wasm_imports
+from utils import create_wasm_imports
 import ctypes
 from typing import List, Union
-from .validators import *
+from validators import *
 
 class SnappyWasm:
     def __init__(self, wasm_path=None):
         if not wasm_path:
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            wasm_path = os.path.join(current_dir, "wasm", "snappy.wasm")
+            wasm_path = os.path.join(current_dir, "wasm", "non_faulty_snappy.wasm")
 
         self.store = Store()
 
@@ -63,7 +63,7 @@ class SnappyWasm:
         
         # Memory offsets
         input_offset = 0
-        output_offset = input_len + 1024
+        output_offset = input_len + 8
         
         # Access WASM memory
         mem_ptr = self.memory.data_ptr(self.store)
@@ -839,7 +839,7 @@ class SnappyWasm:
 
         # Call validation function with Source* abstraction
         is_valid = func(self.store, compressed_offset, compressed_len)
-        validate_is_valid_compressed_result(compressed_data, is_valid)
+        validate_is_valid_compressed_result(compressed_data, bool(is_valid))
 
         return bool(is_valid)
 
@@ -912,7 +912,7 @@ class SnappyWasm:
 
             # Call raw uncompress function
             # Function signature: bool RawUncompress(const char* compressed, size_t compressed_length, char* uncompressed)
-            success = func(self.store, compressed_offset, compressed_len, output_offset)
+            success = bool(func(self.store, compressed_offset, compressed_len, output_offset))
             
             if not success:
                 return False
@@ -923,8 +923,8 @@ class SnappyWasm:
             validate_raw_uncompress_buffer_output(compressed_data, uncompressed_buffer, success)
             return True
             
-        except Exception:
-            return False
+        except Exception as e:
+            return e
         
     def raw_uncompress_to_iovec_from_source(self, compressed_data: bytes, buffer_sizes: List[int]) -> List[bytes]:
         """

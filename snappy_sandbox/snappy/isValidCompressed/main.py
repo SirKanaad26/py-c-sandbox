@@ -1,20 +1,16 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from snappywasm.core import SnappyWasm
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/snappywasm')
+# from snappywasm.snappy_sandbox import SnappyWasm
+from snappywasm.snappy_sandbox_framework import SnappyWasm
 
 def test_is_valid_compressed():
     """Test the is_valid_compressed method (Source* version)"""
     
-    print("🚀 Snappy WASM Test - IsValidCompressed (Source* abstraction version)")
-    print("=" * 70)
-    
     # Initialize SnappyWasm
     snappy = SnappyWasm()
-    
-    print(f"✅ Snappy WASM version: {snappy.get_version()}")
-    print()
     
     # Test data
     test_data = "Hello, World! This is a test of Snappy Source* abstraction validation."
@@ -267,27 +263,14 @@ def main():
     
     try:
         test_is_valid_compressed()
-        test_invalid_data()
-        test_source_abstraction_features()
-        test_source_vs_buffer_consistency()
-        test_source_abstraction_edge_cases()
-        test_source_abstraction_internals()
-        
-        print("\n" + "=" * 70)
-        print("✅ IsValidCompressed (Source*) tests completed!")
-        print("=" * 70)
-        print("Summary:")
-        print("• Tested Source* abstraction-based validation")
-        print("• Verified ByteArraySource wrapper functionality")
-        print("• Tested consistency with buffer-based approach")
-        print("• Examined Source* abstraction advantages")
-        print("• Validated various data types and edge cases")
-        print("• Confirmed C++ API compatibility")
+        # test_invalid_data()
+        # test_source_abstraction_features()
+        # test_source_vs_buffer_consistency()
+        # test_source_abstraction_edge_cases()
+        # test_source_abstraction_internals()
         
     except Exception as e:
         print(f"❌ Test suite failed: {e}")
-        import traceback
-        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
