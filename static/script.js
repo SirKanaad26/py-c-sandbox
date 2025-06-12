@@ -35,9 +35,15 @@ function showAlert(message, type) {
   alerts.appendChild(alert);
   
   // Auto-remove alert after 3 seconds
-  setTimeout(() => {
-    alert.remove();
-  }, 3000);
+  if (type === 'success') {
+    setTimeout(() => {
+      alert.remove();
+    }, 3000);
+  } else {
+    setTimeout(() => {
+      alert.remove();
+    }, 6000); 
+  }
 }
 
 /**
