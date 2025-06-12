@@ -42,9 +42,9 @@ Open your browser and go to: **http://localhost:8000**
 - `GET /health` - Health check
 - `GET /debug/test-error` - Test error handling
 
-## Instructions to run code
+## Steps to generate .so file
 ```
-python setup.py build_ext --inplace
+python3 setup.py build_ext --inplace
 ```
 
 ## Steps to activate emsdk
