@@ -8,11 +8,10 @@
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  /* min-height: 100vh; */
+  min-height: 100vh;
   padding: 20px;
-  display: flex;
-  justify-content: center;
-  height: 100vh;
+  display: block;
+  height: auto;
 }
 
 .container {
@@ -22,9 +21,7 @@ body {
   border-radius: 20px;
   backdrop-filter: blur(10px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  /* display: flex; */
-  /* align-items: center; */
+  /* overflow: hidden; */  /* REMOVE THIS LINE */
 }
 
 .header {
@@ -86,10 +83,11 @@ body {
   border-radius: 20px;
   transition: all 0.3s ease;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  transform: translateX(150px);
 }
 
 .toggle-switch.unsandboxed .toggle-slider {
-  transform: translateX(150px);
+  transform: translateX(0);
 }
 
 .main-content {
