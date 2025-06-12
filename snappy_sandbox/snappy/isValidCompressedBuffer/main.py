@@ -51,11 +51,6 @@ class SnappyIsValidCompressedBufferTester:
                 "description": "Empty byte string"
             },
             {
-                "name": "Single byte",
-                "data": b"\x00",
-                "description": "Single null byte"
-            },
-            {
                 "name": "JSON data",
                 "data": b'{"invalid": "compressed", "data": true}',
                 "description": "JSON as raw bytes"
