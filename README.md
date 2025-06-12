@@ -9,6 +9,8 @@ A FastAPI web application for testing Snappy compression with both sandboxed and
 
 ### 1. Install Dependencies
 ```bash
+python3.12 -m venv venv
+source venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
