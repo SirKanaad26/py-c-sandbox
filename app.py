@@ -2,7 +2,11 @@ from fastapi import FastAPI, UploadFile, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from snappy_unsandboxed import snappy_wrapper
-from snappy_sandbox.snappy.snappywasm import snappy_sandbox
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(_file_))) + '/framework/')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(_file_))) + '/framework/snappy_sandbox/snappy/')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(_file_))) + '/framework/snappy_sandbox/snappy/snappywasm/')
+import snappy_sandbox_framework as snappy_sandbox
 import base64
 
 app = FastAPI()
