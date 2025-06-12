@@ -135,6 +135,11 @@ async function compress() {
     lastCompressed = result.compressed_base64;
     showAlert(`Compression successful using ${result.mode || currentMode} mode!`, 'success');
   } catch (error) {
+    document.getElementById('originalSize').textContent = '-';
+    document.getElementById('compressedSize').textContent = '-';
+    document.getElementById('compressionRatio').textContent = '-';
+    document.getElementById('spaceSaved').textContent = '-';
+
     showAlert(error.message, 'error');
   } finally {
     showLoading(false);
