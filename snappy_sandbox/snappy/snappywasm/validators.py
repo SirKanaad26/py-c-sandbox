@@ -34,7 +34,7 @@ def validate_compressed_output(input_len: int, max_out_len: int, compressed_len:
 
     if compressed_len >= input_len:
         # Compression usually reduces size, warn if it doesn't
-        print(f"[WARNING] Compressed length ({compressed_len}) >= input length ({input_len}) — possible inefficiency.")
+        print(f"Compressed length ({compressed_len}) >= input length ({input_len}) check for possible inefficiency.")
 
 def validate_iovec_compressed_output(total_input_len: int, max_out_len: int, compressed_len: int):
     if not isinstance(compressed_len, int):
