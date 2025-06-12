@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from snappywasm.core import SnappyWasm
+from snappywasm.snappy_sandbox import SnappyWasm
 
 def test_is_valid_compressed():
     """Test the is_valid_compressed method (Source* version)"""

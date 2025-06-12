@@ -4,7 +4,6 @@ from typing import List, Union
 
 def validate_max_compressed_length(source_length: int, result: int):
     """Validate the result returned by MaxCompressedLength."""
-    print("validating")
     if not isinstance(result, int):
         raise ValueError("Result from MaxCompressedLength must be an integer.")
 
@@ -16,7 +15,6 @@ def validate_max_compressed_length(source_length: int, result: int):
 
 def validate_uncompressed_length(compressed_len: int, result: int):
     """Validate the output of GetUncompressedLength."""
-    print("validating Uncompressed length")
     if not isinstance(result, int):
         raise ValueError("Uncompressed length must be an integer.")
 

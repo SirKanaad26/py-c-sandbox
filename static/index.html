@@ -2,95 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Snappy Compression - Sandboxed</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 30px;
-    }
-    #status {
-      padding: 10px;
-      border-radius: 8px;
-      color: white;
-      margin-bottom: 15px;
-    }
-    .sandboxed {
-      background-color: green;
-    }
-    .unsandboxed {
-      background-color: red;
-    }
-    #outputBox {
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid gray;
-      background-color: #f2f2f2;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snappy Compression Tool</title>
+  <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
+  <div class="container">
+    <div class="header">
+      <h1>Snappy Compression Tool</h1>
+      <p>High-performance compression and decompression utility</p>
+    </div>
 
-<h1 id="pageTitle">Snappy Compression - Sandboxed</h1>
+    <div class="mode-toggle">
+      <div class="toggle-switch sandboxed" onclick="toggleMode()">
+        <span>Sandboxed</span>
+        <span>Unsandboxed</span>
+        <div class="toggle-slider"></div>
+      </div>
+    </div>
 
-<div id="status" class="sandboxed">Mode: Sandboxed (Safe)</div>
+    <div class="main-content">
+      <div class="input-section">
+        <div class="section-title">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+          </svg>
+          Input Data
+        </div>
+        
+        <textarea id="textInput" placeholder="Enter text to compress or drag and drop a file..."></textarea>
+        
 
-<label for="textInput">Text to Compress:</label><br>
-<textarea id="textInput" rows="5" cols="60"></textarea><br><br>
 
-<button onclick="compress()">Compress</button>
-<button onclick="downloadCompressed()">Download Compressed</button>
-<button onclick="toggleMode()">Toggle Mode</button>
+        <div class="file-drop-zone" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" style="display: none;" onchange="handleFile(this.files[0])">
+          📁 Drop a file here or click to select
+        </div>
 
-<div id="outputBox">
-  <p><strong>Original Size:</strong> <span id="originalSize">-</span></p>
-  <p><strong>Compressed Size:</strong> <span id="compressedSize">-</span></p>
-</div>
+        <div class="button-group">
+          <button class="btn-primary" onclick="compress()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+            </svg>
+            Compress
+          </button>
+          <button class="btn-secondary" onclick="clearInput()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+            </svg>
+            Clear
+          </button>
+        </div>
+      </div>
 
-<script>
-  let currentMode = "sandboxed";
-  let lastCompressed = "";
+      <div class="output-section">
+        <div class="section-title">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" />
+          </svg>
+          Output & Statistics
+        </div>
 
-  function toggleMode() {
-    currentMode = currentMode === "sandboxed" ? "unsandboxed" : "sandboxed";
-    document.getElementById("status").textContent = currentMode === "sandboxed" ? "Mode: Sandboxed (Safe)" : "Mode: Unsandboxed (Unsafe)";
-    document.getElementById("status").className = currentMode;
-    document.getElementById("pageTitle").textContent = "Snappy Compression - " + (currentMode === "sandboxed" ? "Sandboxed" : "Unsandboxed");
-  }
+        <div class="loading" id="loading">
+          <div class="spinner"></div>
+          <p>Processing...</p>
+        </div>
 
-  async function compress() {
-    const text = document.getElementById("textInput").value;
-    const formData = new FormData();
-    formData.append("data", text);
-    formData.append("mode", currentMode);
+        <div id="results" style="display: none;">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Original Size</div>
+              <div class="stat-value" id="originalSize">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Compressed Size</div>
+              <div class="stat-value" id="compressedSize">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Compression Ratio</div>
+              <div class="stat-value compression-ratio" id="compressionRatio">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Space Saved</div>
+              <div class="stat-value" id="spaceSaved">-</div>
+            </div>
+          </div>
 
-    const response = await fetch("/compress/", {
-      method: "POST",
-      body: formData
-    });
-    const result = await response.json();
+          <div class="button-group">
+            <button class="btn-success" onclick="downloadCompressed()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+              </svg>
+              Download Compressed
+            </button>
+            <!-- <button class="btn-warning" onclick="decompress()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+              </svg>
+              Test Decompress
+            </button> -->
+            <button class="btn-secondary" onclick="copyToClipboard()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+              </svg>
+              Copy Result
+            </button>
+          </div>
+        </div>
 
-    document.getElementById("originalSize").textContent = result.original_size;
-    document.getElementById("compressedSize").textContent = result.compressed_size;
-    lastCompressed = result.compressed_base64;
-  }
+        <div id="alerts"></div>
+      </div>
+    </div>
+  </div>
 
-  function downloadCompressed() {
-    if (!lastCompressed) {
-      alert("Please compress text first!");
-      return;
-    }
-
-    const blob = new Blob([atob(lastCompressed)], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "compressed.snappy";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-</script>
-
+  <script src="static/script.js"></script>
 </body>
 </html>

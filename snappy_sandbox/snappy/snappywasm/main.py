@@ -186,5 +186,5 @@ print("1. evil_snappy_exploits() - Will likely crash")
 print("2. safe_snappy_test() - Catches all exceptions")
 
 # Uncomment the one you want to run:
-evil_snappy_exploits()  # Dangerous!
-# safe_snappy_test()        # Safe version
+# evil_snappy_exploits()  # Dangerous!
+safe_snappy_test()        # Safe version
