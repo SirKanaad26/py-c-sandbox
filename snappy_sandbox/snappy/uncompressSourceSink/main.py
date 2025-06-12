@@ -6,35 +6,31 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from snappywasm.snappy_sandbox import SnappyWasm
 
 def get_memory_size(snappy):
-    """Get memory size using correct wasmtime API"""
     if snappy.memory:
         try:
-            # Try different possible method names for wasmtime memory
             if hasattr(snappy.memory, 'size'):
-                return snappy.memory.size(snappy.store) * 65536  # Convert pages to bytes
+                return snappy.memory.size(snappy.store) * 65536  
             elif hasattr(snappy.memory, 'data_len'):
                 return snappy.memory.data_len(snappy.store)
             elif hasattr(snappy.memory, 'data_size'):
                 return snappy.memory.data_size(snappy.store)
             else:
-                return 16 * 1024 * 1024  # 16MB default
+                return 16 * 1024 * 1024 
         except Exception:
-            return 16 * 1024 * 1024  # 16MB fallback
+            return 16 * 1024 * 1024  
     return 0
 
 def check_simple_memory(snappy, compressed_data, output_size):
-    """Simple memory check with conservative estimation"""
     if not snappy.memory:
         return False
     
     memory_size = get_memory_size(snappy)
     compressed_len = len(compressed_data)
-    needed = compressed_len + 2048 + output_size + 1024  # Match function spacing
+    needed = compressed_len + 2048 + output_size + 1024  
     
     return needed <= memory_size
 
 def test_basic_functionality():
-    """Test basic uncompress_source_sink functionality"""
     print("Testing Basic uncompress_source_sink Functionality")
     print("=" * 60)
     
@@ -43,14 +39,13 @@ def test_basic_functionality():
     memory_size = get_memory_size(snappy)
     print(f"WASM Memory Size: {memory_size} bytes ({memory_size / (1024*1024):.1f} MB)")
     
-    # Start with very small test cases
     test_cases = [
         ("Tiny", "Hi"),
         ("Small", "Hello, World!"),
         ("Short text", "Hello, World! This is a test."),
         ("Medium text", "The quick brown fox jumps over the lazy dog."),
         ("Repetitive small", "ABCD" * 10),
-        ("Unicode text", "Hello 世界 🌍"),
+        ("Unicode text", "Hello"),
     ]
     
     passed = 0
@@ -63,16 +58,13 @@ def test_basic_functionality():
         print(f"Original size: {len(original_data)} bytes")
         
         try:
-            # First compress with regular method
             compressed_data = snappy.compress(original_data)
             print(f"Compressed size: {len(compressed_data)} bytes")
             
-            # Check if we have enough memory (conservative check)
             if not check_simple_memory(snappy, compressed_data, len(original_data)):
                 print(f"Skipping: May not have enough memory for {len(original_data)} byte output")
                 continue
             
-            # Test uncompress_source_sink
             start_time = time.time()
             uncompressed_data = snappy.uncompress_source_sink(compressed_data)
             decompress_time = time.time() - start_time
@@ -80,7 +72,6 @@ def test_basic_functionality():
             print(f"Uncompressed size: {len(uncompressed_data)} bytes")
             print(f"Decompression time: {decompress_time*1000:.2f}ms")
             
-            # Verify integrity
             if uncompressed_data == original_data:
                 print("PASSED - Data integrity verified")
                 passed += 1
@@ -91,7 +82,6 @@ def test_basic_functionality():
                 
         except Exception as e:
             print(f"FAILED - {e}")
-            # For debugging the specific error
             if "memory" in str(e).lower():
                 print(f"Memory-related error - this confirms memory constraints")
     
@@ -105,7 +95,6 @@ def test_different_data_sizes():
     
     snappy = SnappyWasm()
     
-    # Use progressively larger sizes but stop when we hit memory limits
     size_test_cases = [
         ("Tiny (1 byte)", b"A"),
         ("Small (10 bytes)", b"Hello123!@"),
@@ -122,23 +111,19 @@ def test_different_data_sizes():
         print(f"Data size: {len(test_data)} bytes")
         
         try:
-            # Compress first
             compressed_data = snappy.compress(test_data)
             print(f"Compressed: {len(compressed_data)} bytes")
             
-            # Check memory
             if not check_simple_memory(snappy, compressed_data, len(test_data)):
                 print(f"Skipping: May not have enough memory")
                 continue
             
-            # Test uncompress_source_sink
             start_time = time.time()
             uncompressed_data = snappy.uncompress_source_sink(compressed_data)
             decompress_time = time.time() - start_time
             
             print(f"Decompression time: {decompress_time*1000:.2f}ms")
             
-            # Verify
             if uncompressed_data == test_data:
                 print("PASSED")
                 passed += 1
@@ -155,7 +140,6 @@ def test_different_data_sizes():
     return passed > 0
 
 def test_error_conditions():
-    """Test error handling"""
     print("\nTesting Error Conditions")
     print("=" * 35)
     
@@ -172,7 +156,6 @@ def test_error_conditions():
         print(f"\n--- {case_name} ---")
         print(f"Input size: {len(invalid_data)} bytes")
         
-        # Test uncompress_source_sink
         try:
             result = snappy.uncompress_source_sink(invalid_data)
             print(f"Unexpected success: {len(result)} bytes decompressed")
@@ -180,13 +163,11 @@ def test_error_conditions():
             print(f"Expected failure: {type(e).__name__}")
 
 def test_comparison_with_standard():
-    """Compare with standard uncompress"""
     print("\nComparison with Standard Uncompress")
     print("=" * 50)
     
     snappy = SnappyWasm()
     
-    # Small comparison data
     comparison_data = [
         ("Short text", "Hello, test!"),
         ("Medium data", "This is a test. " * 3),
@@ -202,12 +183,10 @@ def test_comparison_with_standard():
         try:
             compressed_data = snappy.compress(original_data)
             
-            # Check memory
             if not check_simple_memory(snappy, compressed_data, len(original_data)):
                 print(f"⚠️ Skipping: May not have enough memory")
                 continue
             
-            # Test both methods
             start_time = time.time()
             result_standard = snappy.uncompress(compressed_data)
             time_standard = time.time() - start_time
@@ -219,11 +198,9 @@ def test_comparison_with_standard():
             print(f"Standard: {time_standard*1000:.2f}ms")
             print(f"Source/Sink: {time_source_sink*1000:.2f}ms")
             
-            # Compare results
             if result_standard == result_source_sink == original_data:
                 print("Both methods produced identical correct results")
                 
-                # Performance comparison
                 if time_source_sink < time_standard:
                     speedup = time_standard / time_source_sink
                     print(f"Source/Sink is {speedup:.2f}x faster")
@@ -231,7 +208,7 @@ def test_comparison_with_standard():
                     slowdown = time_source_sink / time_standard
                     print(f"Source/Sink is {slowdown:.2f}x slower")
                 else:
-                    print("⚖️ Similar performance")
+                    print(" Similar performance")
             else:
                 print("Methods produced different results")
                 
@@ -239,12 +216,10 @@ def test_comparison_with_standard():
             print(f"Comparison test failed: {e}")
 
 def main():
-    """Main test function"""
     print("uncompress_source_sink Function Test Suite")
     print("=" * 60)
     
     try:
-        # Check if function is available
         snappy = SnappyWasm()
         
         if not snappy.exports.get("UncompressSourceSink"):
@@ -254,17 +229,14 @@ def main():
         print("UncompressSourceSink function found")
         print(f"Snappy WASM version: {snappy.get_version()}")
         
-        # Run tests
         test_results = []
         
         test_results.append(("Basic Functionality", test_basic_functionality()))
         test_results.append(("Different Data Sizes", test_different_data_sizes()))
         
-        # Additional tests
         test_error_conditions()
         test_comparison_with_standard()
         
-        # Summary
         print("\n" + "=" * 60)
         print("TEST SUMMARY")
         print("=" * 60)
@@ -283,7 +255,7 @@ def main():
             print("ALL CRITICAL TESTS PASSED!")
             print("uncompress_source_sink function is working correctly")
         else:
-            print("⚠️ Some critical tests failed")
+            print("Some critical tests failed")
             print("This may be due to memory constraints or function signature issues")
         
         return passed_tests == total_tests

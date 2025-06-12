@@ -8,16 +8,14 @@ def main():
     
     print("=== Raw IOVec Decompression from Source Test ===")
     
-    # Create test data with different characteristics
     original_data_parts = [
-        b"Header: " + b"H" * 32,           # 40 bytes - header
-        b"Metadata: " + b"M" * 64,        # 73 bytes - metadata  
-        b"Payload: " + b"P" * 200,        # 209 bytes - main payload
-        b"Footer: " + b"F" * 16,          # 24 bytes - footer
-        b"Checksum: " + b"C" * 8          # 17 bytes - checksum
+        b"Header: " + b"H" * 32,          
+        b"Metadata: " + b"M" * 64,        
+        b"Payload: " + b"P" * 200,        
+        b"Footer: " + b"F" * 16,          
+        b"Checksum: " + b"C" * 8          
     ]
     
-    # Calculate expected buffer sizes for decompression
     buffer_sizes = [len(part) for part in original_data_parts]
     total_size = sum(buffer_sizes)
     
@@ -26,7 +24,6 @@ def main():
         print(f"  Part {i+1}: {size} bytes - {part[:20].decode('utf-8', errors='ignore')}...")
     print(f"Total size: {total_size} bytes")
     
-    # Create compressed data by joining all parts and compressing
     original_combined = b"".join(original_data_parts)
     compressed_data = snappy.compress(original_combined)
     
@@ -36,12 +33,10 @@ def main():
     try:
         print("\n=== Testing Raw IOVec Decompression from Source ===")
         
-        # Use raw_uncompress_to_iovec_from_source to decompress into separate buffers
         decompressed_buffers = snappy.raw_uncompress_to_iovec_from_source(compressed_data, buffer_sizes)
         
         print(f"Successfully decompressed into {len(decompressed_buffers)} separate buffers using Source abstraction")
         
-        # Verify each buffer matches the original
         all_match = True
         for i, (original, decompressed) in enumerate(zip(original_data_parts, decompressed_buffers)):
             match = original == decompressed
@@ -53,7 +48,6 @@ def main():
         
         print(f"\nOverall integrity check: {'PASS' if all_match else 'FAIL'}")
         
-        # Verify total reconstructed data matches original
         reconstructed = b"".join(decompressed_buffers)
         total_match = reconstructed == original_combined
         print(f"Total data integrity: {'PASS' if total_match else 'FAIL'}")
@@ -65,12 +59,10 @@ def main():
     
     print("\n=== Comparison with Direct IOVec Method ===")
     
-    # Compare with the direct raw_uncompress_to_iovec method if available
     try:
         if hasattr(snappy, 'raw_uncompress_to_iovec'):
             direct_decompressed = snappy.raw_uncompress_to_iovec(compressed_data, buffer_sizes)
             
-            # Compare results
             methods_match = all(src == direct for src, direct in zip(decompressed_buffers, direct_decompressed))
             print(f"Source vs Direct method results match: {'YES' if methods_match else 'NO'}")
         else:
@@ -81,15 +73,13 @@ def main():
     
     print("\n=== Performance and Use Case Tests ===")
     
-    # Test with larger, more realistic data
     try:
-        # Simulate a compressed log file with structured entries
         log_entries = [
-            b"2025-05-29 10:30:00 INFO ",      # 20 bytes - timestamp
-            b"user:john.doe@example.com ",     # 24 bytes - user
-            b"action:file_upload ",            # 17 bytes - action
-            b"file:document.pdf size:2048KB ", # 28 bytes - details
-            b"status:success duration:150ms"   # 27 bytes - result
+            b"2025-05-29 10:30:00 INFO ",      
+            b"user:john.doe@example.com ",     
+            b"action:file_upload ",            
+            b"file:document.pdf size:2048KB ", 
+            b"status:success duration:150ms"   
         ]
         
         log_data = b"".join(log_entries)
@@ -113,7 +103,6 @@ def main():
     
     print("\n=== Edge Cases and Error Handling ===")
     
-    # Test with single buffer
     try:
         single_data = b"Single buffer test with Source abstraction " * 5
         single_compressed = snappy.compress(single_data)
@@ -125,9 +114,8 @@ def main():
     except RuntimeError as e:
         print(f"Single buffer test failed: {e}")
     
-    # Test with very small buffers
     try:
-        tiny_parts = [b"A", b"B", b"C", b"D", b"E"]  # 1 byte each
+        tiny_parts = [b"A", b"B", b"C", b"D", b"E"] 
         tiny_combined = b"".join(tiny_parts)
         tiny_compressed = snappy.compress(tiny_combined)
         tiny_sizes = [1] * 5
@@ -139,15 +127,14 @@ def main():
     except RuntimeError as e:
         print(f"Tiny buffers test failed: {e}")
     
-    # Test buffer size validation
     try:
-        wrong_sizes = [10, 20, 30]  # Wrong total size
+        wrong_sizes = [10, 20, 30]  
         snappy.raw_uncompress_to_iovec_from_source(compressed_data, wrong_sizes)
         print("Buffer size validation test: FAIL (should have raised error)")
     except RuntimeError as e:
         print(f"Buffer size validation test: PASS (correctly failed)")
     
-    # Test empty buffer list
+    
     try:
         empty_result = snappy.raw_uncompress_to_iovec_from_source(b"", [])
         print(f"Empty buffer list test: {'PASS' if empty_result == [] else 'FAIL'}")
