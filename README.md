@@ -24,23 +24,16 @@ project/
 
 ### 3. Run the Application
 ```bash
-# Development mode (with auto-reload)
 uvicorn app:app --reload --host 0.0.0.0 --port 8000
+```
 
-# Or using Python directly
-python app.py
+```bash
+# Can also be run using python directly.
+python3 app.py
 ```
 
 ### 4. Access the Application
 Open your browser and go to: **http://localhost:8000**
-
-## Features
-
-- 🔄 **Two compression modes**: Sandboxed and Unsandboxed
-- 📊 **Real-time statistics**: Compression ratio, space saved
-- 📋 **Copy to clipboard**: Easy sharing of compressed data
-- 🔍 **Error handling**: Detailed error messages for debugging
-- 📁 **File upload support**: Drag & drop or click to select files
 
 ## API Endpoints
 
@@ -49,18 +42,13 @@ Open your browser and go to: **http://localhost:8000**
 - `GET /health` - Health check
 - `GET /debug/test-error` - Test error handling
 
-## Troubleshooting
-
-If you see "Invalid compressed length" errors, this indicates an issue with your sandboxed Snappy implementation. Try using the unsandboxed mode instead.
-
-
-# Instructions to run code
+## Instructions to run code
+```
 python setup.py build_ext --inplace
-python app/main.py
+```
 
+## Steps to activate emsdk
 
-
-Steps to activate emsdk:
 ```
 ./emsdk activate latest
 source ./emsdk_env.sh
