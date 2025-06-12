@@ -9,10 +9,8 @@ def test_compress_source_sink():
     
     print("Testing CompressFromSourceToSink...")
     
-    # Initialize SnappyWasm
     snappy = SnappyWasm()
     
-    # Prepare test data (exactly as in original)
     test_string = "Hello, Snappy compression!"
     test_bytes = test_string.encode('utf-8')
     input_size = len(test_bytes)
@@ -21,12 +19,11 @@ def test_compress_source_sink():
     print(f"Original size: {input_size} bytes")
     
     try:
-        # Call the compression function
         compressed_data = snappy.compress_source_sink(test_string)
         compressed_size = len(compressed_data)
         
         if compressed_size > 0:
-            print(f"✅ Compression successful!")
+            print(f"Compression successful!")
             print(f"   Original size: {input_size} bytes")
             print(f"   Compressed size: {compressed_size} bytes")
             print(f"   Compression ratio: {(1 - compressed_size/input_size)*100:.1f}%")
@@ -34,27 +31,25 @@ def test_compress_source_sink():
             # Test with bytes input too
             compressed_bytes = snappy.compress_source_sink(test_bytes)
             if compressed_data == compressed_bytes:
-                print(f"✅ String and bytes input produce identical results")
+                print(f"String and bytes input produce identical results")
             else:
-                print(f"⚠️  String and bytes input produce different results")
+                print(f"String and bytes input produce different results")
                 
         else:
-            print("❌ Compression failed")
+            print("Compression failed")
             
     except Exception as e:
-        print(f"❌ Compression failed with error: {e}")
+        print(f"Compression failed with error: {e}")
 
-def additional_tests():
-    """Additional tests to verify the method works correctly"""
-    
+def additional_tests():    
     snappy = SnappyWasm()
     
     print("\n--- Additional Test Cases ---")
     
     test_cases = [
-        "A",  # Very small
-        "Hello, World!",  # Small  
-        "Hello, Snappy compression! " * 10,  # Medium
+        "A",  
+        "Hello, World!",  
+        "Hello, Snappy compression! " * 10,  
     ]
     
     for i, test_data in enumerate(test_cases):
@@ -66,12 +61,11 @@ def additional_tests():
             ratio = (1 - len(compressed)/len(test_data)) * 100
             print(f"   Result: {len(test_data)} → {len(compressed)} bytes ({ratio:.1f}% reduction)")
             
-            # Verify decompression works
             decompressed = snappy.uncompress(compressed)
             if decompressed == test_data.encode('utf-8'):
-                print(f"   ✅ Decompression verified")
+                print(f"   Decompression verified")
             else:
-                print(f"   ❌ Decompression failed")
+                print(f"  Decompression failed")
                 
         except Exception as e:
             print(f"   Failed: {e}")

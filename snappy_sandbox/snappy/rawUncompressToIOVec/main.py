@@ -10,11 +10,11 @@ def main():
     print("=== Raw IOVec Decompression Test ===")
     
     original_data_parts = [
-        b"First chunk of data " * 5,      # 100 bytes
-        b"Second part is longer " * 8,    # 184 bytes  
-        b"Third section " * 3,            # 45 bytes
-        b"Final piece " * 2,              # 24 bytes
-        b"End"                            # 3 bytes
+        b"First chunk of data " * 5,      
+        b"Second part is longer " * 8,     
+        b"Third section " * 3,            
+        b"Final piece " * 2,              
+        b"End"                            
     ]
     
     buffer_sizes = [len(part) for part in original_data_parts]
@@ -81,10 +81,10 @@ def main():
     
     try:
         varied_data = [
-            b"A" * 1,           # Very small
-            b"B" * 100,         # Medium
-            b"C" * 1000,        # Large
-            b"D" * 10,          # Small again
+            b"A" * 1,           
+            b"B" * 100,         
+            b"C" * 1000,        
+            b"D" * 10,          
         ]
         varied_combined = b"".join(varied_data)
         varied_compressed = snappy.compress(varied_combined)
@@ -99,13 +99,12 @@ def main():
         print(f"Varied buffer sizes test failed: {e}")
     
     try:
-        wrong_sizes = [50, 50, 50]  # Wrong total size
+        wrong_sizes = [50, 50, 50] 
         snappy.raw_uncompress_to_iovec(compressed_data, wrong_sizes)
         print("Buffer size mismatch test: FAIL (should have raised error)")
     except RuntimeError as e:
         print(f"Buffer size mismatch test: PASS (correctly failed: {e})")
     
-    # Test empty buffer list
     try:
         empty_result = snappy.raw_uncompress_to_iovec(b"", [])
         print(f"Empty buffer list test: {'PASS' if empty_result == [] else 'FAIL'}")
@@ -116,10 +115,10 @@ def main():
     
     print("Example 1: Network packet reconstruction")
     try:
-        header = b"PKT_HDR_V1" + b"\x00" * 6   # 16 bytes
-        payload1 = b"Important data chunk 1 " * 4  # 92 bytes
-        payload2 = b"Critical information " * 5    # 100 bytes
-        checksum = b"CHKSUM"                       # 6 bytes
+        header = b"PKT_HDR_V1" + b"\x00" * 6   
+        payload1 = b"Important data chunk 1 " * 4  
+        payload2 = b"Critical information " * 5    
+        checksum = b"CHKSUM"                       
         
         packet_parts = [header, payload1, payload2, checksum]
         packet_data = b"".join(packet_parts)

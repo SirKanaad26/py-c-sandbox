@@ -6,7 +6,6 @@ from snappywasm.snappy_sandbox import SnappyWasm
 
 
 def test_snappy_direct_wasm():
-    """Test both MaxCompressedLength and GetUncompressedLength"""
     try:
         snappy = SnappyWasm()
     except Exception as e:
@@ -43,7 +42,6 @@ def test_snappy_direct_wasm():
     import time
     iterations = 50000
     
-    # Test MaxCompressedLength performance
     test_size = 1000
     try:
         start_time = time.time()

@@ -4,16 +4,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from snappywasm.snappy_sandbox import SnappyWasm
 
-def test_is_valid_compressed():
-    """Test the is_valid_compressed method (Source* version)"""
-    
-    print("🚀 Snappy WASM Test - IsValidCompressed (Source* abstraction version)")
+def test_is_valid_compressed():    
+    print("Snappy WASM Test - IsValidCompressed (Source* abstraction version)")
     print("=" * 70)
     
     # Initialize SnappyWasm
     snappy = SnappyWasm()
     
-    print(f"✅ Snappy WASM version: {snappy.get_version()}")
+    print(f"Snappy WASM version: {snappy.get_version()}")
     print()
     
     # Test data
@@ -25,7 +23,7 @@ def test_is_valid_compressed():
     # Compress the data first
     try:
         compressed_data = snappy.compress(test_data.encode('utf-8'))
-        print(f"✅ Compression successful!")
+        print(f"Compression successful!")
         print(f"   Compressed size: {len(compressed_data)} bytes")
         print()
         
@@ -34,28 +32,26 @@ def test_is_valid_compressed():
         try:
             is_valid_source = snappy.is_valid_compressed(compressed_data)
             print(f"IsValidCompressed result: {is_valid_source}")
-            print(f"Status: {'✅ PASS' if is_valid_source else '❌ FAIL'}")
+            print(f"Status: {'PASS' if is_valid_source else 'FAIL'}")
             
-            # Verify with decompression if valid
             if is_valid_source:
                 try:
                     decompressed = snappy.uncompress(compressed_data)
                     if decompressed == test_data.encode('utf-8'):
-                        print(f"✅ Decompression verification: SUCCESS")
+                        print(f"Decompression verification: SUCCESS")
                     else:
-                        print(f"❌ Decompression verification: FAILED")
+                        print(f"Decompression verification: FAILED")
                 except Exception as e:
-                    print(f"❌ Decompression failed: {e}")
+                    print(f"Decompression failed: {e}")
                     
         except Exception as e:
-            print(f"❌ IsValidCompressed failed: {e}")
+            print(f"IsValidCompressed failed: {e}")
             
     except Exception as e:
-        print(f"❌ Compression failed: {e}")
+        print(f"Compression failed: {e}")
         return
 
 def test_invalid_data():
-    """Test validation function with invalid data"""
     
     print("\n--- Testing with Invalid Data (Source* abstraction) ---")
     
@@ -97,13 +93,12 @@ def test_invalid_data():
         try:
             is_valid = snappy.is_valid_compressed(test_case['data'])
             expected = "Expected: False"
-            result = "✅ CORRECT" if not is_valid else "⚠️ UNEXPECTED TRUE"
+            result = "CORRECT" if not is_valid else "UNEXPECTED TRUE"
             print(f"IsValidCompressed: {is_valid} ({expected}) - {result}")
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"Error: {e}")
 
 def test_source_abstraction_features():
-    """Test features specific to Source* abstraction"""
     
     print("\n--- Testing Source* Abstraction Features ---")
     
@@ -144,35 +139,31 @@ def test_source_abstraction_features():
         print(f"Original size: {len(original_data)} bytes")
         
         try:
-            # Compress the data
             compressed_data = snappy.compress(original_data)
             compression_ratio = (1 - len(compressed_data) / len(original_data)) * 100
             print(f"Compressed size: {len(compressed_data)} bytes ({compression_ratio:.1f}% reduction)")
             
-            # Test Source* validation
             is_valid = snappy.is_valid_compressed(compressed_data)
             print(f"IsValidCompressed (Source*): {is_valid}")
             
             if is_valid:
-                # Verify round-trip through Source* abstraction
                 try:
                     decompressed = snappy.uncompress(compressed_data)
                     if decompressed == original_data:
-                        print(f"✅ Source* round-trip verification: SUCCESS")
+                        print(f"Source* round-trip verification: SUCCESS")
                     else:
-                        print(f"❌ Source* round-trip verification: FAILED")
+                        print(f"Source* round-trip verification: FAILED")
                         print(f"   Expected: {len(original_data)} bytes")
                         print(f"   Got: {len(decompressed)} bytes")
                 except Exception as e:
-                    print(f"❌ Source* decompression error: {e}")
+                    print(f" Source* decompression error: {e}")
             else:
-                print(f"⚠️ Source* validation failed for compressed data")
+                print(f" Source* validation failed for compressed data")
                 
         except Exception as e:
-            print(f"❌ Compression failed: {e}")
+            print(f"Compression failed: {e}")
 
 def test_source_vs_buffer_consistency():
-    """Test consistency between Source* and buffer-based approaches"""
     
     print("\n--- Testing Source* vs Buffer Consistency ---")
     
@@ -183,7 +174,7 @@ def test_source_vs_buffer_consistency():
         b"Medium test data with some repetition and variety" * 5,
         b"Large test data set with lots of content and repetitive patterns" * 20,
         bytes([i % 128 for i in range(200)]),  # Binary pattern
-        "Unicode: 🚀🌟✨🎉🔥💫⭐🌈".encode('utf-8'),  # Unicode
+        "Unicode: ".encode('utf-8'),  # Unicode
     ]
     
     for i, data in enumerate(test_data_sets):
@@ -206,21 +197,19 @@ def test_source_vs_buffer_consistency():
             
             # Check consistency
             if is_valid_buffer == is_valid_source:
-                print(f"✅ Consistency check: PASS (both return {is_valid_buffer})")
+                print(f"Consistency check: PASS (both return {is_valid_buffer})")
             else:
-                print(f"❌ Consistency check: FAIL (Buffer: {is_valid_buffer}, Source*: {is_valid_source})")
+                print(f"Consistency check: FAIL (Buffer: {is_valid_buffer}, Source*: {is_valid_source})")
             
         except Exception as e:
-            print(f"❌ Test failed: {e}")
+            print(f"Test failed: {e}")
 
 def test_source_abstraction_edge_cases():
-    """Test edge cases specific to Source* abstraction"""
     
     print("\n--- Testing Source* Abstraction Edge Cases ---")
     
     snappy = SnappyWasm()
     
-    # Test very small data
     print("\nVery small data with Source* abstraction:")
     for size in [1, 2, 3, 4, 5]:
         data = b"X" * size
@@ -231,10 +220,8 @@ def test_source_abstraction_edge_cases():
         except Exception as e:
             print(f"Size {size}: Failed - {e}")
     
-    # Test incrementally larger data
     print("\nIncremental size testing with Source* abstraction:")
     for size in [10, 50, 100, 500, 1000]:
-        # Create data with some pattern for better compression
         pattern = f"Pattern{size}:"
         data = (pattern * (size // len(pattern) + 1))[:size].encode('utf-8')
         
@@ -247,7 +234,6 @@ def test_source_abstraction_edge_cases():
             print(f"Size {size:4d}: Failed - {e}")
 
 def test_source_abstraction_internals():
-    """Test understanding of Source* abstraction internals"""
     
     print("\n--- Source* Abstraction Implementation Details ---")
     print("The IsValidCompressed function uses Source* abstraction which:")
@@ -257,13 +243,12 @@ def test_source_abstraction_internals():
     print("4. Should behave identically to IsValidCompressedBuffer for the same input")
     print()
     print("Key advantages of Source* abstraction:")
-    print("• Matches original Snappy C++ API design")
-    print("• Allows for potential future extensions (different source types)")
-    print("• Provides cleaner abstraction layer")
-    print("• Maintains compatibility with Snappy's internal implementation")
+    print("Matches original Snappy C++ API design")
+    print("Allows for potential future extensions (different source types)")
+    print("Provides cleaner abstraction layer")
+    print("Maintains compatibility with Snappy's internal implementation")
 
 def main():
-    """Main test function"""
     
     try:
         test_is_valid_compressed()
@@ -274,7 +259,7 @@ def main():
         test_source_abstraction_internals()
         
         print("\n" + "=" * 70)
-        print("✅ IsValidCompressed (Source*) tests completed!")
+        print("IsValidCompressed (Source*) tests completed!")
         print("=" * 70)
         print("Summary:")
         print("• Tested Source* abstraction-based validation")
@@ -285,7 +270,7 @@ def main():
         print("• Confirmed C++ API compatibility")
         
     except Exception as e:
-        print(f"❌ Test suite failed: {e}")
+        print(f"Test suite failed: {e}")
         import traceback
         traceback.print_exc()
 

@@ -6,13 +6,11 @@ import time
 import sys
 
 def print_header(title):
-    """Print a formatted section header."""
     print(f"\n{'='*60}")
     print(f"{title:^60}")
     print('='*60)
 
 def test_constants():
-    """Test Snappy constants."""
     print_header("Testing Snappy Constants")
     
     constants = snappy_wrapper.get_constants()
@@ -20,42 +18,35 @@ def test_constants():
     for name, value in sorted(constants.items()):
         print(f"  {name:20} = {value}")
     
-    # Verify constants make sense
     assert constants['kBlockSize'] == 2 ** constants['kBlockLog']
     assert constants['kMinHashTableSize'] == 2 ** constants['kMinHashTableBits']
     assert constants['kMaxHashTableSize'] == 2 ** constants['kMaxHashTableBits']
-    print("\n✓ Constants validation passed")
+    print("\nConstants validation passed")
 
 def test_compression_options():
-    """Test PyCompressionOptions class."""
     print_header("Testing Compression Options")
     
-    # Test static methods
     print(f"Min compression level: {snappy_wrapper.PyCompressionOptions.min_level()}")
     print(f"Max compression level: {snappy_wrapper.PyCompressionOptions.max_level()}")
     print(f"Default compression level: {snappy_wrapper.PyCompressionOptions.default_level()}")
     
-    # Test creating options with valid levels
     opt1 = snappy_wrapper.PyCompressionOptions(level=1)
     opt2 = snappy_wrapper.PyCompressionOptions(level=2)
     print(f"\nCreated option with level 1: {opt1.get_level()}")
     print(f"Created option with level 2: {opt2.get_level()}")
     
-    # Test invalid level
     try:
         opt_invalid = snappy_wrapper.PyCompressionOptions(level=3)
         print("ERROR: Should have rejected level 3")
     except ValueError as e:
-        print(f"\n✓ Correctly rejected invalid level: {e}")
+        print(f"\nCorrectly rejected invalid level: {e}")
 
 def test_basic_compression():
-    """Test basic compression and decompression functions."""
     print_header("Testing Basic Compression/Decompression")
     
     test_data = b"Hello, World! This is a test string for Snappy compression. " * 3
     print(f"Original data size: {len(test_data)} bytes")
     
-    # Test max_compressed_length
     max_len = snappy_wrapper.max_compressed_length(len(test_data))
     print(f"Maximum compressed length: {max_len} bytes")
     

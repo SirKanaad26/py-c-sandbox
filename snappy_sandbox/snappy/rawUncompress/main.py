@@ -59,7 +59,7 @@ def test_integration():
         print(" Integration succeeded\n")
         return True
     else:
-        print("✗ Integration failed\n")
+        print("Integration failed\n")
         return False
 
 
